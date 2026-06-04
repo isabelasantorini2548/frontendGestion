@@ -19,7 +19,7 @@ import axios from 'axios';
 import DropDownPicker from 'react-native-dropdown-picker';
 
 // ✅ URL de producción (igual que en CrearUsuarioA y UsuarioA)
-const API_BASE_URL = 'https://unibackend-1-izpi.onrender.com'.trim();
+const API_BASE_URL = 'https://backendgestion-production.up.railway.app'.trim();
 
 const CARRERA_A_FACULTAD = {
   '1':'1', '2':'2', '3':'2', '4':'2', '5':'2', '6':'2', '7':'2',
