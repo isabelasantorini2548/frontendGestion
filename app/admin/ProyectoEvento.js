@@ -155,28 +155,33 @@ const getNotificationIcon = (type) => {
 };
 
 const TimePicker = ({ value, onChange }) => {
- const [internalDate, setInternalDate] = useState(new Date(value));
+  // ✅ useRef para acceso síncrono sin closure stale
+  const internalRef = useRef(new Date(value));
+  const [display, setDisplay] = useState(new Date(value));
   const [open, setOpen] = useState(false);
   const [showNativePicker, setShowNativePicker] = useState(false);
   const [inputH, setInputH] = useState('');
   const [inputM, setInputM] = useState('');
 
-   useEffect(() => {
-    setInternalDate(new Date(value));
+  useEffect(() => {
+    internalRef.current = new Date(value);
+    setDisplay(new Date(value));
   }, [value]);
 
-  const apply = useCallback((newH, newM) => {
-    setInternalDate(prev => {
-      const d = new Date(prev);
-      d.setHours(newH, newM, 0, 0);
-      onChange(d); // notifica al padre con la fecha correcta
-      return d;
-    });
-  }, [onChange]);
-
-  const h = dayjs(internalDate).hour();
-  const m = dayjs(internalDate).minute();
   const pad = (n) => String(n).padStart(2, '0');
+
+  // ✅ Lee desde ref (síncrono), escribe en ref Y estado
+  const apply = (newH, newM) => {
+    const d = new Date(internalRef.current);
+    d.setHours(newH, newM, 0, 0);
+    internalRef.current = d;      // actualización síncrona inmediata
+    setDisplay(new Date(d));      // dispara re-render
+    onChange(d);                  // notifica al padre
+  };
+
+  // Lee siempre desde display (estado que sí causa re-render)
+  const h = dayjs(display).hour();
+  const m = dayjs(display).minute();
 
   const handleOpenModal = () => {
     setInputH(pad(h));
@@ -188,14 +193,20 @@ const TimePicker = ({ value, onChange }) => {
     const clean = text.replace(/[^0-9]/g, '').slice(0, 2);
     setInputH(clean);
     const num = parseInt(clean, 10);
-    if (!isNaN(num) && num >= 0 && num <= 23) apply(num, m);
+    // ✅ Lee m desde ref para no usar valor stale
+    if (!isNaN(num) && num >= 0 && num <= 23) {
+      apply(num, dayjs(internalRef.current).minute());
+    }
   };
 
   const handleMinuteInput = (text) => {
     const clean = text.replace(/[^0-9]/g, '').slice(0, 2);
     setInputM(clean);
     const num = parseInt(clean, 10);
-    if (!isNaN(num) && num >= 0 && num <= 59) apply(h, num);
+    // ✅ Lee h desde ref para no usar valor stale
+    if (!isNaN(num) && num >= 0 && num <= 59) {
+      apply(dayjs(internalRef.current).hour(), num);
+    }
   };
 
   if (Platform.OS !== 'web') {
@@ -210,7 +221,6 @@ const TimePicker = ({ value, onChange }) => {
           <Text style={styles.timePickerTriggerText}>{pad(h)}:{pad(m)}</Text>
           <Ionicons name="chevron-down" size={16} color="#888" />
         </TouchableOpacity>
-
         <Modal
           visible={showNativePicker}
           transparent={true}
@@ -226,22 +236,16 @@ const TimePicker = ({ value, onChange }) => {
                 </TouchableOpacity>
               </View>
               <DateTimePicker
-                value={internalDate}
+                value={display}
                 mode="time"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 is24Hour={true}
                 onChange={(e, selected) => {
-                  if (Platform.OS === 'ios') {
-                    if (selected) {
-                      setInternalDate(selected);
-                      onChange(selected);
-                    }
-                  } else {
-                    setShowNativePicker(false);
-                    if (selected) {
-                      setInternalDate(selected);
-                      onChange(selected);
-                    }
+                  if (selected) {
+                    internalRef.current = selected;
+                    setDisplay(selected);
+                    onChange(selected);
+                    if (Platform.OS !== 'ios') setShowNativePicker(false);
                   }
                 }}
                 style={styles.dateTimePicker}
@@ -261,7 +265,7 @@ const TimePicker = ({ value, onChange }) => {
     );
   }
 
-  // ── Web ────────────────────────────────────────────────────
+  // ── Web ──────────────────────────────────────────────────
   return (
     <>
       <TouchableOpacity
@@ -282,8 +286,6 @@ const TimePicker = ({ value, onChange }) => {
       >
         <View style={styles.modalOverlayCentered}>
           <View style={styles.timePickerModalCentered}>
-
-            {/* Header */}
             <View style={styles.timePickerModalHeader}>
               <Ionicons name="alarm" size={24} color="#e95a0c" />
               <Text style={styles.timePickerModalTitle}>Hora de Inicio</Text>
@@ -292,7 +294,6 @@ const TimePicker = ({ value, onChange }) => {
               </TouchableOpacity>
             </View>
 
-            {/* Drums */}
             <View style={styles.drumRow}>
               {/* Horas */}
               <View style={styles.drumContainer}>
@@ -301,9 +302,12 @@ const TimePicker = ({ value, onChange }) => {
                   <TouchableOpacity
                     style={styles.drumBtn}
                     onPress={() => {
-                      const newH = (h + 1) % 24;
+                      // ✅ Lee desde ref, no desde h (que puede ser stale)
+                      const curH = dayjs(internalRef.current).hour();
+                      const curM = dayjs(internalRef.current).minute();
+                      const newH = (curH + 1) % 24;
                       setInputH(pad(newH));
-                      apply(newH, m);
+                      apply(newH, curM);
                     }}
                   >
                     <Ionicons name="chevron-up" size={24} color="#e95a0c" />
@@ -320,9 +324,11 @@ const TimePicker = ({ value, onChange }) => {
                   <TouchableOpacity
                     style={styles.drumBtn}
                     onPress={() => {
-                      const newH = (h + 23) % 24;
+                      const curH = dayjs(internalRef.current).hour();
+                      const curM = dayjs(internalRef.current).minute();
+                      const newH = (curH + 23) % 24;
                       setInputH(pad(newH));
-                      apply(newH, m);
+                      apply(newH, curM);
                     }}
                   >
                     <Ionicons name="chevron-down" size={24} color="#e95a0c" />
@@ -339,9 +345,11 @@ const TimePicker = ({ value, onChange }) => {
                   <TouchableOpacity
                     style={styles.drumBtn}
                     onPress={() => {
-                      const newM = (m + 1) % 60;
+                      const curH = dayjs(internalRef.current).hour();
+                      const curM = dayjs(internalRef.current).minute();
+                      const newM = (curM + 1) % 60;
                       setInputM(pad(newM));
-                      apply(h, newM);
+                      apply(curH, newM);
                     }}
                   >
                     <Ionicons name="chevron-up" size={24} color="#e95a0c" />
@@ -358,9 +366,11 @@ const TimePicker = ({ value, onChange }) => {
                   <TouchableOpacity
                     style={styles.drumBtn}
                     onPress={() => {
-                      const newM = (m + 59) % 60;
+                      const curH = dayjs(internalRef.current).hour();
+                      const curM = dayjs(internalRef.current).minute();
+                      const newM = (curM + 59) % 60;
                       setInputM(pad(newM));
-                      apply(h, newM);
+                      apply(curH, newM);
                     }}
                   >
                     <Ionicons name="chevron-down" size={24} color="#e95a0c" />
@@ -403,7 +413,6 @@ const TimePicker = ({ value, onChange }) => {
               </ScrollView>
             </View>
 
-            {/* Botón confirmar */}
             <TouchableOpacity
               style={styles.timePickerApply}
               onPress={() => setOpen(false)}
@@ -413,7 +422,6 @@ const TimePicker = ({ value, onChange }) => {
                 Confirmar {pad(h)}:{pad(m)}
               </Text>
             </TouchableOpacity>
-
           </View>
         </View>
       </Modal>
