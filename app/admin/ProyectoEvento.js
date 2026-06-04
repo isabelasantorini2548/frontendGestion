@@ -163,12 +163,12 @@ const TimePicker = ({ value, onChange }) => {
   const [inputH, setInputH] = useState('');
   const [inputM, setInputM] = useState('');
 
- useEffect(() => {
-  if (!open && !showNativePicker) {
-    internalRef.current = new Date(value);
-    setDisplay(new Date(value));
-  }
-}, [value, open, showNativePicker]);
+useEffect(() => {
+  // Siempre sincronizar cuando value cambie desde el padre
+  const newValue = new Date(value);
+  internalRef.current = newValue;
+  setDisplay(newValue);
+}, [value]);
 
   const pad = (n) => String(n).padStart(2, '0');
 
@@ -417,7 +417,10 @@ const TimePicker = ({ value, onChange }) => {
 
             <TouchableOpacity
               style={styles.timePickerApply}
-              onPress={() => setOpen(false)}
+              onPress={() => { 
+                const d = new Date(internalRef.current);
+                onChange(d);
+                setOpen(false);}}
             >
               <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
               <Text style={styles.timePickerApplyText}>
