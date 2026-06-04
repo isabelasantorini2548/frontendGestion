@@ -26,7 +26,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  //const API_BASE_URL =  'https://unifrontend.onrender.com';
  
  
- const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://frontendgestion-production.up.railway.app';
+ const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://backendgestion-production.up.railway.app';
  let determinedApiBaseUrl= API_BASE_URL;
 
 
