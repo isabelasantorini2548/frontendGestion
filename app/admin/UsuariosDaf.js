@@ -32,7 +32,7 @@ let determinedApiBaseUrl;
   determinedApiBaseUrl = 'http://localhost:3001/api';
 }*/
 //const API_BASE_URL =  'https://evento.cidtec-uc.com';
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://backendgestion-production.up.railway.app';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://frontendgestion-production.up.railway.app';
 //const API_BASE_URL =  'https://unifrontend.onrender.com';
 
 const getTokenAsync = async () => {
@@ -105,7 +105,7 @@ const COLORS = {
 };
 
 const UsuariosDaf = () => {
-  console.log("UsuariosA: Renderizando componente");
+  console.log("UsuariosDaf: Renderizando componente");
   const router = useRouter();
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
@@ -118,7 +118,7 @@ const UsuariosDaf = () => {
   const params = useLocalSearchParams();
 
   const fetchUsers = async (isRefresh = false) => {
-    console.log("UsuariosA: Ejecutando fetchUsers...");
+    console.log("UsuariosDaf: Ejecutando fetchUsers...");
     if (isRefresh) {
       setRefreshing(true);
     } else {
