@@ -155,19 +155,26 @@ const getNotificationIcon = (type) => {
 };
 
 const TimePicker = ({ value, onChange }) => {
+ const [internalDate, setInternalDate] = useState(new Date(value));
   const [open, setOpen] = useState(false);
   const [showNativePicker, setShowNativePicker] = useState(false);
   const [inputH, setInputH] = useState('');
   const [inputM, setInputM] = useState('');
 
-  const h = dayjs(value).hour();
-  const m = dayjs(value).minute();
+   useEffect(() => {
+    setInternalDate(new Date(value));
+  }, [value]);
+
+  const h = dayjs(internalDate).hour();
+  const m = dayjs(internalDate).minute();
   const pad = (n) => String(n).padStart(2, '0');
 
+  // ✅ apply ahora usa internalDate y actualiza ambos estados
   const apply = (newH, newM) => {
-    const d = new Date(value);
+    const d = new Date(internalDate);
     d.setHours(newH, newM, 0, 0);
-    onChange(d);
+    setInternalDate(d);   // estado local inmediato
+    onChange(d);          // notifica al padre
   };
 
   const handleOpenModal = () => {
@@ -190,7 +197,6 @@ const TimePicker = ({ value, onChange }) => {
     if (!isNaN(num) && num >= 0 && num <= 59) apply(h, num);
   };
 
-  // iOS / Android: usar picker nativo con Modal
   if (Platform.OS !== 'web') {
     return (
       <>
@@ -1022,13 +1028,13 @@ const ProyectoEvento = () => {
   };
 
   const handleClockTimeChange = (newDate) => {
-    const conflictos = verificarConflictoHorario(newDate);
-    if (conflictos.length > 0) {
-      setConflictoDetectado(conflictos[0]);
-      setShowConflictModal(true);
-    } else {
       setFechaHoraSeleccionada(newDate);
-    }
+       const conflictos = verificarConflictoHorario(newDate);
+  if (conflictos.length > 0) {
+    setConflictoDetectado(conflictos[0]);
+    setShowConflictModal(true);
+  }
+   
   };
 
   const cargarRecursos = useCallback(async () => {
