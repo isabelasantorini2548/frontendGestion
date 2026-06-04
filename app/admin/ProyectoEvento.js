@@ -163,10 +163,12 @@ const TimePicker = ({ value, onChange }) => {
   const [inputH, setInputH] = useState('');
   const [inputM, setInputM] = useState('');
 
-  useEffect(() => {
+ useEffect(() => {
+  if (!open && !showNativePicker) {
     internalRef.current = new Date(value);
     setDisplay(new Date(value));
-  }, [value]);
+  }
+}, [value, open, showNativePicker]);
 
   const pad = (n) => String(n).padStart(2, '0');
 
@@ -428,7 +430,6 @@ const TimePicker = ({ value, onChange }) => {
     </>
   );
 };
-
 const NotificationBell = ({ notificationCount, onPress }) => (
   <TouchableOpacity onPress={onPress} style={styles.notificationBell}>
     <Ionicons name="notifications-outline" size={24} color="#333" />
