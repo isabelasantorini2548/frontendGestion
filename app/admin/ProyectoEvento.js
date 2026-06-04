@@ -165,17 +165,18 @@ const TimePicker = ({ value, onChange }) => {
     setInternalDate(new Date(value));
   }, [value]);
 
+  const apply = useCallback((newH, newM) => {
+    setInternalDate(prev => {
+      const d = new Date(prev);
+      d.setHours(newH, newM, 0, 0);
+      onChange(d); // notifica al padre con la fecha correcta
+      return d;
+    });
+  }, [onChange]);
+
   const h = dayjs(internalDate).hour();
   const m = dayjs(internalDate).minute();
   const pad = (n) => String(n).padStart(2, '0');
-
-  // ✅ apply ahora usa internalDate y actualiza ambos estados
-  const apply = (newH, newM) => {
-    const d = new Date(internalDate);
-    d.setHours(newH, newM, 0, 0);
-    setInternalDate(d);   // estado local inmediato
-    onChange(d);          // notifica al padre
-  };
 
   const handleOpenModal = () => {
     setInputH(pad(h));
@@ -225,16 +226,22 @@ const TimePicker = ({ value, onChange }) => {
                 </TouchableOpacity>
               </View>
               <DateTimePicker
-                value={value}
+                value={internalDate}
                 mode="time"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 is24Hour={true}
                 onChange={(e, selected) => {
                   if (Platform.OS === 'ios') {
-                    if (selected) onChange(selected);
+                    if (selected) {
+                      setInternalDate(selected);
+                      onChange(selected);
+                    }
                   } else {
                     setShowNativePicker(false);
-                    if (selected) onChange(selected);
+                    if (selected) {
+                      setInternalDate(selected);
+                      onChange(selected);
+                    }
                   }
                 }}
                 style={styles.dateTimePicker}
@@ -254,7 +261,7 @@ const TimePicker = ({ value, onChange }) => {
     );
   }
 
-  // Web: Modal con inputs editables
+  // ── Web ────────────────────────────────────────────────────
   return (
     <>
       <TouchableOpacity
@@ -285,9 +292,8 @@ const TimePicker = ({ value, onChange }) => {
               </TouchableOpacity>
             </View>
 
-            {/* Drums con inputs editables */}
+            {/* Drums */}
             <View style={styles.drumRow}>
-
               {/* Horas */}
               <View style={styles.drumContainer}>
                 <Text style={styles.drumLabel}>Hora</Text>
@@ -1027,15 +1033,16 @@ const ProyectoEvento = () => {
     });
   };
 
-  const handleClockTimeChange = (newDate) => {
+  const handleClockTimeChange = useCallback((newDate) => {
       setFechaHoraSeleccionada(newDate);
-       const conflictos = verificarConflictoHorario(newDate);
-  if (conflictos.length > 0) {
+
+    const conflictos = verificarConflictoHorario(newDate);
+    if (conflictos.length > 0) {
     setConflictoDetectado(conflictos[0]);
     setShowConflictModal(true);
   }
    
-  };
+  }, [eventos]);
 
   const cargarRecursos = useCallback(async () => {
     const token = await getTokenAsync();
