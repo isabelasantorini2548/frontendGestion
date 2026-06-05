@@ -1054,28 +1054,15 @@ const ProyectoEvento = () => {
     });
   };
 
-  const handleClockTimeChange = useCallback((newDate) => {
+ const handleClockTimeChange = (newDate) => {
   setFechaHoraSeleccionada(newDate);
-  
-  const fechaFormateada = dayjs(newDate).format('YYYY-MM-DD');
-  const horaFormateada = dayjs(newDate).format('HH:mm');
-  const eventosEnMismaFecha = eventos.filter(evento => 
-    dayjs(evento.fechaevento).format('YYYY-MM-DD') === fechaFormateada
-  );
 
-  const conflictos = eventosEnMismaFecha.filter(evento => {
-    const horaEventoString = (evento.horaevento || '').split('+')[0].trim();
-    const horaEvento = dayjs(horaEventoString, 'HH:mm:ss');
-    if (!horaEvento.isValid()) return false;
-    const horaSeleccionada = dayjs(horaFormateada, 'HH:mm');
-    return Math.abs(horaEvento.diff(horaSeleccionada, 'minutes')) < 240;
-  });
-  
+  const conflictos = verificarConflictoHorario(newDate);
   if (conflictos.length > 0) {
     setConflictoDetectado(conflictos[0]);
     setShowConflictModal(true);
   }
-}, [eventos]);
+};
   const cargarRecursos = useCallback(async () => {
     const token = await getTokenAsync();
     if (!token) return;
