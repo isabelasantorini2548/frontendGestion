@@ -153,47 +153,182 @@ const getNotificationIcon = (type) => {
 };
 
 const TimePicker = ({ value, onChange }) => {
-  const [showNativePicker, setShowNativePicker] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [tempHour, setTempHour] = useState(dayjs(value).hour());
+  const [tempMinute, setTempMinute] = useState(dayjs(value).minute());
+  
   const pad = (n) => String(n).padStart(2, '0');
-
   const confirmedH = dayjs(value).hour();
   const confirmedM = dayjs(value).minute();
-  const timeString = `${pad(confirmedH)}:${pad(confirmedM)}`;
 
-  // ── WEB: Usar input nativo HTML ──────────────────────────────────────────
+  const hours = Array.from({ length: 24 }, (_, i) => i);
+  const minutes = Array.from({ length: 60 }, (_, i) => i);
+
+  const handleConfirm = () => {
+    const newDate = new Date(value);
+    newDate.setHours(tempHour, tempMinute, 0, 0);
+    onChange(newDate);
+    setShowModal(false);
+  };
+
+  const handleQuickSelect = (hour) => {
+    setTempHour(hour);
+    setTempMinute(0);
+    const newDate = new Date(value);
+    newDate.setHours(hour, 0, 0, 0);
+    onChange(newDate);
+    setShowModal(false);
+  };
+
+  // ── WEB: Custom Time Picker con mejor diseño ────────────────────────────
   if (Platform.OS === 'web') {
-    const handleWebTimeChange = (e) => {
-      const [hours, minutes] = e.target.value.split(':');
-      const newDate = new Date(value);
-      newDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
-      onChange(newDate);
-    };
-
     return (
-      <View style={styles.timePickerTrigger}>
-        <Ionicons name="time-outline" size={20} color="#e95a0c" />
-        <input
-          type="time"
-          value={timeString}
-          onChange={handleWebTimeChange}
-          style={{
-            border: 'none',
-            background: 'transparent',
-            fontSize: 18,
-            fontWeight: '700',
-            color: '#e95a0c',
-            outline: 'none',
-            flex: 1,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            padding: '0 4px'
+      <>
+        <TouchableOpacity
+          onPress={() => {
+            setTempHour(confirmedH);
+            setTempMinute(confirmedM);
+            setShowModal(true);
           }}
-        />
-      </View>
+          style={styles.timePickerTrigger}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="time-outline" size={20} color="#e95a0c" />
+          <Text style={styles.timePickerTriggerText}>
+            {pad(confirmedH)}:{pad(confirmedM)}
+          </Text>
+          <Ionicons name="chevron-down" size={16} color="#888" />
+        </TouchableOpacity>
+
+        <Modal
+          visible={showModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowModal(false)}
+        >
+          <View style={styles.modalOverlayCentered}>
+            <View style={styles.customTimePickerModal}>
+              <View style={styles.customTimePickerHeader}>
+                <View style={styles.headerIcon}>
+                  <Ionicons name="alarm" size={24} color="#e95a0c" />
+                </View>
+                <Text style={styles.customTimePickerTitle}>Hora de Inicio</Text>
+                <TouchableOpacity onPress={() => setShowModal(false)}>
+                  <Ionicons name="close" size={24} color="#666" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.timeDisplay}>
+                <Text style={styles.timeDisplayText}>
+                  {pad(tempHour)}:{pad(tempMinute)}
+                </Text>
+              </View>
+
+              <View style={styles.pickersRow}>
+                {/* Selector de Horas */}
+                <View style={styles.selectorColumn}>
+                  <Text style={styles.selectorLabel}>Hora</Text>
+                  <ScrollView 
+                    style={styles.scrollSelector}
+                    showsVerticalScrollIndicator={true}
+                  >
+                    {hours.map((hour) => (
+                      <TouchableOpacity
+                        key={hour}
+                        style={[
+                          styles.timeOption,
+                          tempHour === hour && styles.timeOptionSelected
+                        ]}
+                        onPress={() => setTempHour(hour)}
+                      >
+                        <Text style={[
+                          styles.timeOptionText,
+                          tempHour === hour && styles.timeOptionTextSelected
+                        ]}>
+                          {pad(hour)}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+
+                <Text style={styles.colonSeparator}>:</Text>
+
+                {/* Selector de Minutos */}
+                <View style={styles.selectorColumn}>
+                  <Text style={styles.selectorLabel}>Minutos</Text>
+                  <ScrollView 
+                    style={styles.scrollSelector}
+                    showsVerticalScrollIndicator={true}
+                  >
+                    {minutes.map((minute) => (
+                      <TouchableOpacity
+                        key={minute}
+                        style={[
+                          styles.timeOption,
+                          tempMinute === minute && styles.timeOptionSelected
+                        ]}
+                        onPress={() => setTempMinute(minute)}
+                      >
+                        <Text style={[
+                          styles.timeOptionText,
+                          tempMinute === minute && styles.timeOptionTextSelected
+                        ]}>
+                          {pad(minute)}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              </View>
+
+              {/* Horas rápidas */}
+              <View style={styles.quickHoursContainer}>
+                <Text style={styles.quickHoursLabel}>Horas disponibles:</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.quickHoursScroll}
+                >
+                  {[7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((hour) => (
+                    <TouchableOpacity
+                      key={hour}
+                      style={[
+                        styles.quickHourBtn,
+                        tempHour === hour && tempMinute === 0 && styles.quickHourBtnActive
+                      ]}
+                      onPress={() => handleQuickSelect(hour)}
+                    >
+                      <Text style={[
+                        styles.quickHourText,
+                        tempHour === hour && tempMinute === 0 && styles.quickHourTextActive
+                      ]}>
+                        {pad(hour)}:00
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              <TouchableOpacity
+                style={styles.confirmButton}
+                onPress={handleConfirm}
+              >
+                <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
+                <Text style={styles.confirmButtonText}>
+                  Confirmar {pad(tempHour)}:{pad(tempMinute)}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      </>
     );
   }
 
-  // ── MOBILE: Usar DateTimePicker nativo ──────────────────────────────────
+  // ── MOBILE: DateTimePicker nativo ──────────────────────────────────────
+  const [showNativePicker, setShowNativePicker] = useState(false);
+
   return (
     <>
       <TouchableOpacity
@@ -2205,6 +2340,160 @@ const styles = StyleSheet.create({
   modalButtonPrimary: { backgroundColor: '#e95a0c', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 8, flex: 1, alignItems: 'center' },
   modalButtonPrimaryText: { fontSize: 14, color: '#ffffff', fontWeight: '600' },
   selectedText: { fontSize: 14, color: '#e95a0c', marginTop: 5, marginLeft: 10 },
+   customTimePickerModal: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    width: '90%',
+    maxWidth: 450,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 20,
+  },
+  customTimePickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 2,
+    borderBottomColor: '#f5f5f5',
+  },
+  headerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#fff5f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  customTimePickerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    flex: 1,
+    marginLeft: 12,
+  },
+  timeDisplay: {
+    backgroundColor: '#fff5f0',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    marginBottom: 24,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#e95a0c',
+  },
+  timeDisplayText: {
+    fontSize: 48,
+    fontWeight: '700',
+    color: '#e95a0c',
+    letterSpacing: 2,
+  },
+  pickersRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+    marginBottom: 24,
+    height: 200,
+  },
+  selectorColumn: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  selectorLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 12,
+  },
+  scrollSelector: {
+    maxHeight: 200,
+    borderWidth: 2,
+    borderColor: '#e95a0c',
+    borderRadius: 12,
+    backgroundColor: '#fff',
+  },
+  timeOption: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  timeOptionSelected: {
+    backgroundColor: '#e95a0c',
+  },
+  timeOptionText: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
+  },
+  timeOptionTextSelected: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  colonSeparator: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#e95a0c',
+    marginTop: 30,
+  },
+  quickHoursContainer: {
+    marginBottom: 20,
+  },
+  quickHoursLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 12,
+  },
+  quickHoursScroll: {
+    maxHeight: 50,
+  },
+  quickHourBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+    backgroundColor: '#f8f9fa',
+    marginRight: 10,
+  },
+  quickHourBtnActive: {
+    backgroundColor: '#e95a0c',
+    borderColor: '#e95a0c',
+  },
+  quickHourText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '600',
+  },
+  quickHourTextActive: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  confirmButton: {
+    backgroundColor: '#e95a0c',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    shadowColor: '#e95a0c',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  confirmButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
 });
 
 export default ProyectoEvento;
