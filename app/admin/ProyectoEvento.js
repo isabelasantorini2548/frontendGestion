@@ -153,248 +153,107 @@ const getNotificationIcon = (type) => {
 };
 
 const TimePicker = ({ value, onChange }) => {
-  const [open, setOpen] = useState(false);
   const [showNativePicker, setShowNativePicker] = useState(false);
-  const [tempH, setTempH] = useState(dayjs(value).hour());
-  const [tempM, setTempM] = useState(dayjs(value).minute());
-  const [inputH, setInputH] = useState(String(dayjs(value).hour()).padStart(2, '0'));
-  const [inputM, setInputM] = useState(String(dayjs(value).minute()).padStart(2, '0'));
-
   const pad = (n) => String(n).padStart(2, '0');
 
-  // Hora confirmada (fuente de verdad del padre)
   const confirmedH = dayjs(value).hour();
   const confirmedM = dayjs(value).minute();
+  const timeString = `${pad(confirmedH)}:${pad(confirmedM)}`;
 
-  const handleOpenModal = () => {
-    // Al abrir, sincronizar estado temporal con el valor confirmado del padre
-    setTempH(confirmedH);
-    setTempM(confirmedM);
-    setInputH(pad(confirmedH));
-    setInputM(pad(confirmedM));
-    setOpen(true);
-  };
+  // ── WEB: Usar input nativo HTML ──────────────────────────────────────────
+  if (Platform.OS === 'web') {
+    const handleWebTimeChange = (e) => {
+      const [hours, minutes] = e.target.value.split(':');
+      const newDate = new Date(value);
+      newDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+      onChange(newDate);
+    };
 
-  const handleConfirm = () => {
-    const d = new Date(value);
-    d.setHours(tempH, tempM, 0, 0);
-    onChange(d);
-    setOpen(false);
-  };
-
-  const changeHour = (delta) => {
-    const newH = (tempH + delta + 24) % 24;
-    setTempH(newH);
-    setInputH(pad(newH));
-  };
-
-  const changeMinute = (delta) => {
-    const newM = (tempM + delta + 60) % 60;
-    setTempM(newM);
-    setInputM(pad(newM));
-  };
-
-  const handleHourInput = (text) => {
-    const clean = text.replace(/[^0-9]/g, '').slice(0, 2);
-    setInputH(clean);
-    const num = parseInt(clean, 10);
-    if (!isNaN(num) && num >= 0 && num <= 23) setTempH(num);
-  };
-
-  const handleMinuteInput = (text) => {
-    const clean = text.replace(/[^0-9]/g, '').slice(0, 2);
-    setInputM(clean);
-    const num = parseInt(clean, 10);
-    if (!isNaN(num) && num >= 0 && num <= 59) setTempM(num);
-  };
-
-  if (Platform.OS !== 'web') {
     return (
-      <>
-        <TouchableOpacity
-          onPress={() => setShowNativePicker(true)}
-          style={styles.timePickerTrigger}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="time-outline" size={20} color="#e95a0c" />
-          <Text style={styles.timePickerTriggerText}>{pad(confirmedH)}:{pad(confirmedM)}</Text>
-          <Ionicons name="chevron-down" size={16} color="#888" />
-        </TouchableOpacity>
-        <Modal
-          visible={showNativePicker}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={() => setShowNativePicker(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.pickerModalContent}>
-              <View style={styles.pickerHeader}>
-                <Text style={styles.pickerTitle}>Seleccionar Hora de Inicio</Text>
-                <TouchableOpacity onPress={() => setShowNativePicker(false)}>
-                  <Ionicons name="close" size={24} color="#333" />
-                </TouchableOpacity>
-              </View>
-              <DateTimePicker
-                value={value}
-                mode="time"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                is24Hour={true}
-                onChange={(e, selected) => {
-                  if (selected) {
-                    onChange(selected);
-                    if (Platform.OS !== 'ios') setShowNativePicker(false);
-                  }
-                }}
-                style={styles.dateTimePicker}
-              />
-              {Platform.OS === 'ios' && (
-                <TouchableOpacity
-                  style={styles.doneButton}
-                  onPress={() => setShowNativePicker(false)}
-                >
-                  <Text style={styles.doneButtonText}>Listo - {pad(confirmedH)}:{pad(confirmedM)}</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-        </Modal>
-      </>
+      <View style={styles.timePickerTrigger}>
+        <Ionicons name="time-outline" size={20} color="#e95a0c" />
+        <input
+          type="time"
+          value={timeString}
+          onChange={handleWebTimeChange}
+          style={{
+            border: 'none',
+            background: 'transparent',
+            fontSize: 18,
+            fontWeight: '700',
+            color: '#e95a0c',
+            outline: 'none',
+            flex: 1,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            padding: '0 4px'
+          }}
+        />
+      </View>
     );
   }
 
-  // ── Web ──────────────────────────────────────────────────
+  // ── MOBILE: Usar DateTimePicker nativo ──────────────────────────────────
   return (
     <>
-      {/* Trigger: siempre muestra el valor CONFIRMADO del padre */}
       <TouchableOpacity
-        onPress={handleOpenModal}
+        onPress={() => setShowNativePicker(true)}
         style={styles.timePickerTrigger}
         activeOpacity={0.7}
       >
         <Ionicons name="time-outline" size={20} color="#e95a0c" />
-        <Text style={styles.timePickerTriggerText}>{pad(confirmedH)}:{pad(confirmedM)}</Text>
-        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color="#888" />
+        <Text style={styles.timePickerTriggerText}>
+          {pad(confirmedH)}:{pad(confirmedM)}
+        </Text>
+        <Ionicons name="chevron-down" size={16} color="#888" />
       </TouchableOpacity>
 
       <Modal
-        visible={open}
+        visible={showNativePicker}
         transparent={true}
-        animationType="fade"
-        onRequestClose={() => setOpen(false)}
+        animationType="slide"
+        onRequestClose={() => setShowNativePicker(false)}
       >
-        <View style={styles.modalOverlayCentered}>
-          <View style={styles.timePickerModalCentered}>
-            <View style={styles.timePickerModalHeader}>
-              <Ionicons name="alarm" size={24} color="#e95a0c" />
-              <Text style={styles.timePickerModalTitle}>Hora de Inicio</Text>
-              <TouchableOpacity onPress={() => setOpen(false)} style={styles.closeButton}>
-                <Ionicons name="close" size={24} color="#666" />
+        <View style={styles.modalOverlay}>
+          <View style={styles.pickerModalContent}>
+            <View style={styles.pickerHeader}>
+              <Text style={styles.pickerTitle}>Seleccionar Hora de Inicio</Text>
+              <TouchableOpacity onPress={() => setShowNativePicker(false)}>
+                <Ionicons name="close" size={24} color="#333" />
               </TouchableOpacity>
             </View>
-
-            <View style={styles.drumRow}>
-              {/* Horas */}
-              <View style={styles.drumContainer}>
-                <Text style={styles.drumLabel}>Hora</Text>
-                <View style={styles.drum}>
-                  <TouchableOpacity style={styles.drumBtn} onPress={() => changeHour(1)}>
-                    <Ionicons name="chevron-up" size={24} color="#e95a0c" />
-                  </TouchableOpacity>
-                  <TextInput
-                    style={styles.drumInput}
-                    value={inputH}
-                    onChangeText={handleHourInput}
-                    keyboardType="numeric"
-                    maxLength={2}
-                    textAlign="center"
-                    selectTextOnFocus
-                  />
-                  <TouchableOpacity style={styles.drumBtn} onPress={() => changeHour(-1)}>
-                    <Ionicons name="chevron-down" size={24} color="#e95a0c" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              <Text style={styles.drumColon}>:</Text>
-
-              {/* Minutos */}
-              <View style={styles.drumContainer}>
-                <Text style={styles.drumLabel}>Minutos</Text>
-                <View style={styles.drum}>
-                  <TouchableOpacity style={styles.drumBtn} onPress={() => changeMinute(1)}>
-                    <Ionicons name="chevron-up" size={24} color="#e95a0c" />
-                  </TouchableOpacity>
-                  <TextInput
-                    style={styles.drumInput}
-                    value={inputM}
-                    onChangeText={handleMinuteInput}
-                    keyboardType="numeric"
-                    maxLength={2}
-                    textAlign="center"
-                    selectTextOnFocus
-                  />
-                  <TouchableOpacity style={styles.drumBtn} onPress={() => changeMinute(-1)}>
-                    <Ionicons name="chevron-down" size={24} color="#e95a0c" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-
-            {/* Accesos rápidos */}
-            <View style={styles.quickTimesContainer}>
-              <Text style={styles.quickTimesLabel}>Horas disponibles:</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.quickTimesScroll}
-                contentContainerStyle={styles.quickTimesContent}
+            
+            <DateTimePicker
+              value={value}
+              mode="time"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              is24Hour={true}
+              onChange={(e, selected) => {
+                if (selected) {
+                  onChange(selected);
+                  if (Platform.OS !== 'ios') setShowNativePicker(false);
+                }
+              }}
+              style={styles.dateTimePicker}
+            />
+            
+            {Platform.OS === 'ios' && (
+              <TouchableOpacity
+                style={styles.doneButton}
+                onPress={() => setShowNativePicker(false)}
               >
-                {QUICK_TIMES.map((qt) => (
-                  <TouchableOpacity
-                    key={qt}
-                    style={[
-                      styles.quickTimeBtn,
-                      tempH === qt && tempM === 0 && styles.quickTimeBtnActive
-                    ]}
-                    onPress={() => {
-                      setTempH(qt);
-                      setTempM(0);
-                      setInputH(pad(qt));
-                      setInputM('00');
-                      // Confirmar directamente al elegir hora rápida
-                      const d = new Date(value);
-                      d.setHours(qt, 0, 0, 0);
-                      onChange(d);
-                      setOpen(false);
-                    }}
-                  >
-                    <Text style={[
-                      styles.quickTimeBtnText,
-                      tempH === qt && tempM === 0 && styles.quickTimeBtnTextActive
-                    ]}>
-                      {pad(qt)}:00
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-
-            {/* Botón confirmar: siempre muestra tempH/tempM (estado interno del modal) */}
-            <TouchableOpacity
-              style={styles.timePickerApply}
-              onPress={handleConfirm}
-            >
-              <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
-              <Text style={styles.timePickerApplyText}>
-                Confirmar {pad(tempH)}:{pad(tempM)}
-              </Text>
-            </TouchableOpacity>
+                <Text style={styles.doneButtonText}>
+                  Listo - {pad(confirmedH)}:{pad(confirmedM)}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </Modal>
     </>
   );
 };
+
 const NotificationBell = ({ notificationCount, onPress }) => (
   <TouchableOpacity onPress={onPress} style={styles.notificationBell}>
     <Ionicons name="notifications-outline" size={24} color="#333" />
