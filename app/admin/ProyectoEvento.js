@@ -181,6 +181,8 @@ const TimePicker = ({ value, onChange }) => {
   const h = dayjs(display).hour();
   const m = dayjs(display).minute();
 
+  const triggerH = dayjs(value).hour();
+  const triggerM = dayjs(value).minute();
 
   const handleOpenModal = () => {
     const newValue = new Date(value);
