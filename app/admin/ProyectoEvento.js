@@ -155,7 +155,6 @@ const getNotificationIcon = (type) => {
 };
 
 const TimePicker = ({ value, onChange }) => {
-  // ✅ useRef para acceso síncrono sin closure stale
   const internalRef = useRef(new Date(value));
   const [display, setDisplay] = useState(new Date(value));
   const [open, setOpen] = useState(false);
@@ -163,16 +162,8 @@ const TimePicker = ({ value, onChange }) => {
   const [inputH, setInputH] = useState('');
   const [inputM, setInputM] = useState('');
 
-useEffect(() => {
-  // Siempre sincronizar cuando value cambie desde el padre
-  const newValue = new Date(value);
-  internalRef.current = newValue;
-  setDisplay(newValue);
-}, [value]);
-
   const pad = (n) => String(n).padStart(2, '0');
 
-  // ✅ Lee desde ref (síncrono), escribe en ref Y estado
   const apply = (newH, newM) => {
     const d = new Date(internalRef.current);
     d.setHours(newH, newM, 0, 0);
@@ -185,12 +176,15 @@ useEffect(() => {
   const h = dayjs(display).hour();
   const m = dayjs(display).minute();
 
-  const handleOpenModal = () => {
-    setInputH(pad(h));
-    setInputM(pad(m));
+ const handleOpenModal = () => {
+    const newValue = new Date(value);
+    internalRef.current = newValue;
+    setDisplay(newValue);
+    setInputH(pad(dayjs(newValue).hour()));
+    setInputM(pad(dayjs(newValue).minute()));
     setOpen(true);
   };
-
+  
   const handleHourInput = (text) => {
     const clean = text.replace(/[^0-9]/g, '').slice(0, 2);
     setInputH(clean);
