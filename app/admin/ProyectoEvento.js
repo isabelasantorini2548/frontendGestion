@@ -172,19 +172,15 @@ const TimePicker = ({ value, onChange }) => {
   const apply = (newH, newM) => {
     const d = new Date(internalRef.current);
     d.setHours(newH, newM, 0, 0);
-    internalRef.current = d;      // actualización síncrona inmediata
-    setDisplay(new Date(d));      // dispara re-render del modal
-    onChange(d);                  // notifica al padre
+    internalRef.current = d;      
+    setDisplay(new Date(d));      
+    onChange(d);                  
   };
 
   // h/m: usados DENTRO del modal (drum, quick times, highlight)
   const h = dayjs(display).hour();
   const m = dayjs(display).minute();
 
-  // FIX 1 ── triggerH/triggerM leen del PADRE, no del estado interno del modal
-  // Así el botón trigger siempre refleja el valor ya confirmado.
-  const triggerH = dayjs(value).hour();
-  const triggerM = dayjs(value).minute();
 
   const handleOpenModal = () => {
     const newValue = new Date(value);
