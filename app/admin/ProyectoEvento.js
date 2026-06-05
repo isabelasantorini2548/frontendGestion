@@ -19,7 +19,6 @@ const API_BASE_URL = 'https://backendgestion-production.up.railway.app';
 const { width } = Dimensions.get('window');
 const isMobile = width < 768;
 
-// ... (TIPOS_DE_EVENTO, SEGMENTO_OBJETIVO, CLASIFICACION_ESTRATEGICA, etc. se mantienen igual) ...
 const TIPOS_DE_EVENTO = [
   { id: '1', label: 'Curricular' },
   { id: '2', label: 'Extracurricular' },
@@ -130,7 +129,6 @@ const LUGARES_CON_AREAS = {
       { id: 'cs-6', nombre: 'GAme Room' },
     ]
   }
-  
 };
 
 const OBJETIVOS_EVENTO_MAP = {
@@ -154,6 +152,13 @@ const getNotificationIcon = (type) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// TimePicker — FIXES APLICADOS:
+//   FIX 1: triggerH/triggerM leen del prop `value` (fuente de verdad del padre)
+//   FIX 2: el trigger muestra triggerH/triggerM, no h/m del estado interno
+//   FIX 3: onPress del botón Confirmar hace setDisplay(d) antes de cerrar,
+//          y el texto del botón lee de internalRef (nunca stale)
+// ─────────────────────────────────────────────────────────────────────────────
 const TimePicker = ({ value, onChange }) => {
   const internalRef = useRef(new Date(value));
   const [display, setDisplay] = useState(new Date(value));
@@ -168,15 +173,20 @@ const TimePicker = ({ value, onChange }) => {
     const d = new Date(internalRef.current);
     d.setHours(newH, newM, 0, 0);
     internalRef.current = d;      // actualización síncrona inmediata
-    setDisplay(new Date(d));      // dispara re-render
+    setDisplay(new Date(d));      // dispara re-render del modal
     onChange(d);                  // notifica al padre
   };
 
-  // Lee siempre desde display (estado que sí causa re-render)
+  // h/m: usados DENTRO del modal (drum, quick times, highlight)
   const h = dayjs(display).hour();
   const m = dayjs(display).minute();
 
- const handleOpenModal = () => {
+  // FIX 1 ── triggerH/triggerM leen del PADRE, no del estado interno del modal
+  // Así el botón trigger siempre refleja el valor ya confirmado.
+  const triggerH = dayjs(value).hour();
+  const triggerM = dayjs(value).minute();
+
+  const handleOpenModal = () => {
     const newValue = new Date(value);
     internalRef.current = newValue;
     setDisplay(newValue);
@@ -184,12 +194,11 @@ const TimePicker = ({ value, onChange }) => {
     setInputM(pad(dayjs(newValue).minute()));
     setOpen(true);
   };
-  
+
   const handleHourInput = (text) => {
     const clean = text.replace(/[^0-9]/g, '').slice(0, 2);
     setInputH(clean);
     const num = parseInt(clean, 10);
-    // ✅ Lee m desde ref para no usar valor stale
     if (!isNaN(num) && num >= 0 && num <= 23) {
       apply(num, dayjs(internalRef.current).minute());
     }
@@ -199,7 +208,6 @@ const TimePicker = ({ value, onChange }) => {
     const clean = text.replace(/[^0-9]/g, '').slice(0, 2);
     setInputM(clean);
     const num = parseInt(clean, 10);
-    // ✅ Lee h desde ref para no usar valor stale
     if (!isNaN(num) && num >= 0 && num <= 59) {
       apply(dayjs(internalRef.current).hour(), num);
     }
@@ -214,7 +222,8 @@ const TimePicker = ({ value, onChange }) => {
           activeOpacity={0.7}
         >
           <Ionicons name="time-outline" size={20} color="#e95a0c" />
-          <Text style={styles.timePickerTriggerText}>{pad(h)}:{pad(m)}</Text>
+          {/* FIX 2 (mobile): muestra triggerH/triggerM del padre */}
+          <Text style={styles.timePickerTriggerText}>{pad(triggerH)}:{pad(triggerM)}</Text>
           <Ionicons name="chevron-down" size={16} color="#888" />
         </TouchableOpacity>
         <Modal
@@ -251,7 +260,7 @@ const TimePicker = ({ value, onChange }) => {
                   style={styles.doneButton}
                   onPress={() => setShowNativePicker(false)}
                 >
-                  <Text style={styles.doneButtonText}>Listo - {pad(h)}:{pad(m)}</Text>
+                  <Text style={styles.doneButtonText}>Listo - {pad(triggerH)}:{pad(triggerM)}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -264,13 +273,14 @@ const TimePicker = ({ value, onChange }) => {
   // ── Web ──────────────────────────────────────────────────
   return (
     <>
+      {/* FIX 2 ── trigger muestra triggerH/triggerM (valor confirmado del padre) */}
       <TouchableOpacity
         onPress={handleOpenModal}
         style={styles.timePickerTrigger}
         activeOpacity={0.7}
       >
         <Ionicons name="time-outline" size={20} color="#e95a0c" />
-        <Text style={styles.timePickerTriggerText}>{pad(h)}:{pad(m)}</Text>
+        <Text style={styles.timePickerTriggerText}>{pad(triggerH)}:{pad(triggerM)}</Text>
         <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color="#888" />
       </TouchableOpacity>
 
@@ -298,7 +308,6 @@ const TimePicker = ({ value, onChange }) => {
                   <TouchableOpacity
                     style={styles.drumBtn}
                     onPress={() => {
-                      // ✅ Lee desde ref, no desde h (que puede ser stale)
                       const curH = dayjs(internalRef.current).hour();
                       const curM = dayjs(internalRef.current).minute();
                       const newH = (curH + 1) % 24;
@@ -409,16 +418,19 @@ const TimePicker = ({ value, onChange }) => {
               </ScrollView>
             </View>
 
+            {/* FIX 3 ── setDisplay(d) antes de cerrar + texto desde internalRef */}
             <TouchableOpacity
               style={styles.timePickerApply}
-              onPress={() => { 
+              onPress={() => {
                 const d = new Date(internalRef.current);
-                onChange(d);
-                setOpen(false);}}
+                setDisplay(d);   // sincroniza display local
+                onChange(d);     // actualiza fechaHoraSeleccionada en el padre
+                setOpen(false);
+              }}
             >
               <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
               <Text style={styles.timePickerApplyText}>
-                Confirmar {pad(h)}:{pad(m)}
+                Confirmar {pad(dayjs(internalRef.current).hour())}:{pad(dayjs(internalRef.current).minute())}
               </Text>
             </TouchableOpacity>
           </View>
@@ -427,6 +439,7 @@ const TimePicker = ({ value, onChange }) => {
     </>
   );
 };
+
 const NotificationBell = ({ notificationCount, onPress }) => (
   <TouchableOpacity onPress={onPress} style={styles.notificationBell}>
     <Ionicons name="notifications-outline" size={24} color="#333" />
@@ -1040,14 +1053,13 @@ const ProyectoEvento = () => {
   };
 
   const handleClockTimeChange = useCallback((newDate) => {
-      setFechaHoraSeleccionada(newDate);
+    setFechaHoraSeleccionada(newDate);
 
     const conflictos = verificarConflictoHorario(newDate);
     if (conflictos.length > 0) {
-    setConflictoDetectado(conflictos[0]);
-    setShowConflictModal(true);
-  }
-   
+      setConflictoDetectado(conflictos[0]);
+      setShowConflictModal(true);
+    }
   }, [eventos]);
 
   const cargarRecursos = useCallback(async () => {
@@ -1272,22 +1284,16 @@ const ProyectoEvento = () => {
       return;
     }
     try {
-      const conflictos= verificarConflictoHorario(fechaHoraSeleccionada);
+      const conflictos = verificarConflictoHorario(fechaHoraSeleccionada);
       if (conflictos.length > 0) {
-      setIsLoading(false);
-      Alert.alert(
-        '⚠️ Conflicto de Horario',
-        `Ya existe un evento programado a las ${dayjs(fechaHoraSeleccionada).format('HH:mm')} del ${dayjs(fechaHoraSeleccionada).format('DD/MM/YYYY')}.
-        
-        Evento existente: ${conflictos[0].nombreevento}
-        Lugar: ${conflictos[0].lugarevento}
-        Responsable: ${conflictos[0].responsable_evento}
-        
-        Por favor, selecciona otra hora o fecha.`,
-        [{ text: 'Entendido' }]
-      );
-      return; 
-    }
+        setIsLoading(false);
+        Alert.alert(
+          '⚠️ Conflicto de Horario',
+          `Ya existe un evento programado a las ${dayjs(fechaHoraSeleccionada).format('HH:mm')} del ${dayjs(fechaHoraSeleccionada).format('DD/MM/YYYY')}.\n\nEvento existente: ${conflictos[0].nombreevento}\nLugar: ${conflictos[0].lugarevento}\nResponsable: ${conflictos[0].responsable_evento}\n\nPor favor, selecciona otra hora o fecha.`,
+          [{ text: 'Entendido' }]
+        );
+        return;
+      }
       if (!nombreevento.trim()) throw new Error('El nombre del evento es obligatorio');
       const tiposParaEnviar = Object.keys(tiposSeleccionados)
         .filter(id => tiposSeleccionados[id])
@@ -1384,15 +1390,15 @@ const ProyectoEvento = () => {
       </View>
 
       <View style={styles.timePickerSection}>
-      <View style={styles.timePickerHeader}>
-        <Ionicons name="alarm" size={24} color="#e95a0c" />
-        <Text style={styles.timePickerSectionTitle}>Hora de Inicio del Evento</Text>
+        <View style={styles.timePickerHeader}>
+          <Ionicons name="alarm" size={24} color="#e95a0c" />
+          <Text style={styles.timePickerSectionTitle}>Hora de Inicio del Evento</Text>
+        </View>
+        <TimePicker
+          value={fechaHoraSeleccionada}
+          onChange={handleClockTimeChange}
+        />
       </View>
-      <TimePicker
-        value={fechaHoraSeleccionada}
-        onChange={handleClockTimeChange}
-      />
-    </View>
 
       <View style={styles.mainContainer}>
         {width > 768 && (
@@ -1822,380 +1828,22 @@ const ProyectoEvento = () => {
 
 const styles = StyleSheet.create({
   horaInicioBar: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  paddingHorizontal: 20,
-  paddingVertical: 15,
-  backgroundColor: '#ffffff',
-  borderBottomWidth: 1,
-  borderBottomColor: '#f0f0f0',
-  zIndex: 100,
-  elevation: 10,
-},
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    zIndex: 100,
+    elevation: 10,
+  },
   horaInicioLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: '#555',
   },
-timePickerTrigger: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  backgroundColor: '#fff5f0',
-  borderWidth: 2,
-  borderColor: '#e95a0c',
-  borderRadius: 25,
-  paddingHorizontal: 16,
-  paddingVertical: 10,
-  gap: 8,
-  shadowColor: '#e95a0c',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.3,
-  shadowRadius: 4,
-  elevation: 5,
-  minWidth: 120,
-},
-  timePickerContainer: {
-  position: 'relative',
-  marginBottom: 20,
-},
-timePickerButton: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  backgroundColor: '#fff5f0',
-  borderWidth: 2,
-  borderColor: '#e95a0c',
-  borderRadius: 12,
-  paddingVertical: 14,
-  paddingHorizontal: 20,
-  gap: 12,
-  shadowColor: '#e95a0c',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.2,
-  shadowRadius: 4,
-  elevation: 4,
-},
-timePickerDisplay: {
-  fontSize: 20,
-  fontWeight: '700',
-  color: '#e95a0c',
-  letterSpacing: 1,
-},
-timePickerDropdown: {
-  position: 'absolute',
-  top: '100%',
-  left: 0,
-  right: 0,
-  backgroundColor: '#fff',
-  borderRadius: 12,
-  borderWidth: 2,
-  borderColor: '#e95a0c',
-  padding: 20,
-  zIndex: 1000,
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 4 },
-  shadowOpacity: 0.3,
-  shadowRadius: 8,
-  elevation: 10,
-  marginTop: 8,
-},
-quickHoursContainer: {
-  marginBottom: 20,
-},
-timePickerModalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-    paddingBottom: 16,
-    borderBottomWidth: 2,
-    borderBottomColor: '#f0f0f0',
-  },
-quickHoursTitle: {
-  fontSize: 14,
-  fontWeight: '600',
-  color: '#666',
-  marginBottom: 10,
-},
-quickHoursScroll: {
-  maxHeight: 50,
-},
-quickHourButton: {
-  paddingHorizontal: 16,
-  paddingVertical: 10,
-  borderRadius: 8,
-  borderWidth: 2,
-  borderColor: '#e0e0e0',
-  backgroundColor: '#f8f9fa',
-  marginRight: 10,
-},
-quickHourButtonActive: {
-  backgroundColor: '#e95a0c',
-  borderColor: '#e95a0c',
-},
-quickHourText: {
-  fontSize: 14,
-  fontWeight: '600',
-  color: '#666',
-},
-quickHourTextActive: {
-  color: '#fff',
-  fontWeight: '700',
-},
-detailedPicker: {
-  backgroundColor: '#f8f9fa',
-  borderRadius: 8,
-  padding: 16,
-},
-detailedRow: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'center',
-  marginBottom: 16,
-},
-detailedColumn: {
-  alignItems: 'center',
-  flex: 1,
-},
-detailedLabel: {
-  fontSize: 12,
-  color: '#666',
-  marginBottom: 8,
-  fontWeight: '600',
-},
-detailedSelector: {
-  alignItems: 'center',
-  backgroundColor: '#fff',
-  borderRadius: 8,
-  borderWidth: 1,
-  borderColor: '#e0e0e0',
-  paddingVertical: 8,
-  paddingHorizontal: 12,
-  minWidth: 80,
-},
-detailedButton: {
-  padding: 4,
-},
-detailedValue: {
-  fontSize: 32,
-  fontWeight: '700',
-  color: '#333',
-  marginVertical: 4,
-},
-detailedSeparator: {
-  fontSize: 32,
-  fontWeight: '700',
-  color: '#e95a0c',
-  marginHorizontal: 12,
-},
-confirmButton: {
-  backgroundColor: '#e95a0c',
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'center',
-  paddingVertical: 12,
-  borderRadius: 8,
-  gap: 8,
-},
-confirmButtonText: {
-  color: '#fff',
-  fontSize: 16,
-  fontWeight: '700',
-},
-timePickerTriggerText: {
-  fontSize: 18,  // Aumentado de 16 a 18
-  fontWeight: '700',
-  color: '#e95a0c',
-  letterSpacing: 1,
-  marginHorizontal: 4,
-},
-  timePickerPanel: {
-  position: 'absolute',
-  top: 50,
-  right: 0,
-  backgroundColor: '#fff',
-  borderRadius: 12,
-  borderWidth: 2,
-  borderColor: '#e95a0c',
-  padding: 16,
-  zIndex: 9999,  // Aumentado de 999 a 9999
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 8 },
-  shadowOpacity: 0.3,
-  shadowRadius: 16,
-  elevation: 15,  // Aumentado de 10 a 15
-  minWidth: 280,
-  maxWidth: 320,
-},
-  drumRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  drum: {
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    overflow: 'hidden',
-    width: 72,
-  },
-    timePickerModalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    flex: 1,
-    marginLeft: 10,
-  },
-  
-  closeButton: {
-    padding: 4,
-  },
-  
-  drumRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 16,
-    marginBottom: 24,
-  },
-  
-  drumContainer: {
-    alignItems: 'center',
-  },
-  
-  drumLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 8,
-    fontWeight: '600',
-  },
-  drumInput: {
-  fontSize: 42,
-  fontWeight: '700',
-  color: '#e95a0c',
-  paddingVertical: 8,
-  textAlign: 'center',
-  width: '100%',
-  backgroundColor: '#fff',
-  borderTopWidth: 1,
-  borderBottomWidth: 1,
-  borderColor: '#e0e0e0',
-  outlineStyle: 'none', // evita el outline azul en web
-},
-  
-  drumValueContainer: {
-    backgroundColor: '#f8f9fa',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    marginVertical: 4,
-  },
-  
-  drum: {
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#e95a0c',
-    overflow: 'hidden',
-    width: 90,
-  },
-  
-  drumBtn: {
-    width: '100%',
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff5f0',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  
-  drumVal: {
-    fontSize: 42,
-    fontWeight: '700',
-    color: '#e95a0c',
-    paddingVertical: 8,
-    textAlign: 'center',
-  },
-  
-  drumColon: {
-    fontSize: 42,
-    fontWeight: '700',
-    color: '#e95a0c',
-    marginTop: 28,
-  },
-  
-  quickTimesContainer: {
-    marginBottom: 20,
-  },
-  
-  quickTimesLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 12,
-    fontWeight: '600',
-  },
-  
-  quickTimesScroll: {
-    maxHeight: 50,
-  },
-  
-  quickTimesContent: {
-    gap: 10,
-    paddingHorizontal: 4,
-  },
-  
-  quickTimeBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: '#e0e0e0',
-    backgroundColor: '#f8f9fa',
-    marginRight: 8,
-  },
-  
-  quickTimeBtnActive: {
-    backgroundColor: '#e95a0c',
-    borderColor: '#e95a0c',
-  },
-  
-  quickTimeBtnText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '600',
-  },
-  
-  quickTimeBtnTextActive: {
-    color: '#fff',
-    fontWeight: '700',
-  },
-  
-  timePickerApply: {
-    backgroundColor: '#e95a0c',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 8,
-    shadowColor: '#e95a0c',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  
-  timePickerApplyText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  
-  // Actualizar timePickerTrigger
   timePickerTrigger: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2213,7 +1861,6 @@ timePickerTriggerText: {
     elevation: 4,
     minWidth: 130,
   },
-  
   timePickerTriggerText: {
     fontSize: 18,
     fontWeight: '700',
@@ -2221,73 +1868,157 @@ timePickerTriggerText: {
     letterSpacing: 1,
     marginHorizontal: 4,
   },
-  drumBtn: {
-    width: '100%',
-    height: 38,
+  timePickerSection: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  timePickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 10,
+  },
+  timePickerSectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
+  },
+  timePickerModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 2,
+    borderBottomColor: '#f0f0f0',
+  },
+  timePickerModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    flex: 1,
+    marginLeft: 10,
+  },
+  closeButton: {
+    padding: 4,
+  },
+  drumRow: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f0f0f0',
+    gap: 16,
+    marginBottom: 24,
   },
-  drumVal: {
-    fontSize: 34,
+  drumContainer: {
+    alignItems: 'center',
+  },
+  drumLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 8,
+    fontWeight: '600',
+  },
+  drum: {
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#e95a0c',
+    overflow: 'hidden',
+    width: 90,
+  },
+  drumBtn: {
+    width: '100%',
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff5f0',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  drumInput: {
+    fontSize: 42,
     fontWeight: '700',
-    color: '#333',
-    paddingVertical: 10,
+    color: '#e95a0c',
+    paddingVertical: 8,
+    textAlign: 'center',
+    width: '100%',
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#e0e0e0',
+    outlineStyle: 'none',
   },
   drumColon: {
-    fontSize: 34,
+    fontSize: 42,
     fontWeight: '700',
-    color: '#333',
-    marginHorizontal: 4,
+    color: '#e95a0c',
+    marginTop: 28,
   },
-  timePickerSection: {
-  backgroundColor: '#fff',
-  paddingHorizontal: 20,
-  paddingVertical: 16,
-  borderBottomWidth: 1,
-  borderBottomColor: '#e0e0e0',
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.05,
-  shadowRadius: 4,
-  elevation: 3,
-},
-timePickerHeader: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  marginBottom: 12,
-  gap: 10,
-},
-timePickerSectionTitle: {
-  fontSize: 16,
-  fontWeight: '700',
-  color: '#333',
-},
+  quickTimesContainer: {
+    marginBottom: 20,
+  },
+  quickTimesLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 12,
+    fontWeight: '600',
+  },
+  quickTimesScroll: {
+    maxHeight: 50,
+  },
+  quickTimesContent: {
+    gap: 10,
+    paddingHorizontal: 4,
+  },
   quickTimeBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 2,
     borderColor: '#e0e0e0',
     backgroundColor: '#f8f9fa',
+    marginRight: 8,
   },
-  mobilePickerOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
+  quickTimeBtnActive: {
+    backgroundColor: '#e95a0c',
+    borderColor: '#e95a0c',
   },
-  
-  pickerModalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    paddingBottom: Platform.OS === 'ios' ? 30 : 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+  quickTimeBtnText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '600',
+  },
+  quickTimeBtnTextActive: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  timePickerApply: {
+    backgroundColor: '#e95a0c',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 8,
+    shadowColor: '#e95a0c',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
     elevation: 5,
+  },
+  timePickerApplyText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
   modalOverlayCentered: {
     flex: 1,
@@ -2296,7 +2027,6 @@ timePickerSectionTitle: {
     alignItems: 'center',
     zIndex: 9999,
   },
-  
   timePickerModalCentered: {
     backgroundColor: '#fff',
     borderRadius: 20,
@@ -2309,31 +2039,53 @@ timePickerSectionTitle: {
     shadowRadius: 20,
     elevation: 20,
   },
-  quickTimeBtnActive: {
-    backgroundColor: '#fff5f0',
-    borderColor: '#e95a0c',
+  mobilePickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
   },
-  quickTimeBtnText: {
-    fontSize: 13,
-    color: '#666',
+  pickerModalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: Platform.OS === 'ios' ? 30 : 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
-  quickTimeBtnTextActive: {
-    color: '#e95a0c',
-    fontWeight: '700',
-  },
-  timePickerApply: {
-    backgroundColor: '#e95a0c',
-    borderRadius: 8,
-    paddingVertical: 10,
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 14,
+    marginBottom: 20,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
   },
-  timePickerApplyText: {
+  pickerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  dateTimePicker: {
+    width: '100%',
+    height: Platform.OS === 'ios' ? 180 : 'auto',
+  },
+  doneButton: {
+    backgroundColor: '#e95a0c',
+    paddingVertical: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  doneButtonText: {
     color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
-  // ── resto de estilos ──────────────────────────────────────────
   gotoButton: {
     backgroundColor: '#e95a0c',
     flexDirection: 'row',
@@ -2639,54 +2391,6 @@ timePickerSectionTitle: {
   modalButtonPrimary: { backgroundColor: '#e95a0c', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 8, flex: 1, alignItems: 'center' },
   modalButtonPrimaryText: { fontSize: 14, color: '#ffffff', fontWeight: '600' },
   selectedText: { fontSize: 14, color: '#e95a0c', marginTop: 5, marginLeft: 10 },
-  mobileTimePickerContainer: {
-  position: 'relative',
-  zIndex: 100,
-},
-pickerModalContent: {
-  backgroundColor: '#fff',
-  borderTopLeftRadius: 20,
-  borderTopRightRadius: 20,
-  padding: 20,
-  paddingBottom: Platform.OS === 'ios' ? 30 : 20,
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: -2 },
-  shadowOpacity: 0.25,
-  shadowRadius: 4,
-  elevation: 5,
-},
-pickerHeader: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginBottom: 20,
-  paddingBottom: 10,
-  borderBottomWidth: 1,
-  borderBottomColor: '#e0e0e0',
-},
-pickerTitle: {
-  fontSize: 18,
-  fontWeight: 'bold',
-  color: '#333',
-},
-dateTimePicker: {
-  width: '100%',
-  height: Platform.OS === 'ios' ? 180 : 'auto',
-},
-doneButton: {
-  backgroundColor: '#e95a0c',
-  paddingVertical: 15,
-  borderRadius: 10,
-  alignItems: 'center',
-  marginTop: 20,
-},
-doneButtonText: {
-  color: '#fff',
-  fontSize: 16,
-  fontWeight: 'bold',
-},
-
-
 });
 
 export default ProyectoEvento;
