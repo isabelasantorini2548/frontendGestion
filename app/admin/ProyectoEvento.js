@@ -173,9 +173,7 @@ const TimePicker = ({ value, onChange }) => {
     const d = new Date(internalRef.current);
     d.setHours(newH, newM, 0, 0);
     internalRef.current = d;      // actualización síncrona inmediata
-    setDisplay(new Date(d));  
-    setInputH(pad(newH));
-  setInputM(pad(newM));    // dispara re-render del modal
+    setDisplay(new Date(d));      // dispara re-render del modal
     onChange(d);                  // notifica al padre
   };
 
