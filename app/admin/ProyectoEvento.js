@@ -164,6 +164,13 @@ const TimePicker = ({ value, onChange }) => {
   const hours = Array.from({ length: 24 }, (_, i) => i);
   const minutes = Array.from({ length: 60 }, (_, i) => i);
 
+  // Resetear valores temporales cuando se abre el modal
+  const openModal = () => {
+    setTempHour(dayjs(value).hour());
+    setTempMinute(dayjs(value).minute());
+    setShowModal(true);
+  };
+
   const handleConfirm = () => {
     const newDate = new Date(value);
     newDate.setHours(tempHour, tempMinute, 0, 0);
@@ -185,11 +192,7 @@ const TimePicker = ({ value, onChange }) => {
     return (
       <>
         <TouchableOpacity
-          onPress={() => {
-            setTempHour(confirmedH);
-            setTempMinute(confirmedM);
-            setShowModal(true);
-          }}
+          onPress={openModal}
           style={styles.timePickerTrigger}
           activeOpacity={0.7}
         >
@@ -231,6 +234,7 @@ const TimePicker = ({ value, onChange }) => {
                   <ScrollView 
                     style={styles.scrollSelector}
                     showsVerticalScrollIndicator={true}
+                    nestedScrollEnabled={true}
                   >
                     {hours.map((hour) => (
                       <TouchableOpacity
@@ -239,7 +243,9 @@ const TimePicker = ({ value, onChange }) => {
                           styles.timeOption,
                           tempHour === hour && styles.timeOptionSelected
                         ]}
-                        onPress={() => setTempHour(hour)}
+                        onPress={() => {
+                          setTempHour(hour);
+                        }}
                       >
                         <Text style={[
                           styles.timeOptionText,
@@ -260,6 +266,7 @@ const TimePicker = ({ value, onChange }) => {
                   <ScrollView 
                     style={styles.scrollSelector}
                     showsVerticalScrollIndicator={true}
+                    nestedScrollEnabled={true}
                   >
                     {minutes.map((minute) => (
                       <TouchableOpacity
@@ -268,7 +275,9 @@ const TimePicker = ({ value, onChange }) => {
                           styles.timeOption,
                           tempMinute === minute && styles.timeOptionSelected
                         ]}
-                        onPress={() => setTempMinute(minute)}
+                        onPress={() => {
+                          setTempMinute(minute);
+                        }}
                       >
                         <Text style={[
                           styles.timeOptionText,
