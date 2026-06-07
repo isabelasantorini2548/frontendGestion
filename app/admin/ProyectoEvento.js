@@ -179,15 +179,25 @@ const TimePicker = ({ value, onChange }) => {
   };
 
   const handleQuickSelect = (hour) => {
-    setTempHour(hour);
-    setTempMinute(0);
+    const newHour = hour;
+    const newMinute = 0;
+    setTempHour(newHour);
+    setTempMinute(newMinute);
     const newDate = new Date(value);
-    newDate.setHours(hour, 0, 0, 0);
+    newDate.setHours(newHour, newMinute, 0, 0);
     onChange(newDate);
     setShowModal(false);
   };
 
-  // ── WEB: Custom Time Picker con mejor diseño ────────────────────────────
+  // Funciones para cambiar hora y minuto
+  const changeTempHour = (hour) => {
+    setTempHour(hour);
+  };
+
+  const changeTempMinute = (minute) => {
+    setTempMinute(minute);
+  };
+
   if (Platform.OS === 'web') {
     return (
       <>
@@ -221,8 +231,9 @@ const TimePicker = ({ value, onChange }) => {
                 </TouchableOpacity>
               </View>
 
+              {/* Display grande - Usa tempHour y tempMinute */}
               <View style={styles.timeDisplay}>
-                <Text style={styles.timeDisplayText}>
+                <Text style={styles.timeDisplayText} key={`display-${tempHour}-${tempMinute}`}>
                   {pad(tempHour)}:{pad(tempMinute)}
                 </Text>
               </View>
@@ -243,9 +254,7 @@ const TimePicker = ({ value, onChange }) => {
                           styles.timeOption,
                           tempHour === hour && styles.timeOptionSelected
                         ]}
-                        onPress={() => {
-                          setTempHour(hour);
-                        }}
+                        onPress={() => changeTempHour(hour)}
                       >
                         <Text style={[
                           styles.timeOptionText,
@@ -275,9 +284,7 @@ const TimePicker = ({ value, onChange }) => {
                           styles.timeOption,
                           tempMinute === minute && styles.timeOptionSelected
                         ]}
-                        onPress={() => {
-                          setTempMinute(minute);
-                        }}
+                        onPress={() => changeTempMinute(minute)}
                       >
                         <Text style={[
                           styles.timeOptionText,
@@ -319,12 +326,13 @@ const TimePicker = ({ value, onChange }) => {
                 </ScrollView>
               </View>
 
+              {/* Botón confirmar - Usa tempHour y tempMinute */}
               <TouchableOpacity
                 style={styles.confirmButton}
                 onPress={handleConfirm}
               >
                 <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
-                <Text style={styles.confirmButtonText}>
+                <Text style={styles.confirmButtonText} key={`confirm-${tempHour}-${tempMinute}`}>
                   Confirmar {pad(tempHour)}:{pad(tempMinute)}
                 </Text>
               </TouchableOpacity>
@@ -335,7 +343,7 @@ const TimePicker = ({ value, onChange }) => {
     );
   }
 
-  // ── MOBILE: DateTimePicker nativo ──────────────────────────────────────
+  // MOBILE: DateTimePicker nativo
   const [showNativePicker, setShowNativePicker] = useState(false);
 
   return (
