@@ -243,7 +243,10 @@ const TimePicker = ({ value, onChange, visible, onClose }) => {
                   <TouchableOpacity
                     key={hour}
                     style={[styles.timeOption, tempHour === hour && styles.timeOptionSelected]}
-                    onPress={() => setTempHour(hour)}
+                    onPress={() => {
+                      setTempHour(hour);
+                      console.log('Hour selected:', hour);
+                    }}
                   >
                     <Text style={[styles.timeOptionText, tempHour === hour && styles.timeOptionTextSelected]}>
                       {pad(hour)}
@@ -257,19 +260,25 @@ const TimePicker = ({ value, onChange, visible, onClose }) => {
 
             <View style={styles.selectorColumn}>
               <Text style={styles.selectorLabel}>Minutos</Text>
-              <ScrollView style={styles.scrollSelector} showsVerticalScrollIndicator={true} nestedScrollEnabled={true}>
-                {minutes.map((minute) => (
+              <FlatList
+                data={minutes}
+                keyExtractor={(item) => String(item)}
+                style={styles.scrollSelector}
+                nestedScrollEnabled={true}
+                renderItem={({ item: minute }) => (
                   <TouchableOpacity
-                    key={minute}
                     style={[styles.timeOption, tempMinute === minute && styles.timeOptionSelected]}
-                    onPress={() => setTempMinute(minute)}
+                    onPress={() => {
+                      setTempMinute(minute);
+                      console.log('Minute selected:', minute);
+                    }}
                   >
                     <Text style={[styles.timeOptionText, tempMinute === minute && styles.timeOptionTextSelected]}>
                       {pad(minute)}
                     </Text>
                   </TouchableOpacity>
-                ))}
-              </ScrollView>
+                )}
+              />
             </View>
           </View>
 
