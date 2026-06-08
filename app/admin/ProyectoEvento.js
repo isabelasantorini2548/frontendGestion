@@ -988,59 +988,56 @@ const ProyectoEvento = () => {
     }
   };
 
-  const fetchUsuariosComite = async (retries = 3) => {
-    for (let i = 0; i < retries; i++) {
-      try {
-        setComiteLoading(true);
-        setComiteError(false);
-        const token = await getTokenAsync();
-        if (!token) { router.replace('/login'); return; }
-        const response = await axios.get(`${API_BASE_URL}/users/comite`, {
-          headers: { 'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-       },
-          timeout: 15000,
-        });
-        const uniqueUsuarios = [];
-        const seenIds = new Set();
-        for (const usuario of response.data) {
-          if (!seenIds.has(usuario.id)) {
-            seenIds.add(usuario.id);
-            uniqueUsuarios.push(usuario);
-          }
-        }
-        setUsuariosComite(uniqueUsuarios);
-        setComiteLoading(false);
-        return;
-      } catch (error) {
-        /*if (i === retries - 1) {
-          setComiteLoading(false);
-          setComiteError(true);
-          setUsuariosComite([]);
-          if (error.code === 'ECONNABORTED' || error.message.includes('Network Error')) {
-            Alert.alert("Error de conexión", "El servidor está tardando en responder.", [{ text: "Reintentar", onPress: () => fetchUsuariosComite() }]);
-          }
-        } else {
-          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, i)));
-        }*/
-       console.error("Error fetching comite:", error.response?.status, error.response?.data);
+ const fetchUsuariosComite = async (retries = 3) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      setComiteLoading(true);
+      setComiteError(false);
+      const token = await getTokenAsync();
       
-      // Si es 401, el token es inválido
+      if (!token) { 
+        router.replace('/login'); 
+        return; 
+      }
+      
+      const response = await axios.get(`${API_BASE_URL}/users/comite`, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 15000,
+      });
+      
+      const uniqueUsuarios = [];
+      const seenIds = new Set();
+      for (const usuario of response.data) {
+        if (!seenIds.has(usuario.id)) {
+          seenIds.add(usuario.id);
+          uniqueUsuarios.push(usuario);
+        }
+      }
+      setUsuariosComite(uniqueUsuarios);
+      setComiteLoading(false);
+      return;
+      
+    } catch (error) {
+      console.error("Error fetching comite:", error.response?.status, error.response?.data);
+      
+      // Si es 401, el token es inválido - limpiar y redirigir
       if (error.response?.status === 401) {
+        // Limpiar token
+        if (Platform.OS === 'web') {
+          localStorage.removeItem('adminAuthToken');
+        } else {
+          await SecureStore.deleteItemAsync('adminAuthToken');
+        }
+        
         Alert.alert(
           "Sesión expirada", 
           "Tu sesión ha expirado. Por favor, inicia sesión nuevamente.",
           [{ 
             text: "Ir a Login", 
-            onPress: () => {
-              // Limpiar token
-              if (Platform.OS === 'web') {
-                localStorage.removeItem('adminAuthToken');
-              } else {
-                SecureStore.deleteItemAsync('adminAuthToken');
-              }
-              router.replace('/login');
-            } 
+            onPress: () => router.replace('/login') 
           }]
         );
         setComiteLoading(false);
@@ -1048,10 +1045,12 @@ const ProyectoEvento = () => {
         return;
       }
       
+      // En el último intento, mostrar error
       if (i === retries - 1) {
         setComiteLoading(false);
         setComiteError(true);
         setUsuariosComite([]);
+        
         if (error.code === 'ECONNABORTED' || error.message.includes('Network Error')) {
           Alert.alert("Error de conexión", "El servidor está tardando en responder.", [
             { text: "Reintentar", onPress: () => fetchUsuariosComite() }
@@ -1060,12 +1059,12 @@ const ProyectoEvento = () => {
           Alert.alert("Error", "No se pudieron cargar los usuarios del comité.");
         }
       } else {
+        // Esperar antes de reintentar (exponential backoff)
         await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, i)));
       }
-    
-      }
     }
-  };
+  }
+};
 
   const verificarConflictoHorario = (fechaHora) => {
     const fechaFormateada = dayjs(fechaHora).format('YYYY-MM-DD');
@@ -1128,19 +1127,46 @@ const ProyectoEvento = () => {
   }, [authToken]);
 
   useEffect(() => {
-    const initialize = async () => {
-      setIsLoading(true);
-      const token = await getTokenAsync();
-      setAuthToken(token);
-      if (!token) {
-        Alert.alert("Error", "No se encontró un token de autenticación. Por favor, inicia sesión.");
-        router.push("/login");
-        return;
-      }
+  const initialize = async () => {
+    setIsLoading(true);
+    const token = await getTokenAsync();
+    
+    if (!token || token === 'null' || token === '') {
+      Alert.alert("Error", "No se encontró un token de autenticación. Por favor, inicia sesión.");
+      router.replace("/login");
       setIsLoading(false);
-    };
-    initialize();
-  }, []);
+      return;
+    }
+    
+    // Validar que el token sea válido antes de continuar
+    try {
+      await axios.get(`${API_BASE_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAuthToken(token);
+    } catch (error) {
+      console.error("Token inválido:", error.response?.data);
+      
+      // Limpiar token inválido
+      if (Platform.OS === 'web') {
+        localStorage.removeItem('adminAuthToken');
+      } else {
+        await SecureStore.deleteItemAsync('adminAuthToken');
+      }
+      
+      Alert.alert(
+        "Sesión expirada", 
+        "Tu sesión ha expirado o el token es inválido. Por favor, inicia sesión nuevamente.",
+        [{ text: "OK", onPress: () => router.replace('/login') }]
+      );
+      setIsLoading(false);
+      return;
+    }
+    
+    setIsLoading(false);
+  };
+  initialize();
+}, []);
 
   useEffect(() => {
     const selectedIds = Object.keys(tiposSeleccionados);
