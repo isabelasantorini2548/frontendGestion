@@ -154,30 +154,25 @@ const getNotificationIcon = (type) => {
 
 const TimePicker = ({ value, onChange }) => {
   const [showModal, setShowModal] = useState(false);
-  const [tempHour, setTempHour] = useState(dayjs(value).hour());
-  const [tempMinute, setTempMinute] = useState(dayjs(value).minute());
-  const [confirmedH, setConfirmedH] = useState(dayjs(value).hour());
-  const [confirmedM, setConfirmedM] = useState(dayjs(value).minute());
-
-  // Sincronizar con prop externo
-  useEffect(() => {
-    setConfirmedH(dayjs(value).hour());
-    setConfirmedM(dayjs(value).minute());
-    setTempHour(dayjs(value).hour());
-    setTempMinute(dayjs(value).minute());
-  }, [value]);
+  const [tempHour, setTempHour] = useState(() => dayjs(value).hour());
+  const [tempMinute, setTempMinute] = useState(() => dayjs(value).minute());
+  const [displayHour, setDisplayHour] = useState(() => dayjs(value).hour());
+  const [displayMinute, setDisplayMinute] = useState(() => dayjs(value).minute());
 
   const pad = (n) => String(n).padStart(2, '0');
 
+  const hours = Array.from({ length: 24 }, (_, i) => i);
+  const minutes = Array.from({ length: 60 }, (_, i) => i);
+
   const openModal = () => {
-    setTempHour(confirmedH);
-    setTempMinute(confirmedM);
+    setTempHour(displayHour);
+    setTempMinute(displayMinute);
     setShowModal(true);
   };
 
   const handleConfirm = () => {
-    setConfirmedH(tempHour);
-    setConfirmedM(tempMinute);
+    setDisplayHour(tempHour);
+    setDisplayMinute(tempMinute);
     const newDate = new Date(value);
     newDate.setHours(tempHour, tempMinute, 0, 0);
     onChange(newDate);
@@ -187,21 +182,12 @@ const TimePicker = ({ value, onChange }) => {
   const handleQuickSelect = (hour) => {
     setTempHour(hour);
     setTempMinute(0);
-    setConfirmedH(hour);      // ← actualiza trigger inmediatamente
-    setConfirmedM(0);
+    setDisplayHour(hour);
+    setDisplayMinute(0);
     const newDate = new Date(value);
     newDate.setHours(hour, 0, 0, 0);
     onChange(newDate);
     setShowModal(false);
-  };
-
-  // Funciones para cambiar hora y minuto
-  const changeTempHour = (hour) => {
-    setTempHour(hour);
-  };
-
-  const changeTempMinute = (minute) => {
-    setTempMinute(minute);
   };
 
   if (Platform.OS === 'web') {
@@ -214,7 +200,7 @@ const TimePicker = ({ value, onChange }) => {
         >
           <Ionicons name="time-outline" size={20} color="#e95a0c" />
           <Text style={styles.timePickerTriggerText}>
-            {pad(confirmedH)}:{pad(confirmedM)}
+            {pad(displayHour)}:{pad(displayMinute)}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#888" />
         </TouchableOpacity>
@@ -237,35 +223,23 @@ const TimePicker = ({ value, onChange }) => {
                 </TouchableOpacity>
               </View>
 
-              {/* Display grande - Usa tempHour y tempMinute */}
               <View style={styles.timeDisplay}>
-                <Text style={styles.timeDisplayText} key={`display-${tempHour}-${tempMinute}`}>
+                <Text style={styles.timeDisplayText}>
                   {pad(tempHour)}:{pad(tempMinute)}
                 </Text>
               </View>
 
               <View style={styles.pickersRow}>
-                {/* Selector de Horas */}
                 <View style={styles.selectorColumn}>
                   <Text style={styles.selectorLabel}>Hora</Text>
-                  <ScrollView 
-                    style={styles.scrollSelector}
-                    showsVerticalScrollIndicator={true}
-                    nestedScrollEnabled={true}
-                  >
+                  <ScrollView style={styles.scrollSelector} showsVerticalScrollIndicator={true} nestedScrollEnabled={true}>
                     {hours.map((hour) => (
                       <TouchableOpacity
                         key={hour}
-                        style={[
-                          styles.timeOption,
-                          tempHour === hour && styles.timeOptionSelected
-                        ]}
-                        onPress={() => changeTempHour(hour)}
+                        style={[styles.timeOption, tempHour === hour && styles.timeOptionSelected]}
+                        onPress={() => setTempHour(hour)}
                       >
-                        <Text style={[
-                          styles.timeOptionText,
-                          tempHour === hour && styles.timeOptionTextSelected
-                        ]}>
+                        <Text style={[styles.timeOptionText, tempHour === hour && styles.timeOptionTextSelected]}>
                           {pad(hour)}
                         </Text>
                       </TouchableOpacity>
@@ -275,27 +249,16 @@ const TimePicker = ({ value, onChange }) => {
 
                 <Text style={styles.colonSeparator}>:</Text>
 
-                {/* Selector de Minutos */}
                 <View style={styles.selectorColumn}>
                   <Text style={styles.selectorLabel}>Minutos</Text>
-                  <ScrollView 
-                    style={styles.scrollSelector}
-                    showsVerticalScrollIndicator={true}
-                    nestedScrollEnabled={true}
-                  >
+                  <ScrollView style={styles.scrollSelector} showsVerticalScrollIndicator={true} nestedScrollEnabled={true}>
                     {minutes.map((minute) => (
                       <TouchableOpacity
                         key={minute}
-                        style={[
-                          styles.timeOption,
-                          tempMinute === minute && styles.timeOptionSelected
-                        ]}
-                        onPress={() => changeTempMinute(minute)}
+                        style={[styles.timeOption, tempMinute === minute && styles.timeOptionSelected]}
+                        onPress={() => setTempMinute(minute)}
                       >
-                        <Text style={[
-                          styles.timeOptionText,
-                          tempMinute === minute && styles.timeOptionTextSelected
-                        ]}>
+                        <Text style={[styles.timeOptionText, tempMinute === minute && styles.timeOptionTextSelected]}>
                           {pad(minute)}
                         </Text>
                       </TouchableOpacity>
@@ -304,27 +267,16 @@ const TimePicker = ({ value, onChange }) => {
                 </View>
               </View>
 
-              {/* Horas rápidas */}
               <View style={styles.quickHoursContainer}>
                 <Text style={styles.quickHoursLabel}>Horas disponibles:</Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.quickHoursScroll}
-                >
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.quickHoursScroll}>
                   {[7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((hour) => (
                     <TouchableOpacity
                       key={hour}
-                      style={[
-                        styles.quickHourBtn,
-                        tempHour === hour && tempMinute === 0 && styles.quickHourBtnActive
-                      ]}
+                      style={[styles.quickHourBtn, tempHour === hour && tempMinute === 0 && styles.quickHourBtnActive]}
                       onPress={() => handleQuickSelect(hour)}
                     >
-                      <Text style={[
-                        styles.quickHourText,
-                        tempHour === hour && tempMinute === 0 && styles.quickHourTextActive
-                      ]}>
+                      <Text style={[styles.quickHourText, tempHour === hour && tempMinute === 0 && styles.quickHourTextActive]}>
                         {pad(hour)}:00
                       </Text>
                     </TouchableOpacity>
@@ -332,13 +284,9 @@ const TimePicker = ({ value, onChange }) => {
                 </ScrollView>
               </View>
 
-              {/* Botón confirmar - Usa tempHour y tempMinute */}
-              <TouchableOpacity
-                style={styles.confirmButton}
-                onPress={handleConfirm}
-              >
+              <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
                 <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
-                <Text style={styles.confirmButtonText} key={`confirm-${tempHour}-${tempMinute}`}>
+                <Text style={styles.confirmButtonText}>
                   Confirmar {pad(tempHour)}:{pad(tempMinute)}
                 </Text>
               </TouchableOpacity>
@@ -349,7 +297,7 @@ const TimePicker = ({ value, onChange }) => {
     );
   }
 
-  // MOBILE: DateTimePicker nativo
+  // MOBILE
   const [showNativePicker, setShowNativePicker] = useState(false);
 
   return (
@@ -361,17 +309,12 @@ const TimePicker = ({ value, onChange }) => {
       >
         <Ionicons name="time-outline" size={20} color="#e95a0c" />
         <Text style={styles.timePickerTriggerText}>
-          {pad(confirmedH)}:{pad(confirmedM)}
+          {pad(displayHour)}:{pad(displayMinute)}
         </Text>
         <Ionicons name="chevron-down" size={16} color="#888" />
       </TouchableOpacity>
 
-      <Modal
-        visible={showNativePicker}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowNativePicker(false)}
-      >
+      <Modal visible={showNativePicker} transparent={true} animationType="slide" onRequestClose={() => setShowNativePicker(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.pickerModalContent}>
             <View style={styles.pickerHeader}>
@@ -380,7 +323,6 @@ const TimePicker = ({ value, onChange }) => {
                 <Ionicons name="close" size={24} color="#333" />
               </TouchableOpacity>
             </View>
-            
             <DateTimePicker
               value={value}
               mode="time"
@@ -388,20 +330,18 @@ const TimePicker = ({ value, onChange }) => {
               is24Hour={true}
               onChange={(e, selected) => {
                 if (selected) {
+                  setDisplayHour(dayjs(selected).hour());
+                  setDisplayMinute(dayjs(selected).minute());
                   onChange(selected);
                   if (Platform.OS !== 'ios') setShowNativePicker(false);
                 }
               }}
               style={styles.dateTimePicker}
             />
-            
             {Platform.OS === 'ios' && (
-              <TouchableOpacity
-                style={styles.doneButton}
-                onPress={() => setShowNativePicker(false)}
-              >
+              <TouchableOpacity style={styles.doneButton} onPress={() => setShowNativePicker(false)}>
                 <Text style={styles.doneButtonText}>
-                  Listo - {pad(confirmedH)}:{pad(confirmedM)}
+                  Listo - {pad(displayHour)}:{pad(displayMinute)}
                 </Text>
               </TouchableOpacity>
             )}
