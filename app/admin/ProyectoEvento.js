@@ -152,7 +152,7 @@ const getNotificationIcon = (type) => {
   }
 };
 
-const TimePicker = ({ value, onChange, visible, onClose }) => {
+const TimePicker = ({ value, onChange }) => {
   const [showModal, setShowModal] = useState(false);
   const [tempHour, setTempHour] = useState(dayjs(value).hour());
   const [tempMinute, setTempMinute] = useState(dayjs(value).minute());
@@ -876,7 +876,7 @@ const ProyectoEvento = () => {
   const [comiteError, setComiteError] = useState(false);
   const [comiteSeleccionado, setComiteSeleccionado] = useState([]);
   const [horaSeleccionada, setHoraSeleccionada] = useState(new Date());
-  const [showTimePickerModal, setShowTimePickerModal] = useState(false);
+  
   const addRecursoTecnologico = () => setRecursosTecnologicos(prev => [...prev, { nombre: '', cantidad: '' }]);
   const removeRecursoTecnologico = (index) => setRecursosTecnologicos(prev => prev.filter((_, i) => i !== index));
   const updateRecursoTecnologico = (value, index, field) => {
