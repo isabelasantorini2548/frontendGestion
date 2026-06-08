@@ -11,6 +11,7 @@ import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import Svg, { Circle, Line, Text as SvgText } from 'react-native-svg';
+import { FlatList } from 'react-native';
 
 //const API_BASE_URL =  'https://evento.cidtec-uc.com';
 const API_BASE_URL = 'https://backendgestion-production.up.railway.app';
