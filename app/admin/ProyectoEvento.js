@@ -166,7 +166,6 @@ const TimePicker = ({ value, onChange }) => {
   const valueKey = `${dayjs(value).hour()}:${dayjs(value).minute()}`;
   if (prevValueRef.current !== valueKey) {
     prevValueRef.current = valueKey;
-    // Solo si el modal está cerrado (no interferir con edición activa)
     if (!showModal) {
       setDisplayHour(dayjs(value).hour());
       setDisplayMinute(dayjs(value).minute());
@@ -253,7 +252,6 @@ const TimePicker = ({ value, onChange }) => {
                 </TouchableOpacity>
               </View>
 
-              {/* Display grande - Usa tempHour y tempMinute */}
               <View style={styles.timeDisplay}>
                 <Text style={styles.timeDisplayText} key={`display-${tempHour}-${tempMinute}`}>
                   {pad(tempHour)}:{pad(tempMinute)}
@@ -261,7 +259,6 @@ const TimePicker = ({ value, onChange }) => {
               </View>
 
               <View style={styles.pickersRow}>
-                {/* Selector de Horas */}
                 <View style={styles.selectorColumn}>
                   <Text style={styles.selectorLabel}>Hora</Text>
                   <ScrollView 
@@ -291,7 +288,6 @@ const TimePicker = ({ value, onChange }) => {
 
                 <Text style={styles.colonSeparator}>:</Text>
 
-                {/* Selector de Minutos */}
                 <View style={styles.selectorColumn}>
                   <Text style={styles.selectorLabel}>Minutos</Text>
                   <ScrollView 
@@ -320,7 +316,6 @@ const TimePicker = ({ value, onChange }) => {
                 </View>
               </View>
 
-              {/* Horas rápidas */}
               <View style={styles.quickHoursContainer}>
                 <Text style={styles.quickHoursLabel}>Horas disponibles:</Text>
                 <ScrollView
@@ -348,7 +343,6 @@ const TimePicker = ({ value, onChange }) => {
                 </ScrollView>
               </View>
 
-              {/* Botón confirmar - Usa tempHour y tempMinute */}
               <TouchableOpacity
                 style={styles.confirmButton}
                 onPress={handleConfirm}
@@ -365,7 +359,6 @@ const TimePicker = ({ value, onChange }) => {
     );
   }
 
-  // MOBILE: DateTimePicker nativo
   const [showNativePicker, setShowNativePicker] = useState(false);
 
   return (
@@ -440,6 +433,7 @@ const NotificationBell = ({ notificationCount, onPress }) => (
     )}
   </TouchableOpacity>
 );
+
 const NotificationsModal = ({ visible, onClose, notifications, markAsRead }) => (
   <Modal
     visible={visible}
@@ -501,6 +495,7 @@ const NotificationsModal = ({ visible, onClose, notifications, markAsRead }) => 
     </View>
   </Modal>
 );
+
 const getTokenAsync = async () => {
   const TOKEN_KEY = 'adminAuthToken';
   try {
@@ -516,7 +511,9 @@ const getTokenAsync = async () => {
     return null;
   }
 };
+
 const formatCurrency = (value) => `Bs ${Number(value).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}`;
+
 const TablaPresupuesto = ({
   titulo, items, setItems, totalGeneral,
   handlePresupuestoChange, eliminarFilaPresupuesto, agregarFilaPresupuesto
@@ -572,6 +569,7 @@ const TablaPresupuesto = ({
     </View>
   </View>
 );
+
 const GoogleStyleCalendarView = ({ fechaHoraSeleccionada, setFechaHoraSeleccionada, eventos, title }) => {
   const getDaysInMonth = (date) => {
     const year = date.getFullYear();
@@ -594,6 +592,7 @@ const GoogleStyleCalendarView = ({ fechaHoraSeleccionada, setFechaHoraSelecciona
     }
     return days;
   };
+
   const getEventsForDay = (date) => {
     const dateStr = dayjs(date).format('YYYY-MM-DD');
     return eventos.filter(evento => {
@@ -601,13 +600,16 @@ const GoogleStyleCalendarView = ({ fechaHoraSeleccionada, setFechaHoraSelecciona
       return fechaEventoStr === dateStr;
     });
   };
+
   const navigateMonth = (direction) => {
     const newDate = new Date(fechaHoraSeleccionada);
     newDate.setMonth(newDate.getMonth() + direction);
     setFechaHoraSeleccionada(newDate);
   };
+
   const days = getDaysInMonth(fechaHoraSeleccionada);
   const weekDays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
   return (
     <View style={styles.googleCalendarContainer}>
       {title && (
@@ -687,6 +689,7 @@ const GoogleStyleCalendarView = ({ fechaHoraSeleccionada, setFechaHoraSelecciona
     </View>
   );
 };
+
 const ConflictModal = ({ showConflictModal, setShowConflictModal, conflictoDetectado, setConflictoDetectado }) => (
   <Modal
     visible={showConflictModal}
@@ -728,6 +731,7 @@ const ConflictModal = ({ showConflictModal, setShowConflictModal, conflictoDetec
     </View>
   </Modal>
 );
+
 const EventosDelDiaMejorado = ({ eventosDelDia, fechaHoraSeleccionada, verificarConflictoHorario }) => {
   if (eventosDelDia.length === 0) return null;
   return (
@@ -784,6 +788,7 @@ const EventosDelDiaMejorado = ({ eventosDelDia, fechaHoraSeleccionada, verificar
     </View>
   );
 };
+
 const ConfirmModal = ({ showConfirmModal, setShowConfirmModal, handleSubmitConfirmed, isLoading, formData }) => (
   <Modal
     visible={showConfirmModal}
@@ -819,6 +824,7 @@ const ConfirmModal = ({ showConfirmModal, setShowConfirmModal, handleSubmitConfi
     </View>
   </Modal>
 );
+
 const ProyectoEvento = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -874,8 +880,10 @@ const ProyectoEvento = () => {
   const [usuariosComite, setUsuariosComite] = useState([]);
   const [comiteLoading, setComiteLoading] = useState(true);
   const [comiteError, setComiteError] = useState(false);
+  const [comiteErrorMessage, setComiteErrorMessage] = useState('');
   const [comiteSeleccionado, setComiteSeleccionado] = useState([]);
   const [horaSeleccionada, setHoraSeleccionada] = useState(new Date());
+
   const addRecursoTecnologico = () => setRecursosTecnologicos(prev => [...prev, { nombre: '', cantidad: '' }]);
   const removeRecursoTecnologico = (index) => setRecursosTecnologicos(prev => prev.filter((_, i) => i !== index));
   const updateRecursoTecnologico = (value, index, field) => {
@@ -883,6 +891,7 @@ const ProyectoEvento = () => {
     nuevos[index][field] = value;
     setRecursosTecnologicos(nuevos);
   };
+
   const addMobiliario = () => setMobiliario(prev => [...prev, { nombre: '', cantidad: '' }]);
   const removeMobiliario = (index) => setMobiliario(prev => prev.filter((_, i) => i !== index));
   const updateMobiliario = (value, index, field) => {
@@ -890,6 +899,7 @@ const ProyectoEvento = () => {
     nuevos[index][field] = value;
     setMobiliario(nuevos);
   };
+
   const addVajilla = () => setVajilla(prev => [...prev, { nombre: '', cantidad: '' }]);
   const removeVajilla = (index) => setVajilla(prev => prev.filter((_, i) => i !== index));
   const updateVajilla = (value, index, field) => {
@@ -897,6 +907,7 @@ const ProyectoEvento = () => {
     nuevos[index][field] = value;
     setVajilla(nuevos);
   };
+
   const [fechaHoraSeleccionada, setFechaHoraSeleccionada] = useState(() => {
     let initialDate = dayjs();
     if (params.selectedDate) {
@@ -908,6 +919,7 @@ const ProyectoEvento = () => {
     }
     return new Date();
   });
+
   const [objetivos, setObjetivos] = useState({
     modeloPedagogico: false,
     posicionamiento: false,
@@ -917,8 +929,10 @@ const ProyectoEvento = () => {
     otro: false,
     otroTexto: ''
   });
+
   const [argumentacion, setArgumentacion] = useState('');
   const [objetivosPDI, setObjetivosPDI] = useState(['', '', '']);
+
   const [segmentoObjetivo, setSegmentoObjetivo] = useState({
     estudiantes: false,
     docentes: false,
@@ -927,13 +941,16 @@ const ProyectoEvento = () => {
     otro: false,
     otroTexto: ''
   });
+
   const [resultadosEsperados, setResultadosEsperados] = useState({
     participacion: '',
     satisfaccion: '',
     otro: ''
   });
+
   const [egresos, setEgresos] = useState([{ key: 'egreso-1', descripcion: '', cantidad: '', precio: '' }]);
   const [ingresos, setIngresos] = useState([{ key: 'ingreso-1', descripcion: '', cantidad: '', precio: '' }]);
+
   const totalEgresos = useMemo(() => egresos.reduce((acc, item) => acc + (parseFloat(item.cantidad) || 0) * (parseFloat(item.precio) || 0), 0), [egresos]);
   const totalIngresos = useMemo(() => ingresos.reduce((acc, item) => acc + (parseFloat(item.cantidad) || 0) * (parseFloat(item.precio) || 0), 0), [ingresos]);
   const balance = useMemo(() => totalIngresos - totalEgresos, [totalIngresos, totalEgresos]);
@@ -988,83 +1005,109 @@ const ProyectoEvento = () => {
     }
   };
 
- const fetchUsuariosComite = async (retries = 3) => {
-  for (let i = 0; i < retries; i++) {
-    try {
-      setComiteLoading(true);
-      setComiteError(false);
-      const token = await getTokenAsync();
-      
-      if (!token) { 
-        router.replace('/login'); 
-        return; 
-      }
-      
-      const response = await axios.get(`${API_BASE_URL}/users/comite`, {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 15000,
-      });
-      
-      const uniqueUsuarios = [];
-      const seenIds = new Set();
-      for (const usuario of response.data) {
-        if (!seenIds.has(usuario.id)) {
-          seenIds.add(usuario.id);
-          uniqueUsuarios.push(usuario);
-        }
-      }
-      setUsuariosComite(uniqueUsuarios);
-      setComiteLoading(false);
-      return;
-      
-    } catch (error) {
-      console.error("Error fetching comite:", error.response?.status, error.response?.data);
-      
-      // Si es 401, el token es inválido - limpiar y redirigir
-      if (error.response?.status === 401) {
-        // Limpiar token
-        if (Platform.OS === 'web') {
-          localStorage.removeItem('adminAuthToken');
-        } else {
-          await SecureStore.deleteItemAsync('adminAuthToken');
+  const fetchUsuariosComite = async (retries = 3) => {
+    console.log('🔄 Iniciando fetchUsuariosComite...');
+    
+    for (let i = 0; i < retries; i++) {
+      try {
+        setComiteLoading(true);
+        setComiteError(false);
+        setComiteErrorMessage('');
+        
+        const token = await getTokenAsync();
+        
+        if (!token) { 
+          console.log('❌ No hay token');
+          setComiteError(true);
+          setComiteErrorMessage('No hay token de autenticación');
+          setComiteLoading(false);
+          return; 
         }
         
-        Alert.alert(
-          "Sesión expirada", 
-          "Tu sesión ha expirado. Por favor, inicia sesión nuevamente.",
-          [{ 
-            text: "Ir a Login", 
-            onPress: () => router.replace('/login') 
-          }]
-        );
+        console.log('📡 Haciendo petición a /users/comite...');
+        const response = await axios.get(`${API_BASE_URL}/users/comite`, {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 15000,
+        });
+        
+        console.log('✅ Respuesta recibida:', response.data);
+        
+        const uniqueUsuarios = [];
+        const seenIds = new Set();
+        for (const usuario of response.data) {
+          if (!seenIds.has(usuario.id)) {
+            seenIds.add(usuario.id);
+            uniqueUsuarios.push(usuario);
+          }
+        }
+        
+        console.log(`✅ ${uniqueUsuarios.length} usuarios únicos cargados`);
+        setUsuariosComite(uniqueUsuarios);
         setComiteLoading(false);
-        setComiteError(true);
         return;
-      }
-      
-      // En el último intento, mostrar error
-      if (i === retries - 1) {
-        setComiteLoading(false);
-        setComiteError(true);
-        setUsuariosComite([]);
         
-        if (error.code === 'ECONNABORTED' || error.message.includes('Network Error')) {
-          Alert.alert("Error de conexión", "El servidor está tardando en responder.", [
-            { text: "Reintentar", onPress: () => fetchUsuariosComite() }
-          ]);
+      } catch (error) {
+        console.error("❌ Error fetching comite:", error.response?.status, error.response?.data);
+        
+        let errorMsg = 'Error desconocido';
+        
+        if (error.response?.status === 401) {
+          errorMsg = 'Token inválido o sesión expirada. Por favor, inicia sesión nuevamente.';
+          console.log('⚠️ Token inválido - 401');
+          
+          if (Platform.OS === 'web') {
+            localStorage.removeItem('adminAuthToken');
+          } else {
+            try {
+              await SecureStore.deleteItemAsync('adminAuthToken');
+            } catch (e) {
+              console.error('Error al eliminar token:', e);
+            }
+          }
+          
+          setComiteLoading(false);
+          setComiteError(true);
+          setComiteErrorMessage(errorMsg);
+          
+          Alert.alert(
+            "Sesión expirada", 
+            "Tu sesión ha expirado. Por favor, inicia sesión nuevamente.",
+            [{ 
+              text: "Ir a Login", 
+              onPress: () => router.replace('/login') 
+            }]
+          );
+          return;
+        } else if (error.response?.status === 403) {
+          errorMsg = 'No tienes permisos para acceder a esta sección. Contacta al administrador.';
+          console.log('⚠️ Sin permisos - 403');
+        } else if (error.response?.status === 404) {
+          errorMsg = 'El endpoint /users/comite no existe en el servidor.';
+          console.log('⚠️ Endpoint no encontrado - 404');
+        } else if (error.code === 'ECONNABORTED') {
+          errorMsg = 'Tiempo de espera agotado. El servidor está tardando en responder.';
+        } else if (error.message?.includes('Network Error')) {
+          errorMsg = 'Error de conexión. Verifica tu conexión a internet.';
         } else {
-          Alert.alert("Error", "No se pudieron cargar los usuarios del comité.");
+          errorMsg = error.response?.data?.message || error.response?.data?.error || 'No se pudieron cargar los usuarios del comité.';
         }
-      } else {
-        // Esperar antes de reintentar (exponential backoff)
-        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, i)));
+        
+        if (i === retries - 1) {
+          console.log('❌ Último intento fallido');
+          setComiteLoading(false);
+          setComiteError(true);
+          setComiteErrorMessage(errorMsg);
+          setUsuariosComite([]);
+        } else {
+          console.log(`🔄 Reintentando... intento ${i + 1} de ${retries}`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, i)));
+        }
       }
     }
-  }
-};
+  };
 
   const verificarConflictoHorario = (fechaHora) => {
     const fechaFormateada = dayjs(fechaHora).format('YYYY-MM-DD');
@@ -1127,46 +1170,44 @@ const ProyectoEvento = () => {
   }, [authToken]);
 
   useEffect(() => {
-  const initialize = async () => {
-    setIsLoading(true);
-    const token = await getTokenAsync();
-    
-    if (!token || token === 'null' || token === '') {
-      Alert.alert("Error", "No se encontró un token de autenticación. Por favor, inicia sesión.");
-      router.replace("/login");
-      setIsLoading(false);
-      return;
-    }
-    
-    // Validar que el token sea válido antes de continuar
-    try {
-      await axios.get(`${API_BASE_URL}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setAuthToken(token);
-    } catch (error) {
-      console.error("Token inválido:", error.response?.data);
+    const initialize = async () => {
+      setIsLoading(true);
+      const token = await getTokenAsync();
       
-      // Limpiar token inválido
-      if (Platform.OS === 'web') {
-        localStorage.removeItem('adminAuthToken');
-      } else {
-        await SecureStore.deleteItemAsync('adminAuthToken');
+      if (!token || token === 'null' || token === '') {
+        Alert.alert("Error", "No se encontró un token de autenticación. Por favor, inicia sesión.");
+        router.replace("/login");
+        setIsLoading(false);
+        return;
       }
       
-      Alert.alert(
-        "Sesión expirada", 
-        "Tu sesión ha expirado o el token es inválido. Por favor, inicia sesión nuevamente.",
-        [{ text: "OK", onPress: () => router.replace('/login') }]
-      );
+      try {
+        await axios.get(`${API_BASE_URL}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setAuthToken(token);
+      } catch (error) {
+        console.error("Token inválido:", error.response?.data);
+        
+        if (Platform.OS === 'web') {
+          localStorage.removeItem('adminAuthToken');
+        } else {
+          await SecureStore.deleteItemAsync('adminAuthToken');
+        }
+        
+        Alert.alert(
+          "Sesión expirada", 
+          "Tu sesión ha expirado o el token es inválido. Por favor, inicia sesión nuevamente.",
+          [{ text: "OK", onPress: () => router.replace('/login') }]
+        );
+        setIsLoading(false);
+        return;
+      }
+      
       setIsLoading(false);
-      return;
-    }
-    
-    setIsLoading(false);
-  };
-  initialize();
-}, []);
+    };
+    initialize();
+  }, []);
 
   useEffect(() => {
     const selectedIds = Object.keys(tiposSeleccionados);
@@ -1190,24 +1231,29 @@ const ProyectoEvento = () => {
     nuevosRecursos[indexToUpdate][field] = text;
     setRecursos(nuevosRecursos);
   };
+
   const handleInputChange = (field, value) => {
     if (field === 'nombreevento') setNombreevento(value);
     if (field === 'lugarevento') setLugarevento(value);
     if (field === 'nombreResponsable') setNombreResponsable(value);
     if (errors[field]) setErrors(prevErrors => ({ ...prevErrors, [field]: null }));
   };
+
   const handleCheckboxChange = (setter, key) => setter(prev => ({ ...prev, [key]: !prev[key] }));
   const handleOtroTextChange = (setter, text) => setter(prev => ({ ...prev, otroTexto: text }));
   const handleResultadoChange = (key, value) => setResultadosEsperados(prev => ({ ...prev, [key]: value }));
+  
   const handlePresupuestoChange = (items, setItems, index, field, value) => {
     const nuevosItems = [...items];
     nuevosItems[index][field] = value;
     setItems(nuevosItems);
   };
+  
   const agregarFilaPresupuesto = (setItems) => setItems(prev => [...prev, { key: `item-${Date.now()}`, descripcion: '', cantidad: '', precio: '' }]);
   const eliminarFilaPresupuesto = (items, setItems, index) => {
     if (items.length > 1) setItems(prev => prev.filter((_, i) => i !== index));
   };
+
   const handleRecursoChange = (idrecurso) => {
     if (idrecurso == null) return;
     const idString = String(idrecurso);
@@ -1215,6 +1261,7 @@ const ProyectoEvento = () => {
       prev.includes(idString) ? prev.filter(r => r !== idString) : [...prev, idString]
     );
   };
+
   const handleTipoEventoChange = (id) => {
     setTiposSeleccionados(prev => {
       const newState = { ...prev };
@@ -1229,6 +1276,7 @@ const ProyectoEvento = () => {
     newObjetivos[index] = value;
     setObjetivosPDI(newObjetivos);
   };
+
   const scrollToObjetivos = () => {
     setSeccionObjetivosVisible(true);
     setTimeout(() => {
@@ -1245,6 +1293,7 @@ const ProyectoEvento = () => {
       }
     }, 0);
   };
+
   const scrollToResultados = () => {
     setSeccionResultadosVisible(true);
     setTimeout(() => {
@@ -1261,6 +1310,7 @@ const ProyectoEvento = () => {
       }
     }, 0);
   };
+
   const scrollToComite = () => {
     setSeccionComiteVisible(true);
     setTimeout(() => {
@@ -1277,6 +1327,7 @@ const ProyectoEvento = () => {
       }
     }, 0);
   };
+
   const scrollToRecursos = () => {
     setSeccionRecursosVisible(true);
     setTimeout(() => {
@@ -1293,6 +1344,7 @@ const ProyectoEvento = () => {
       }
     }, 0);
   };
+
   const scrollToPresupuesto = () => {
     setSeccionPresupuestoVisible(true);
     setTimeout(() => {
@@ -1309,6 +1361,7 @@ const ProyectoEvento = () => {
       }
     }, 0);
   };
+
   const validateForm = () => {
     const newErrors = {};
     if (!nombreevento.trim()) newErrors.nombreevento = 'El nombre del evento es obligatorio.';
@@ -1324,6 +1377,7 @@ const ProyectoEvento = () => {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+
   const confirmSubmit = () => {
     if (!validateForm()) {
       Alert.alert('Formulario Incompleto', 'Por favor, corrige los campos marcados en rojo antes de continuar.');
@@ -1331,6 +1385,7 @@ const ProyectoEvento = () => {
     }
     setShowConfirmModal(true);
   };
+
   const handleSubmitConfirmed = async () => {
     setShowConfirmModal(false);
     setIsLoading(true);
@@ -1698,13 +1753,27 @@ const ProyectoEvento = () => {
               <View style={styles.formSection}>
                 <Text style={styles.sectionTitle}>IV. COMITÉ DEL EVENTO</Text>
                 <Text style={styles.comiteDescription}>Selecciona a los miembros del comité del evento:</Text>
+                
                 {comiteLoading ? (
-                  <ActivityIndicator size="small" color="#e95a0c" style={{ marginTop: 10 }} />
+                  <View style={styles.comiteLoadingContainer}>
+                    <ActivityIndicator size="large" color="#e95a0c" />
+                    <Text style={styles.comiteLoadingText}>Cargando miembros del comité...</Text>
+                  </View>
                 ) : comiteError ? (
-                  <View style={{ alignItems: 'center', marginTop: 10 }}>
-                    <Text style={{ color: 'red', marginBottom: 10 }}>No se pudieron cargar los usuarios.</Text>
-                    <TouchableOpacity onPress={fetchUsuariosComite} style={{ backgroundColor: '#e95a0c', padding: 10, borderRadius: 5 }}>
-                      <Text style={{ color: '#fff', fontWeight: 'bold' }}>Reintentar</Text>
+                  <View style={styles.comiteErrorContainer}>
+                    <Ionicons name="alert-circle" size={50} color="#ff4444" />
+                    <Text style={styles.comiteErrorTitle}>Error al cargar usuarios</Text>
+                    <Text style={styles.comiteErrorMessage}>{comiteErrorMessage}</Text>
+                    <TouchableOpacity 
+                      onPress={() => {
+                        setComiteError(false);
+                        setComiteErrorMessage('');
+                        fetchUsuariosComite();
+                      }} 
+                      style={styles.comiteRetryButton}
+                    >
+                      <Ionicons name="refresh" size={18} color="#fff" />
+                      <Text style={styles.comiteRetryButtonText}>Reintentar</Text>
                     </TouchableOpacity>
                   </View>
                 ) : usuariosComite.length > 0 ? (
@@ -1734,8 +1803,12 @@ const ProyectoEvento = () => {
                     ))}
                   </View>
                 ) : (
-                  <Text style={styles.comitePlaceholder}>No hay usuarios disponibles para el comité.</Text>
+                  <View style={styles.comiteEmptyContainer}>
+                    <Ionicons name="people" size={40} color="#ccc" />
+                    <Text style={styles.comitePlaceholder}>No hay usuarios disponibles para el comité.</Text>
+                  </View>
                 )}
+                
                 <TouchableOpacity style={styles.gotoButton} onPress={scrollToRecursos}>
                   <Ionicons name="arrow-forward" size={20} color="#ffffff" />
                   <Text style={styles.gotoButtonText}>Ir a Recursos Necesarios</Text>
@@ -1797,7 +1870,6 @@ const ProyectoEvento = () => {
             </View>
           )}
 
-          {/* Modales */}
           <Modal visible={showClasificacionModal} transparent animationType="fade" onRequestClose={() => setShowClasificacionModal(false)}>
             <View style={styles.modalOverlay}>
               <View style={styles.modalContent}>
@@ -1881,7 +1953,6 @@ const ProyectoEvento = () => {
     </KeyboardAvoidingView>
   );
 };
-
 const styles = StyleSheet.create({
   horaInicioBar: {
     flexDirection: 'row',
@@ -2082,6 +2153,63 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 9999,
+  },
+  comiteLoadingContainer: {
+    alignItems: 'center',
+    padding: 30,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 10,
+    marginTop: 10,
+  },
+  comiteLoadingText: {
+    marginTop: 15,
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  comiteErrorContainer: {
+    alignItems: 'center',
+    padding: 25,
+    backgroundColor: '#fff5f5',
+    borderRadius: 10,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#ffcccc',
+  },
+  comiteErrorTitle: {
+    marginTop: 15,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#d32f2f',
+  },
+  comiteErrorMessage: {
+    marginTop: 8,
+    fontSize: 13,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 15,
+  },
+  comiteRetryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e95a0c',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    gap: 8,
+  },
+  comiteRetryButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  comiteEmptyContainer: {
+    alignItems: 'center',
+    padding: 30,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 10,
+    marginTop: 10,
   },
   timePickerModalCentered: {
     backgroundColor: '#fff',
