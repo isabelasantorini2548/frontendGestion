@@ -156,22 +156,28 @@ const TimePicker = ({ value, onChange }) => {
   const [showModal, setShowModal] = useState(false);
   const [tempHour, setTempHour] = useState(dayjs(value).hour());
   const [tempMinute, setTempMinute] = useState(dayjs(value).minute());
-  
-  const pad = (n) => String(n).padStart(2, '0');
-  const confirmedH = dayjs(value).hour();
-  const confirmedM = dayjs(value).minute();
+  const [confirmedH, setConfirmedH] = useState(dayjs(value).hour());
+  const [confirmedM, setConfirmedM] = useState(dayjs(value).minute());
 
-  const hours = Array.from({ length: 24 }, (_, i) => i);
-  const minutes = Array.from({ length: 60 }, (_, i) => i);
-
-  // Resetear valores temporales cuando se abre el modal
-  const openModal = () => {
+  // Sincronizar con prop externo
+  useEffect(() => {
+    setConfirmedH(dayjs(value).hour());
+    setConfirmedM(dayjs(value).minute());
     setTempHour(dayjs(value).hour());
     setTempMinute(dayjs(value).minute());
+  }, [value]);
+
+  const pad = (n) => String(n).padStart(2, '0');
+
+  const openModal = () => {
+    setTempHour(confirmedH);
+    setTempMinute(confirmedM);
     setShowModal(true);
   };
 
   const handleConfirm = () => {
+    setConfirmedH(tempHour);
+    setConfirmedM(tempMinute);
     const newDate = new Date(value);
     newDate.setHours(tempHour, tempMinute, 0, 0);
     onChange(newDate);
@@ -179,12 +185,12 @@ const TimePicker = ({ value, onChange }) => {
   };
 
   const handleQuickSelect = (hour) => {
-    const newHour = hour;
-    const newMinute = 0;
-    setTempHour(newHour);
-    setTempMinute(newMinute);
+    setTempHour(hour);
+    setTempMinute(0);
+    setConfirmedH(hour);      // ← actualiza trigger inmediatamente
+    setConfirmedM(0);
     const newDate = new Date(value);
-    newDate.setHours(newHour, newMinute, 0, 0);
+    newDate.setHours(hour, 0, 0, 0);
     onChange(newDate);
     setShowModal(false);
   };
