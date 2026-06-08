@@ -156,15 +156,25 @@ const TimePicker = ({ value, onChange }) => {
   const [showModal, setShowModal] = useState(false);
   const [tempHour, setTempHour] = useState(dayjs(value).hour());
   const [tempMinute, setTempMinute] = useState(dayjs(value).minute());
+  const [renderKey, setRenderKey] = useState(0); // Forzar re-render
   
   const pad = (n) => String(n).padStart(2, '0');
+  
+  // Calcular hora confirmada CADA VEZ que value cambia
   const confirmedH = dayjs(value).hour();
   const confirmedM = dayjs(value).minute();
 
   const hours = Array.from({ length: 24 }, (_, i) => i);
   const minutes = Array.from({ length: 60 }, (_, i) => i);
 
-  // Resetear valores temporales cuando se abre el modal
+  // Sincronizar tempHour/tempMinute cuando value cambia desde fuera
+  useEffect(() => {
+    if (!showModal) {
+      setTempHour(dayjs(value).hour());
+      setTempMinute(dayjs(value).minute());
+    }
+  }, [value, showModal]);
+
   const openModal = () => {
     setTempHour(dayjs(value).hour());
     setTempMinute(dayjs(value).minute());
@@ -176,20 +186,18 @@ const TimePicker = ({ value, onChange }) => {
     newDate.setHours(tempHour, tempMinute, 0, 0);
     onChange(newDate);
     setShowModal(false);
+    // Forzar re-render del componente
+    setRenderKey(prev => prev + 1);
   };
 
   const handleQuickSelect = (hour) => {
-    const newHour = hour;
-    const newMinute = 0;
-    setTempHour(newHour);
-    setTempMinute(newMinute);
     const newDate = new Date(value);
-    newDate.setHours(newHour, newMinute, 0, 0);
+    newDate.setHours(hour, 0, 0, 0);
     onChange(newDate);
     setShowModal(false);
+    setRenderKey(prev => prev + 1);
   };
 
-  // Funciones para cambiar hora y minuto
   const changeTempHour = (hour) => {
     setTempHour(hour);
   };
@@ -205,9 +213,13 @@ const TimePicker = ({ value, onChange }) => {
           onPress={openModal}
           style={styles.timePickerTrigger}
           activeOpacity={0.7}
+          key={`trigger-${renderKey}`}
         >
           <Ionicons name="time-outline" size={20} color="#e95a0c" />
-          <Text style={styles.timePickerTriggerText}>
+          <Text 
+            style={styles.timePickerTriggerText}
+            key={`text-${confirmedH}-${confirmedM}`}
+          >
             {pad(confirmedH)}:{pad(confirmedM)}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#888" />
@@ -231,9 +243,9 @@ const TimePicker = ({ value, onChange }) => {
                 </TouchableOpacity>
               </View>
 
-              {/* Display grande - Usa tempHour y tempMinute */}
+              {/* Display grande */}
               <View style={styles.timeDisplay}>
-                <Text style={styles.timeDisplayText} key={`display-${tempHour}-${tempMinute}`}>
+                <Text style={styles.timeDisplayText}>
                   {pad(tempHour)}:{pad(tempMinute)}
                 </Text>
               </View>
@@ -326,13 +338,13 @@ const TimePicker = ({ value, onChange }) => {
                 </ScrollView>
               </View>
 
-              {/* Botón confirmar - Usa tempHour y tempMinute */}
+              {/* Botón confirmar */}
               <TouchableOpacity
                 style={styles.confirmButton}
                 onPress={handleConfirm}
               >
                 <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
-                <Text style={styles.confirmButtonText} key={`confirm-${tempHour}-${tempMinute}`}>
+                <Text style={styles.confirmButtonText}>
                   Confirmar {pad(tempHour)}:{pad(tempMinute)}
                 </Text>
               </TouchableOpacity>
