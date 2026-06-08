@@ -996,7 +996,9 @@ const ProyectoEvento = () => {
         const token = await getTokenAsync();
         if (!token) { router.replace('/login'); return; }
         const response = await axios.get(`${API_BASE_URL}/users/comite`, {
-          headers: { 'Authorization': `Bearer ${token}` },
+          headers: { 'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+       },
           timeout: 15000,
         });
         const uniqueUsuarios = [];
@@ -1011,7 +1013,7 @@ const ProyectoEvento = () => {
         setComiteLoading(false);
         return;
       } catch (error) {
-        if (i === retries - 1) {
+        /*if (i === retries - 1) {
           setComiteLoading(false);
           setComiteError(true);
           setUsuariosComite([]);
@@ -1020,7 +1022,47 @@ const ProyectoEvento = () => {
           }
         } else {
           await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, i)));
+        }*/
+       console.error("Error fetching comite:", error.response?.status, error.response?.data);
+      
+      // Si es 401, el token es inválido
+      if (error.response?.status === 401) {
+        Alert.alert(
+          "Sesión expirada", 
+          "Tu sesión ha expirado. Por favor, inicia sesión nuevamente.",
+          [{ 
+            text: "Ir a Login", 
+            onPress: () => {
+              // Limpiar token
+              if (Platform.OS === 'web') {
+                localStorage.removeItem('adminAuthToken');
+              } else {
+                SecureStore.deleteItemAsync('adminAuthToken');
+              }
+              router.replace('/login');
+            } 
+          }]
+        );
+        setComiteLoading(false);
+        setComiteError(true);
+        return;
+      }
+      
+      if (i === retries - 1) {
+        setComiteLoading(false);
+        setComiteError(true);
+        setUsuariosComite([]);
+        if (error.code === 'ECONNABORTED' || error.message.includes('Network Error')) {
+          Alert.alert("Error de conexión", "El servidor está tardando en responder.", [
+            { text: "Reintentar", onPress: () => fetchUsuariosComite() }
+          ]);
+        } else {
+          Alert.alert("Error", "No se pudieron cargar los usuarios del comité.");
         }
+      } else {
+        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, i)));
+      }
+    
       }
     }
   };
