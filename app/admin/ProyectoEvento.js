@@ -153,46 +153,250 @@ const getNotificationIcon = (type) => {
 };
 
 const TimePicker = ({ value, onChange, visible, onClose }) => {
-  const [tempHour, setTempHour] = useState(() => dayjs(value).hour());
-  const [tempMinute, setTempMinute] = useState(() => dayjs(value).minute());
-
-  const pad = (n) => String(n).padStart(2, '0');
-  const hours = Array.from({ length: 24 }, (_, i) => i);
-  const minutes = Array.from({ length: 60 }, (_, i) => i);
-
-  // Sincronizar temp cuando se abre el modal
-  useEffect(() => {
-    if (visible) {
+  const [showModal, setShowModal] = useState(false);
+  const [tempHour, setTempHour] = useState(dayjs(value).hour());
+  const [tempMinute, setTempMinute] = useState(dayjs(value).minute());
+  const [confirmedH, setConfirmedH] = useState(dayjs(value).hour());
+  const [confirmedM, setConfirmedM] = useState(dayjs(value).minute());
+  const [displayHour, setDisplayHour] = useState(() => dayjs(value).hour());
+  const [displayMinute, setDisplayMinute] = useState(() => dayjs(value).minute());
+  
+   const prevValueRef = useRef(`${dayjs(value).hour()}:${dayjs(value).minute()}`);
+  
+  const valueKey = `${dayjs(value).hour()}:${dayjs(value).minute()}`;
+  if (prevValueRef.current !== valueKey) {
+    prevValueRef.current = valueKey;
+    // Solo si el modal está cerrado (no interferir con edición activa)
+    if (!showModal) {
+      setDisplayHour(dayjs(value).hour());
+      setDisplayMinute(dayjs(value).minute());
       setTempHour(dayjs(value).hour());
       setTempMinute(dayjs(value).minute());
     }
-  }, [visible]);
+  }
+  useEffect(() => {
+    setConfirmedH(dayjs(value).hour());
+    setConfirmedM(dayjs(value).minute());
+    setTempHour(dayjs(value).hour());
+    setTempMinute(dayjs(value).minute());
+  }, [value]);
+
+  const pad = (n) => String(n).padStart(2, '0');
+
+  const openModal = () => {
+    setTempHour(confirmedH);
+    setTempMinute(confirmedM);
+    setShowModal(true);
+  };
 
   const handleConfirm = () => {
+    setConfirmedH(tempHour);
+    setConfirmedM(tempMinute);
     const newDate = new Date(value);
     newDate.setHours(tempHour, tempMinute, 0, 0);
     onChange(newDate);
-    onClose();
+    setShowModal(false);
   };
 
   const handleQuickSelect = (hour) => {
+    setTempHour(hour);
+    setTempMinute(0);
+    setConfirmedH(hour);      
+    setConfirmedM(0);
     const newDate = new Date(value);
     newDate.setHours(hour, 0, 0, 0);
     onChange(newDate);
-    onClose();
+    setShowModal(false);
   };
 
-  if (Platform.OS !== 'web') {
+   const hours = Array.from({ length: 24 }, (_, i) => i);
+  const minutes = Array.from({ length: 60 }, (_, i) => i);
+  
+  const changeTempHour = (hour) => {
+    setTempHour(hour);
+  };
+
+  const changeTempMinute = (minute) => {
+    setTempMinute(minute);
+  };
+
+  if (Platform.OS === 'web') {
     return (
-      <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
+      <>
+        <TouchableOpacity
+          onPress={openModal}
+          style={styles.timePickerTrigger}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="time-outline" size={20} color="#e95a0c" />
+          <Text style={styles.timePickerTriggerText}>
+            {pad(confirmedH)}:{pad(confirmedM)}
+          </Text>
+          <Ionicons name="chevron-down" size={16} color="#888" />
+        </TouchableOpacity>
+
+        <Modal
+          visible={showModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowModal(false)}
+        >
+          <View style={styles.modalOverlayCentered}>
+            <View style={styles.customTimePickerModal}>
+              <View style={styles.customTimePickerHeader}>
+                <View style={styles.headerIcon}>
+                  <Ionicons name="alarm" size={24} color="#e95a0c" />
+                </View>
+                <Text style={styles.customTimePickerTitle}>Hora de Inicio</Text>
+                <TouchableOpacity onPress={() => setShowModal(false)}>
+                  <Ionicons name="close" size={24} color="#666" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Display grande - Usa tempHour y tempMinute */}
+              <View style={styles.timeDisplay}>
+                <Text style={styles.timeDisplayText} key={`display-${tempHour}-${tempMinute}`}>
+                  {pad(tempHour)}:{pad(tempMinute)}
+                </Text>
+              </View>
+
+              <View style={styles.pickersRow}>
+                {/* Selector de Horas */}
+                <View style={styles.selectorColumn}>
+                  <Text style={styles.selectorLabel}>Hora</Text>
+                  <ScrollView 
+                    style={styles.scrollSelector}
+                    showsVerticalScrollIndicator={true}
+                    nestedScrollEnabled={true}
+                  >
+                    {hours.map((hour) => (
+                      <TouchableOpacity
+                        key={hour}
+                        style={[
+                          styles.timeOption,
+                          tempHour === hour && styles.timeOptionSelected
+                        ]}
+                        onPress={() => changeTempHour(hour)}
+                      >
+                        <Text style={[
+                          styles.timeOptionText,
+                          tempHour === hour && styles.timeOptionTextSelected
+                        ]}>
+                          {pad(hour)}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+
+                <Text style={styles.colonSeparator}>:</Text>
+
+                {/* Selector de Minutos */}
+                <View style={styles.selectorColumn}>
+                  <Text style={styles.selectorLabel}>Minutos</Text>
+                  <ScrollView 
+                    style={styles.scrollSelector}
+                    showsVerticalScrollIndicator={true}
+                    nestedScrollEnabled={true}
+                  >
+                    {minutes.map((minute) => (
+                      <TouchableOpacity
+                        key={minute}
+                        style={[
+                          styles.timeOption,
+                          tempMinute === minute && styles.timeOptionSelected
+                        ]}
+                        onPress={() => changeTempMinute(minute)}
+                      >
+                        <Text style={[
+                          styles.timeOptionText,
+                          tempMinute === minute && styles.timeOptionTextSelected
+                        ]}>
+                          {pad(minute)}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              </View>
+
+              {/* Horas rápidas */}
+              <View style={styles.quickHoursContainer}>
+                <Text style={styles.quickHoursLabel}>Horas disponibles:</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.quickHoursScroll}
+                >
+                  {[7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((hour) => (
+                    <TouchableOpacity
+                      key={hour}
+                      style={[
+                        styles.quickHourBtn,
+                        tempHour === hour && tempMinute === 0 && styles.quickHourBtnActive
+                      ]}
+                      onPress={() => handleQuickSelect(hour)}
+                    >
+                      <Text style={[
+                        styles.quickHourText,
+                        tempHour === hour && tempMinute === 0 && styles.quickHourTextActive
+                      ]}>
+                        {pad(hour)}:00
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Botón confirmar - Usa tempHour y tempMinute */}
+              <TouchableOpacity
+                style={styles.confirmButton}
+                onPress={handleConfirm}
+              >
+                <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
+                <Text style={styles.confirmButtonText} key={`confirm-${tempHour}-${tempMinute}`}>
+                  Confirmar {pad(tempHour)}:{pad(tempMinute)}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      </>
+    );
+  }
+
+  // MOBILE: DateTimePicker nativo
+  const [showNativePicker, setShowNativePicker] = useState(false);
+
+  return (
+    <>
+      <TouchableOpacity
+        onPress={() => setShowNativePicker(true)}
+        style={styles.timePickerTrigger}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="time-outline" size={20} color="#e95a0c" />
+        <Text style={styles.timePickerTriggerText}>
+          {pad(confirmedH)}:{pad(confirmedM)}
+        </Text>
+        <Ionicons name="chevron-down" size={16} color="#888" />
+      </TouchableOpacity>
+
+      <Modal
+        visible={showNativePicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowNativePicker(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.pickerModalContent}>
             <View style={styles.pickerHeader}>
               <Text style={styles.pickerTitle}>Seleccionar Hora de Inicio</Text>
-              <TouchableOpacity onPress={onClose}>
+              <TouchableOpacity onPress={() => setShowNativePicker(false)}>
                 <Ionicons name="close" size={24} color="#333" />
               </TouchableOpacity>
             </View>
+            
             <DateTimePicker
               value={value}
               mode="time"
@@ -201,102 +405,26 @@ const TimePicker = ({ value, onChange, visible, onClose }) => {
               onChange={(e, selected) => {
                 if (selected) {
                   onChange(selected);
-                  if (Platform.OS !== 'ios') onClose();
+                  if (Platform.OS !== 'ios') setShowNativePicker(false);
                 }
               }}
               style={styles.dateTimePicker}
             />
+            
             {Platform.OS === 'ios' && (
-              <TouchableOpacity style={styles.doneButton} onPress={onClose}>
-                <Text style={styles.doneButtonText}>Listo</Text>
+              <TouchableOpacity
+                style={styles.doneButton}
+                onPress={() => setShowNativePicker(false)}
+              >
+                <Text style={styles.doneButtonText}>
+                  Listo - {pad(confirmedH)}:{pad(confirmedM)}
+                </Text>
               </TouchableOpacity>
             )}
           </View>
         </View>
       </Modal>
-    );
-  }
-
-  return (
-    <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
-      <View style={styles.modalOverlayCentered}>
-        <View style={styles.customTimePickerModal}>
-          <View style={styles.customTimePickerHeader}>
-            <View style={styles.headerIcon}>
-              <Ionicons name="alarm" size={24} color="#e95a0c" />
-            </View>
-            <Text style={styles.customTimePickerTitle}>Hora de Inicio</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={24} color="#666" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.timeDisplay}>
-            <Text style={styles.timeDisplayText}>{pad(tempHour)}:{pad(tempMinute)}</Text>
-          </View>
-
-          <View style={styles.pickersRow}>
-            <View style={styles.selectorColumn}>
-              <Text style={styles.selectorLabel}>Hora</Text>
-              <ScrollView style={styles.scrollSelector} showsVerticalScrollIndicator={true} nestedScrollEnabled={true}>
-                {hours.map((hour) => (
-                  <TouchableOpacity
-                    key={hour}
-                    style={[styles.timeOption, tempHour === hour && styles.timeOptionSelected]}
-                    onPress={() => setTempHour(hour)}
-                  >
-                    <Text style={[styles.timeOptionText, tempHour === hour && styles.timeOptionTextSelected]}>
-                      {pad(hour)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-
-            <Text style={styles.colonSeparator}>:</Text>
-
-            <View style={styles.selectorColumn}>
-              <Text style={styles.selectorLabel}>Minutos</Text>
-              <ScrollView style={styles.scrollSelector} showsVerticalScrollIndicator={true} nestedScrollEnabled={true}>
-                {minutes.map((minute) => (
-                  <TouchableOpacity
-                    key={minute}
-                    style={[styles.timeOption, tempMinute === minute && styles.timeOptionSelected]}
-                    onPress={() => setTempMinute(minute)}
-                  >
-                    <Text style={[styles.timeOptionText, tempMinute === minute && styles.timeOptionTextSelected]}>
-                      {pad(minute)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </View>
-
-          <View style={styles.quickHoursContainer}>
-            <Text style={styles.quickHoursLabel}>Horas disponibles:</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.quickHoursScroll}>
-              {[7,8,9,10,11,12,13,14,15,16,17,18,19,20].map((hour) => (
-                <TouchableOpacity
-                  key={hour}
-                  style={[styles.quickHourBtn, tempHour === hour && tempMinute === 0 && styles.quickHourBtnActive]}
-                  onPress={() => handleQuickSelect(hour)}
-                >
-                  <Text style={[styles.quickHourText, tempHour === hour && tempMinute === 0 && styles.quickHourTextActive]}>
-                    {pad(hour)}:00
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-
-          <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
-            <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
-            <Text style={styles.confirmButtonText}>Confirmar {pad(tempHour)}:{pad(tempMinute)}</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
+    </>
   );
 };
 
@@ -1691,12 +1819,6 @@ const ProyectoEvento = () => {
       <ConfirmModal showConfirmModal={showConfirmModal} setShowConfirmModal={setShowConfirmModal} handleSubmitConfirmed={handleSubmitConfirmed} isLoading={isLoading} formData={{ nombreevento, lugarevento, nombreResponsable, fechaHoraSeleccionada }} />
       <NotificationsModal visible={showNotificationsModal} onClose={() => setShowNotificationsModal(false)} notifications={notifications} markAsRead={markNotificationAsRead} />
       <ConflictModal showConflictModal={showConflictModal} setShowConflictModal={setShowConflictModal} conflictoDetectado={conflictoDetectado} setConflictoDetectado={setConflictoDetectado} />
-      <TimePicker
-      value={fechaHoraSeleccionada}
-      onChange={handleClockTimeChange}
-      visible={showTimePickerModal}
-      onClose={() => setShowTimePickerModal(false)}
-    />
     </KeyboardAvoidingView>
   );
 };
