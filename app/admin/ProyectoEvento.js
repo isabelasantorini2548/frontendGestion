@@ -876,7 +876,6 @@ const ProyectoEvento = () => {
   const [comiteError, setComiteError] = useState(false);
   const [comiteSeleccionado, setComiteSeleccionado] = useState([]);
   const [horaSeleccionada, setHoraSeleccionada] = useState(new Date());
-  
   const addRecursoTecnologico = () => setRecursosTecnologicos(prev => [...prev, { nombre: '', cantidad: '' }]);
   const removeRecursoTecnologico = (index) => setRecursosTecnologicos(prev => prev.filter((_, i) => i !== index));
   const updateRecursoTecnologico = (value, index, field) => {
@@ -1383,18 +1382,10 @@ const ProyectoEvento = () => {
           <Ionicons name="alarm" size={24} color="#e95a0c" />
           <Text style={styles.timePickerSectionTitle}>Hora de Inicio del Evento</Text>
         </View>
-        {/* Trigger que vive en el padre, siempre sincronizado */}
-        <TouchableOpacity
-          onPress={() => setShowTimePickerModal(true)}
-          style={styles.timePickerTrigger}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="time-outline" size={20} color="#e95a0c" />
-          <Text style={styles.timePickerTriggerText}>
-            {String(dayjs(fechaHoraSeleccionada).hour()).padStart(2,'0')}:{String(dayjs(fechaHoraSeleccionada).minute()).padStart(2,'0')}
-          </Text>
-          <Ionicons name="chevron-down" size={16} color="#888" />
-        </TouchableOpacity>
+        <TimePicker
+          value={fechaHoraSeleccionada}
+          onChange={handleClockTimeChange}
+        />
       </View>
 
       <View style={styles.mainContainer}>
