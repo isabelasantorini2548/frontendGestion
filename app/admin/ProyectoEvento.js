@@ -11,7 +11,6 @@ import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import Svg, { Circle, Line, Text as SvgText } from 'react-native-svg';
-import { FlatList } from 'react-native';
 
 //const API_BASE_URL =  'https://evento.cidtec-uc.com';
 const API_BASE_URL = 'https://backendgestion-production.up.railway.app';
@@ -244,10 +243,7 @@ const TimePicker = ({ value, onChange, visible, onClose }) => {
                   <TouchableOpacity
                     key={hour}
                     style={[styles.timeOption, tempHour === hour && styles.timeOptionSelected]}
-                    onPress={() => {
-                      setTempHour(hour);
-                      console.log('Hour selected:', hour);
-                    }}
+                    onPress={() => setTempHour(hour)}
                   >
                     <Text style={[styles.timeOptionText, tempHour === hour && styles.timeOptionTextSelected]}>
                       {pad(hour)}
@@ -261,25 +257,19 @@ const TimePicker = ({ value, onChange, visible, onClose }) => {
 
             <View style={styles.selectorColumn}>
               <Text style={styles.selectorLabel}>Minutos</Text>
-              <FlatList
-                data={minutes}
-                keyExtractor={(item) => String(item)}
-                style={styles.scrollSelector}
-                nestedScrollEnabled={true}
-                renderItem={({ item: minute }) => (
+              <ScrollView style={styles.scrollSelector} showsVerticalScrollIndicator={true} nestedScrollEnabled={true}>
+                {minutes.map((minute) => (
                   <TouchableOpacity
+                    key={minute}
                     style={[styles.timeOption, tempMinute === minute && styles.timeOptionSelected]}
-                    onPress={() => {
-                      setTempMinute(minute);
-                      console.log('Minute selected:', minute);
-                    }}
+                    onPress={() => setTempMinute(minute)}
                   >
                     <Text style={[styles.timeOptionText, tempMinute === minute && styles.timeOptionTextSelected]}>
                       {pad(minute)}
                     </Text>
                   </TouchableOpacity>
-                )}
-              />
+                ))}
+              </ScrollView>
             </View>
           </View>
 
@@ -1702,11 +1692,11 @@ const ProyectoEvento = () => {
       <NotificationsModal visible={showNotificationsModal} onClose={() => setShowNotificationsModal(false)} notifications={notifications} markAsRead={markNotificationAsRead} />
       <ConflictModal showConflictModal={showConflictModal} setShowConflictModal={setShowConflictModal} conflictoDetectado={conflictoDetectado} setConflictoDetectado={setConflictoDetectado} />
       <TimePicker
-        value={fechaHoraSeleccionada}
-        onChange={handleClockTimeChange}
-        visible={showTimePickerModal}
-        onClose={() => setShowTimePickerModal(false)}
-      />
+      value={fechaHoraSeleccionada}
+      onChange={handleClockTimeChange}
+      visible={showTimePickerModal}
+      onClose={() => setShowTimePickerModal(false)}
+    />
     </KeyboardAvoidingView>
   );
 };
