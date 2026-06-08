@@ -158,8 +158,22 @@ const TimePicker = ({ value, onChange }) => {
   const [tempMinute, setTempMinute] = useState(dayjs(value).minute());
   const [confirmedH, setConfirmedH] = useState(dayjs(value).hour());
   const [confirmedM, setConfirmedM] = useState(dayjs(value).minute());
-
-  // Sincronizar con prop externo
+  const [displayHour, setDisplayHour] = useState(() => dayjs(value).hour());
+  const [displayMinute, setDisplayMinute] = useState(() => dayjs(value).minute());
+  
+   const prevValueRef = useRef(`${dayjs(value).hour()}:${dayjs(value).minute()}`);
+  
+  const valueKey = `${dayjs(value).hour()}:${dayjs(value).minute()}`;
+  if (prevValueRef.current !== valueKey) {
+    prevValueRef.current = valueKey;
+    // Solo si el modal está cerrado (no interferir con edición activa)
+    if (!showModal) {
+      setDisplayHour(dayjs(value).hour());
+      setDisplayMinute(dayjs(value).minute());
+      setTempHour(dayjs(value).hour());
+      setTempMinute(dayjs(value).minute());
+    }
+  }
   useEffect(() => {
     setConfirmedH(dayjs(value).hour());
     setConfirmedM(dayjs(value).minute());
