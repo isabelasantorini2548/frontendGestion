@@ -10,7 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 
 // ─── Usa el mismo API_BASE_URL que el resto de tu app ────────────────
-const API_BASE_URL = 'https://evento.cidtec-uc.com';
+const API_BASE_URL = 'https://backendgestion-production.up.railway.app';
 const TOKEN_KEY    = 'adminAuthToken';
 
 const COLORS = {
