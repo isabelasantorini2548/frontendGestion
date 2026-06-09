@@ -750,7 +750,7 @@ const ConflictModal = ({
   </Modal>
 );
 
-const EventosDelDiaMejorado = ({ eventosDelDia, fechaHoraSeleccionada, verificarConflictoHorario }) => {
+const EventosDelDiaMejorado = ({ eventosDelDia, fechaHoraSeleccionada }) => {
   if (eventosDelDia.length === 0) return null;
 
   return (
@@ -764,45 +764,21 @@ const EventosDelDiaMejorado = ({ eventosDelDia, fechaHoraSeleccionada, verificar
       </View>
       <ScrollView style={styles.eventsList} showsVerticalScrollIndicator={false}>
         {eventosDelDia.map((evento, index) => {
-          const horaEventoString = (evento.horaevento || '').split('+')[0].trim();
-          const horaEvento = dayjs(`2000-01-01 ${horaEventoString}`, 'YYYY-MM-DD HH:mm:ss');
-          const isHoraValida = horaEvento.isValid();
-          const isConflict = verificarConflictoHorario(
-            dayjs(fechaHoraSeleccionada).format('YYYY-MM-DD') + 'T' + dayjs(fechaHoraSeleccionada).format('HH:mm:ss')
-          ).some(e => e.id === evento.id || e.idevento === evento.idevento);
-
           return (
-            <View key={index} style={[styles.eventoCard, isConflict && styles.eventoCardConflict]}>
-              <View style={styles.eventoCardHeader}>
-                <View style={styles.eventoTimeContainer}>
-                  <Ionicons name="time-outline" size={16} color={isConflict ? "#ff6b6b" : "#e95a0c"} />
-                  <Text style={[styles.eventoTime, isConflict && styles.eventoTimeConflict]}>
-                    {isHoraValida ? horaEvento.format('HH:mm') : 'Hora no disponible'}
-                  </Text>
-                </View>
-                {isConflict && (
-                  <View style={styles.conflictBadge}>
-                    <Ionicons name="warning" size={12} color="white" />
-                    <Text style={styles.conflictBadgeText}>Conflicto</Text>
-                  </View>
-                )}
-              </View>
+            <View key={index} style={styles.eventoCard}>
               <Text style={styles.eventoNombre}>{evento.nombreevento}</Text>
-              <View style={styles.eventoDetails}>
+              {evento.lugarevento && (
                 <View style={styles.eventoDetailRow}>
                   <Ionicons name="location-outline" size={14} color="#666" />
                   <Text style={styles.eventoDetailText}>{evento.lugarevento}</Text>
                 </View>
-                <View style={styles.eventoDetailRow}>
-                  <Ionicons name="person-outline" size={14} color="#666" />
-                </View>
-              </View>
+              )}
             </View>
           );
         })}
       </ScrollView>
       <View style={styles.eventosDelDiaFooter}>
-        <Text style={styles.eventosDelDiaNote}>Verifica que tu nuevo evento no genere conflictos de horario</Text>
+        <Text style={styles.eventosDelDiaNote}>Eventos programados para este día</Text>
       </View>
     </View>
   );
@@ -1521,7 +1497,7 @@ if (!tieneAlgunObjetivo) newErrors.objetivos = 'Selecciona al menos un objetivo.
     }
 
     try {
-      const fechaLocal = dayjs(fechaHoraSeleccionada).local();
+      const fechaLocal = dayjs(fechaHoraSeleccionada);
       const eventoPayload = {
         // ✅ ELIMINADO idevento del body para evitar errores de validación estricta (400 Bad Request)
         nombreevento: nombreevento.trim(),
@@ -1669,7 +1645,6 @@ if (!tieneAlgunObjetivo) newErrors.objetivos = 'Selecciona al menos un objetivo.
               <EventosDelDiaMejorado
                 eventosDelDia={eventosDelDia}
                 fechaHoraSeleccionada={fechaHoraSeleccionada}
-                verificarConflictoHorario={verificarConflictoHorario}
               />
             </View>
           </View>
