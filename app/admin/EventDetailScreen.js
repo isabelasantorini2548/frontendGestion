@@ -1152,10 +1152,9 @@ const SUBCATEGORIA_NUM_TO_ID = Object.fromEntries(
 
 const populateFormFromApi = (apiData) => {
   console.log('📥 Keys del apiData:', Object.keys(apiData));
-  console.log('📥 apiData completo:', JSON.stringify(apiData, null, 2));
 
-  // Datos básicos del evento
-  setIdevento(apiData.idevento);
+  // 1. Captura de ID infalible
+  setIdevento(apiData.idevento || apiData.id || eventId);
   setEstadoEvento(apiData.estado || 'pendiente');
   setNombreevento(apiData.nombreevento || '');
   setLugarevento(apiData.lugarevento || '');
@@ -1171,111 +1170,76 @@ const populateFormFromApi = (apiData) => {
     setHoraSeleccionada(fechaHora);
   }
 
-  // Clasificación y subcategoría
-  if (apiData.Clasificacion) {
-    setClasificacionSeleccionada(apiData.Clasificacion.idclasificacion?.toString() || '');
-    const idSubNum = apiData.Clasificacion.idsubcategoria;
+  // Clasificación (Soporte para objeto anidado o llave plana)
+  const idClasificacion = apiData.Clasificacion?.idclasificacion || apiData.idclasificacion;
+  if (idClasificacion) {
+    setClasificacionSeleccionada(idClasificacion.toString());
+    const idSubNum = apiData.Clasificacion?.idsubcategoria || apiData.idsubcategoria;
     if (idSubNum) {
       setSubcategoriaSeleccionada(SUBCATEGORIA_NUM_TO_ID[idSubNum] || '');
     }
   }
 
-  // Tipos de evento - Mapeo inverso desde nombre a ID
-  if (apiData.TiposDeEvento?.length) {
+  // Tipos de evento
+  const tiposApi = apiData.TiposDeEvento || apiData.tipos_de_evento || [];
+  if (tiposApi.length) {
     const tiposMap = {};
     const NOMBRE_TO_ID = {
-      'Curricular': '1',
-      'Extracurricular': '2',
-      'Marketing': '3',
-      'Internacionalización/Marketing': '4',
-      'Marketing/Extracurricular': '5'
+      'Curricular': '1', 'Extracurricular': '2', 'Marketing': '3',
+      'Internacionalización/Marketing': '4', 'Marketing/Extracurricular': '5'
     };
-    
-    apiData.TiposDeEvento.forEach(tipo => {
-      const nombre = tipo.nombretipo?.trim();
+    tiposApi.forEach(tipo => {
+      const nombre = (tipo.nombretipo || tipo.nombre)?.trim();
       const id = NOMBRE_TO_ID[nombre];
       if (id) {
         tiposMap[id] = true;
-        if (id === '5' && tipo.texto_personalizado) {
-          setTextoOtroTipo(tipo.texto_personalizado);
-        }
+        if (id === '5' && tipo.texto_personalizado) setTextoOtroTipo(tipo.texto_personalizado);
       }
     });
     setTiposSeleccionados(tiposMap);
   }
 
   // Objetivos, segmentos y argumentación
-  if (apiData.Objetivos?.length) {
-    const nuevosObjetivos = {
-      modeloPedagogico: false,
-      posicionamiento: false,
-      internacionalizacion: false,
-      rsu: false,
-      fidelizacion: false,
-      otro: false,
-      otroTexto: ''
-    };
-    const nuevosSegmentos = {
-      estudiantes: false,
-      docentes: false,
-      publicoExterno: false,
-      influencers: false,
-      otro: false,
-      otroTexto: ''
-    };
+  const objetivosApi = apiData.Objetivos || apiData.objetivos || [];
+  if (objetivosApi.length) {
+    const nuevosObjetivos = { modeloPedagogico: false, posicionamiento: false, internacionalizacion: false, rsu: false, fidelizacion: false, otro: false, otroTexto: '' };
+    const nuevosSegmentos = { estudiantes: false, docentes: false, publicoExterno: false, influencers: false, otro: false, otroTexto: '' };
     const nuevosTextosSegmentos = {};
     const pdiTextos = [];
     let argumentacionEncontrada = '';
 
-    apiData.Objetivos.forEach(obj => {
+    objetivosApi.forEach(obj => {
       const idTipo = obj.idtipoobjetivo;
       const key = OBJETIVOS_ID_TO_KEY[idTipo];
-      
       if (!key) return;
 
-      // Argumentación (solo una vez, del primer objetivo que la tenga)
-      if (obj.argumentacion && !argumentacionEncontrada) {
-        argumentacionEncontrada = obj.argumentacion;
-      }
+      if (obj.argumentacion && !argumentacionEncontrada) argumentacionEncontrada = obj.argumentacion;
 
       if (key !== 'otro') {
         nuevosObjetivos[key] = true;
       } else {
         nuevosObjetivos.otro = true;
         if (obj.texto_personalizado?.trim()) {
-          if (!nuevosObjetivos.otroTexto) {
-            nuevosObjetivos.otroTexto = obj.texto_personalizado.trim();
-          } else {
-            pdiTextos.push(obj.texto_personalizado.trim());
-          }
+          if (!nuevosObjetivos.otroTexto) nuevosObjetivos.otroTexto = obj.texto_personalizado.trim();
+          else pdiTextos.push(obj.texto_personalizado.trim());
         }
       }
 
-      // Segmentos asociados a este objetivo
-      if (obj.segmentos?.length) {
-        obj.segmentos.forEach(seg => {
-          const segId = seg.idsegmento;
-          const SEG_ID_TO_KEY = { 1: 'estudiantes', 2: 'docentes', 3: 'publicoExterno', 4: 'influencers' };
+      const segmentosApi = obj.segmentos || obj.segmentos_objetivo || [];
+      if (segmentosApi.length) {
+        segmentosApi.forEach(seg => {
+          const segId = seg.idsegmento || seg.id;
+          const SEG_ID_TO_KEY = { 1: 'estudiantes', 2: 'docentes', 3: 'publicoExterno', 4: 'influencers', 5: 'otro' };
           const segKey = SEG_ID_TO_KEY[segId];
-          
           if (segKey) {
             nuevosSegmentos[segKey] = true;
-            if (seg.texto_personalizado) {
-              nuevosTextosSegmentos[segKey] = seg.texto_personalizado;
-            }
-          } else {
-            nuevosSegmentos.otro = true;
-            if (seg.texto_personalizado) {
-              nuevosSegmentos.otroTexto = seg.texto_personalizado;
-            }
+            if (seg.texto_personalizado) nuevosTextosSegmentos[segKey] = seg.texto_personalizado;
           }
         });
       }
     });
 
-    // Completar PDI con 3 elementos
     while (pdiTextos.length < 3) pdiTextos.push('');
-    
     setArgumentacion(argumentacionEncontrada);
     setObjetivosPDI(pdiTextos);
     setObjetivos(nuevosObjetivos);
@@ -1283,16 +1247,9 @@ const populateFormFromApi = (apiData) => {
     setSegmentosTextoPersonalizado(nuevosTextosSegmentos);
   }
 
-  // Objetivos PDI independientes
-  if (apiData.ObjetivosPDI?.length) {
-    const pdiTextos = [...apiData.ObjetivosPDI];
-    while (pdiTextos.length < 3) pdiTextos.push('');
-    setObjetivosPDI(pdiTextos);
-  }
-
-  // Resultados esperados
-  if (apiData.Resultados?.[0]) {
-    const r = apiData.Resultados[0];
+  const resultadosApi = apiData.Resultados || apiData.resultados || [];
+  if (resultadosApi[0]) {
+    const r = resultadosApi[0];
     setResultadosEsperados({
       participacion: r.participacion_esperada?.toString() || '',
       satisfaccion: r.satisfaccion_esperada?.toString() || '',
@@ -1300,43 +1257,17 @@ const populateFormFromApi = (apiData) => {
     });
   }
 
-  // Recursos existentes
-  if (apiData.Recursos?.length) {
-    setRecursosSeleccionados(
-      apiData.Recursos.map(r => r.idrecurso?.toString()).filter(Boolean)
-    );
-  }
+  const recursosApi = apiData.Recursos || apiData.recursos_existentes || [];
+  if (recursosApi.length) setRecursosSeleccionados(recursosApi.map(r => (r.idrecurso || r.id)?.toString()).filter(Boolean));
 
-  // Comité
-  if (apiData.Comite?.length) {
-    setComiteSeleccionado(
-      apiData.Comite.map(m => m.idusuario || m.id).filter(Boolean)
-    );
-  }
+  const comiteApi = apiData.Comite || apiData.comite || [];
+  if (comiteApi.length) setComiteSeleccionado(comiteApi.map(m => m.idusuario || m.id).filter(Boolean));
 
-  // Presupuesto - Egresos e Ingresos están en el nivel superior
-  const egresosData = apiData.Egresos || [];
-  const ingresosData = apiData.Ingresos || [];
+  const egresosData = apiData.Egresos || apiData.egresos || [];
+  const ingresosData = apiData.Ingresos || apiData.ingresos || [];
 
-  if (egresosData.length) {
-    setEgresos(egresosData.map((e, i) => ({
-      key: `egreso-${e.idegreso ?? i}-${Date.now()}`,
-      descripcion: e.descripcion ?? '',
-      cantidad: String(e.cantidad ?? ''),
-      precio: String(e.precio_unitario ?? e.precio ?? '')
-    })));
-  }
-
-  if (ingresosData.length) {
-    setIngresos(ingresosData.map((e, i) => ({
-      key: `ingreso-${e.idingreso ?? i}-${Date.now()}`,
-      descripcion: e.descripcion ?? '',
-      cantidad: String(e.cantidad ?? ''),
-      precio: String(e.precio_unitario ?? e.precio ?? '')
-    })));
-  }
-
-  console.log('✅ Formulario poblado correctamente');
+  if (egresosData.length) setEgresos(egresosData.map((e, i) => ({ key: `egreso-${e.idegreso ?? i}-${Date.now()}`, descripcion: e.descripcion ?? '', cantidad: String(e.cantidad ?? ''), precio: String(e.precio_unitario ?? e.precio ?? '') })));
+  if (ingresosData.length) setIngresos(ingresosData.map((e, i) => ({ key: `ingreso-${e.idingreso ?? i}-${Date.now()}`, descripcion: e.descripcion ?? '', cantidad: String(e.cantidad ?? ''), precio: String(e.precio_unitario ?? e.precio ?? '') })));
 };
 
 useEffect(() => {
@@ -1572,142 +1503,115 @@ if (!tieneAlgunObjetivo) newErrors.objetivos = 'Selecciona al menos un objetivo.
     setShowConfirmModal(true);
   };
 
- const handleSubmitConfirmed = async () => {
-  setShowConfirmModal(false);
-  setIsLoading(true);
-  
-  // 🔁 REFRESCAR TOKEN ANTES DE USAR
-  const token = await getTokenAsync();
-  if (!idevento) {
-    console.error('❌ idevento es null/undefined');
-    Alert.alert('Error', 'No se encontró el ID del evento.');
-    setIsLoading(false);
-    return;
-  }
-  if (!token) {
-    console.error('❌ Token no encontrado');
-    Alert.alert('Sesión expirada', 'Inicia sesión nuevamente.');
-    router.replace('/login');
-    setIsLoading(false);
-    return;
-  }
-
-  try {
-    // 🪵 LOG CRÍTICO: Ver payload antes de enviar
-    console.log('📤 PAYLOAD ENVIADO:', JSON.stringify({
-      idevento,
-      nombreevento,
-      fechaevento: dayjs(fechaHoraSeleccionada).format('YYYY-MM-DD'),
-      horaevento: dayjs(fechaHoraSeleccionada).format('HH:mm:ss'),
-      idclasificacion: clasificacionSeleccionada,
-      idsubcategoria: subcategoriaSeleccionada,
-      // Agrega más campos si es necesario
-    }, null, 2));
-
-    const fechaLocal = dayjs(fechaHoraSeleccionada).local();
-    const eventoPayload = {
-      idevento,
-      nombreevento: nombreevento.trim(),
-      lugarevento: lugarevento.trim() || 'Por definir',
-      fechaevento: fechaLocal.format('YYYY-MM-DD'),
-      horaevento: dayjs(fechaHoraSeleccionada).format('HH:mm:ss'),
-      argumentacion: argumentacion.trim() || null,
-      resultados_esperados: JSON.stringify(resultadosEsperados),
-      tipos_de_evento: Object.keys(tiposSeleccionados)
-        .filter(id => tiposSeleccionados[id])
-        .map(id => ({
-          id: parseInt(id, 10),
-          texto_personalizado: id === '5' && textoOtroTipo.trim() ? textoOtroTipo.trim() : undefined
-        })),
-      objetivos: [
-      ...Object.entries(objetivos)
-        .filter(([k, v]) => v === true && k !== 'otroTexto' && k !== 'otro')
-        .map(([k]) => ({ id: OBJETIVOS_EVENTO_MAP[k] })),
-      ...(objetivos.otro && objetivos.otroTexto?.trim()
-        ? [{ id: 6, texto_personalizado: objetivos.otroTexto.trim() }]
-        : objetivos.otro ? [{ id: 6 }] : []),
-      ...objetivosPDI
-        .filter(t => t.trim())
-        .map(t => ({ id: 6, texto_personalizado: t.trim() })),
-    ],
-      segmentos_objetivo: Object.entries(segmentoObjetivo)
-        .filter(([k, v]) => v && ['estudiantes','docentes','publicoExterno','influencers'].includes(k))
-        .map(([k]) => {
-          const seg = SEGMENTO_OBJETIVO.find(s => 
-            ({estudiantes:'1',docentes:'2',publicoExterno:'3',influencers:'4'})[k] === s.id
-          );
-          return seg ? { id: parseInt(seg.id), texto_personalizado: segmentosTextoPersonalizado[k] || null } : null;
-        }).filter(Boolean),
-      recursos_existentes: recursosSeleccionados.map(id => parseInt(id)).filter(id => !isNaN(id)),
-      recursos_nuevos: [
-        ...recursosTecnologicos.filter(r => r.nombre?.trim()).map(r => ({ nombre_recurso: r.nombre.trim(), cantidad: parseInt(r.cantidad)||1, recurso_tipo: 'tecnologico' })),
-        ...mobiliario.filter(r => r.nombre?.trim()).map(r => ({ nombre_recurso: r.nombre.trim(), cantidad: parseInt(r.cantidad)||1, recurso_tipo: 'mobiliario' })),
-        ...vajilla.filter(r => r.nombre?.trim()).map(r => ({ nombre_recurso: r.nombre.trim(), cantidad: parseInt(r.cantidad)||1, recurso_tipo: 'vajilla' }))
-      ],
-      presupuesto: {
-        egresos: egresos.filter(i => i.descripcion.trim()).map(i => ({ descripcion: i.descripcion, cantidad: parseFloat(i.cantidad)||0, precio_unitario: parseFloat(i.precio)||0 })),
-        ingresos: ingresos.filter(i => i.descripcion.trim()).map(i => ({ descripcion: i.descripcion, cantidad: parseFloat(i.cantidad)||0, precio_unitario: parseFloat(i.precio)||0 })),
-        total_egresos: totalEgresos,
-        total_ingresos: totalIngresos,
-        balance
-      },
-      idclasificacion: clasificacionSeleccionada ? parseInt(clasificacionSeleccionada) : null,
-      idsubcategoria: subcategoriaSeleccionada ? SUBCATEGORIA_ID_MAP[subcategoriaSeleccionada] : null, // ✅ Usa el mapa correcto
-      comite: comiteSeleccionado.length > 0 ? comiteSeleccionado : null,
-    };
-
-    console.log('🔗 URL:', `${API_BASE_URL}/eventos/${idevento}`);
+  const handleSubmitConfirmed = async () => {
+    setShowConfirmModal(false);
+    setIsLoading(true);
     
-    const response = await axios.put(
-      `${API_BASE_URL}/eventos/${idevento}`, 
-      eventoPayload,
-      { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
-    );
-    
-    console.log('✅ RESPUESTA BACKEND:', response.status, response.data);
+    const token = await getTokenAsync();
+    if (!idevento) {
+      Alert.alert('Error', 'No se encontró el ID del evento.');
+      setIsLoading(false);
+      return;
+    }
+    if (!token) {
+      Alert.alert('Sesión expirada', 'Inicia sesión nuevamente.');
+      router.replace('/login');
+      setIsLoading(false);
+      return;
+    }
 
-    if (mode === 'reprogramar' && response.data.estado !== 'pendiente') {
-      await axios.put(
-        `${API_BASE_URL}/eventos/${idevento}/status`,
-        { estado: 'pendiente' },
-        { headers: { Authorization: `Bearer ${token}` } }
+    try {
+      const fechaLocal = dayjs(fechaHoraSeleccionada).local();
+      const eventoPayload = {
+        // ✅ ELIMINADO idevento del body para evitar errores de validación estricta (400 Bad Request)
+        nombreevento: nombreevento.trim(),
+        lugarevento: lugarevento.trim() || 'Por definir',
+        fechaevento: fechaLocal.format('YYYY-MM-DD'),
+        horaevento: dayjs(fechaHoraSeleccionada).format('HH:mm:ss'),
+        argumentacion: argumentacion.trim() || null,
+        
+        // ✅ QUITADO JSON.stringify (Axios ya serializa el objeto, esto causaba doble comilla y error en backend)
+        resultados_esperados: resultadosEsperados, 
+        
+        tipos_de_evento: Object.keys(tiposSeleccionados)
+          .filter(id => tiposSeleccionados[id])
+          .map(id => ({
+            id: parseInt(id, 10),
+            texto_personalizado: id === '5' && textoOtroTipo.trim() ? textoOtroTipo.trim() : undefined
+          })),
+        objetivos: [
+          ...Object.entries(objetivos)
+            .filter(([k, v]) => v === true && k !== 'otroTexto' && k !== 'otro')
+            .map(([k]) => ({ id: OBJETIVOS_EVENTO_MAP[k] })),
+          ...(objetivos.otro && objetivos.otroTexto?.trim()
+            ? [{ id: 6, texto_personalizado: objetivos.otroTexto.trim() }]
+            : objetivos.otro ? [{ id: 6 }] : []),
+          ...objetivosPDI
+            .filter(t => t.trim())
+            .map(t => ({ id: 6, texto_personalizado: t.trim() })),
+        ],
+        segmentos_objetivo: Object.entries(segmentoObjetivo)
+          .filter(([k, v]) => v && k !== 'otroTexto') // ✅ AHORA INCLUYE EL SEGMENTO "OTRO"
+          .map(([k]) => {
+            if (k === 'otro') return { id: 5, texto_personalizado: segmentoObjetivo.otroTexto || null };
+            const seg = SEGMENTO_OBJETIVO.find(s => ({estudiantes:'1',docentes:'2',publicoExterno:'3',influencers:'4'})[k] === s.id);
+            return seg ? { id: parseInt(seg.id), texto_personalizado: segmentosTextoPersonalizado[k] || null } : null;
+          }).filter(Boolean),
+        recursos_existentes: recursosSeleccionados.map(id => parseInt(id)).filter(id => !isNaN(id)),
+        recursos_nuevos: [
+          ...recursosTecnologicos.filter(r => r.nombre?.trim()).map(r => ({ nombre_recurso: r.nombre.trim(), cantidad: parseInt(r.cantidad)||1, recurso_tipo: 'tecnologico' })),
+          ...mobiliario.filter(r => r.nombre?.trim()).map(r => ({ nombre_recurso: r.nombre.trim(), cantidad: parseInt(r.cantidad)||1, recurso_tipo: 'mobiliario' })),
+          ...vajilla.filter(r => r.nombre?.trim()).map(r => ({ nombre_recurso: r.nombre.trim(), cantidad: parseInt(r.cantidad)||1, recurso_tipo: 'vajilla' }))
+        ],
+        presupuesto: {
+          egresos: egresos.filter(i => i.descripcion?.trim()).map(i => ({ descripcion: i.descripcion, cantidad: parseFloat(i.cantidad)||0, precio_unitario: parseFloat(i.precio)||0 })),
+          ingresos: ingresos.filter(i => i.descripcion?.trim()).map(i => ({ descripcion: i.descripcion, cantidad: parseFloat(i.cantidad)||0, precio_unitario: parseFloat(i.precio)||0 })),
+          total_egresos: totalEgresos,
+          total_ingresos: totalIngresos,
+          balance
+        },
+        idclasificacion: clasificacionSeleccionada ? parseInt(clasificacionSeleccionada) : null,
+        idsubcategoria: subcategoriaSeleccionada ? SUBCATEGORIA_ID_MAP[subcategoriaSeleccionada] : null,
+        comite: comiteSeleccionado.length > 0 ? comiteSeleccionado.map(id => parseInt(id)) : [],
+      };
+
+      console.log('🔗 URL:', `${API_BASE_URL}/eventos/${idevento}`);
+      
+      const response = await axios.put(
+        `${API_BASE_URL}/eventos/${idevento}`, 
+        eventoPayload,
+        { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
       );
-    }
-    
-    Alert.alert('Éxito', 'Evento actualizado correctamente.', [{ 
-      text: 'OK', 
-      onPress: () => router.replace('/HomeAcademico.js') 
-    }]);
-    
-  } catch (error) {
-    // 🪵 LOG CRÍTICO: Ver error completo
-    console.error('❌ ERROR DETALLADO:', {
-      message: error.message,
-      status: error.response?.status,
-      data: error.response?.data,
-      config: {
-        url: error.config?.url,
-        method: error.config?.method,
-        headers: error.config?.headers
+      
+      console.log('✅ RESPUESTA BACKEND:', response.status, response.data);
+
+      if (mode === 'reprogramar' && response.data.estado !== 'pendiente') {
+        await axios.put(
+          `${API_BASE_URL}/eventos/${idevento}/status`,
+          { estado: 'pendiente' },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
       }
-    });
-    
-    let errorMessage = 'Error desconocido';
-    if (error.response?.data?.message) {
-      errorMessage = error.response.data.message;
-    } else if (error.response?.status === 400) {
-      errorMessage = 'Datos inválidos. Revisa los campos.';
-    } else if (error.response?.status === 401) {
-      errorMessage = 'Sesión expirada. Inicia sesión nuevamente.';
-    } else if (error.code === 'ECONNABORTED' || error.message.includes('Network')) {
-      errorMessage = 'Error de conexión. Revisa tu internet.';
+      
+      // ✅ CORREGIDO: En Expo Router las rutas NO llevan ".js". 
+      // Usar router.back() es la forma más segura de salir de una pantalla de edición.
+      Alert.alert('Éxito', 'Evento actualizado correctamente.', [{ 
+        text: 'OK', 
+        onPress: () => router.back() 
+      }]);
+      
+    } catch (error) {
+      console.error('❌ ERROR DETALLADO AL EDITAR:', error.response?.data || error.message);
+      let errorMessage = 'Error desconocido al contactar al servidor.';
+      if (error.response?.data?.message) errorMessage = error.response.data.message;
+      else if (error.response?.status === 400) errorMessage = 'Datos inválidos. Revisa los campos requeridos.';
+      else if (error.response?.status === 401) errorMessage = 'Sesión expirada.';
+      
+      Alert.alert('Error al guardar', errorMessage);
+    } finally {
+      setIsLoading(false);
     }
-    
-    Alert.alert('Error al guardar', errorMessage);
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardAvoidingContainer}>
