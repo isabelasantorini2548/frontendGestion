@@ -1151,58 +1151,93 @@ const SUBCATEGORIA_NUM_TO_ID = Object.fromEntries(
 );
 
 const populateFormFromApi = (apiData) => {
-  console.log('Keys del apiData:', Object.keys(apiData));
-  console.log('TiposDeEvento:', apiData.TiposDeEvento);
-  console.log('Objetivos:', apiData.Objetivos);
-  console.log('argumentacion:', apiData.argumentacion);
-  console.log('Presupuesto raw:', apiData.Presupuesto ?? apiData.presupuesto ?? apiData.egresos);
+  console.log('📥 Keys del apiData:', Object.keys(apiData));
+  console.log('📥 apiData completo:', JSON.stringify(apiData, null, 2));
 
+  // Datos básicos del evento
   setIdevento(apiData.idevento);
   setEstadoEvento(apiData.estado || 'pendiente');
   setNombreevento(apiData.nombreevento || '');
   setLugarevento(apiData.lugarevento || '');
-  setArgumentacion(apiData.argumentacion || '');   // ← crítico
-  setParticipantesEsperados(apiData.participantes_esperados?.toString() || '');
 
+  // Fecha y hora
   if (apiData.fechaevento) {
     const fecha = dayjs(apiData.fechaevento);
-    const horaParts = (apiData.horaevento || '00:00').split(':');
+    const horaParts = (apiData.horaevento || '00:00:00').split(':');
     const hora = parseInt(horaParts[0]) || 0;
-    const min  = parseInt(horaParts[1]) || 0;
+    const min = parseInt(horaParts[1]) || 0;
     const fechaHora = fecha.hour(hora).minute(min).second(0).toDate();
     setFechaHoraSeleccionada(fechaHora);
     setHoraSeleccionada(fechaHora);
   }
 
+  // Clasificación y subcategoría
   if (apiData.Clasificacion) {
     setClasificacionSeleccionada(apiData.Clasificacion.idclasificacion?.toString() || '');
     const idSubNum = apiData.Clasificacion.idsubcategoria;
-    if (idSubNum) setSubcategoriaSeleccionada(SUBCATEGORIA_NUM_TO_ID[idSubNum] || '');
+    if (idSubNum) {
+      setSubcategoriaSeleccionada(SUBCATEGORIA_NUM_TO_ID[idSubNum] || '');
+    }
   }
 
+  // Tipos de evento - Mapeo inverso desde nombre a ID
   if (apiData.TiposDeEvento?.length) {
     const tiposMap = {};
+    const NOMBRE_TO_ID = {
+      'Curricular': '1',
+      'Extracurricular': '2',
+      'Marketing': '3',
+      'Internacionalización/Marketing': '4',
+      'Marketing/Extracurricular': '5'
+    };
+    
     apiData.TiposDeEvento.forEach(tipo => {
-      const id = tipo.idtipoevento != null ? String(tipo.idtipoevento) : null;
+      const nombre = tipo.nombretipo?.trim();
+      const id = NOMBRE_TO_ID[nombre];
       if (id) {
         tiposMap[id] = true;
-        if (id === '5' && tipo.texto_personalizado) setTextoOtroTipo(tipo.texto_personalizado);
+        if (id === '5' && tipo.texto_personalizado) {
+          setTextoOtroTipo(tipo.texto_personalizado);
+        }
       }
     });
     setTiposSeleccionados(tiposMap);
   }
 
+  // Objetivos, segmentos y argumentación
   if (apiData.Objetivos?.length) {
     const nuevosObjetivos = {
-      modeloPedagogico: false, posicionamiento: false,
-      internacionalizacion: false, rsu: false,
-      fidelizacion: false, otro: false, otroTexto: '',
+      modeloPedagogico: false,
+      posicionamiento: false,
+      internacionalizacion: false,
+      rsu: false,
+      fidelizacion: false,
+      otro: false,
+      otroTexto: ''
     };
+    const nuevosSegmentos = {
+      estudiantes: false,
+      docentes: false,
+      publicoExterno: false,
+      influencers: false,
+      otro: false,
+      otroTexto: ''
+    };
+    const nuevosTextosSegmentos = {};
     const pdiTextos = [];
+    let argumentacionEncontrada = '';
 
     apiData.Objetivos.forEach(obj => {
-      const key = OBJETIVOS_ID_TO_KEY[obj.idobjetivo];
+      const idTipo = obj.idtipoobjetivo;
+      const key = OBJETIVOS_ID_TO_KEY[idTipo];
+      
       if (!key) return;
+
+      // Argumentación (solo una vez, del primer objetivo que la tenga)
+      if (obj.argumentacion && !argumentacionEncontrada) {
+        argumentacionEncontrada = obj.argumentacion;
+      }
+
       if (key !== 'otro') {
         nuevosObjetivos[key] = true;
       } else {
@@ -1215,75 +1250,93 @@ const populateFormFromApi = (apiData) => {
           }
         }
       }
+
+      // Segmentos asociados a este objetivo
+      if (obj.segmentos?.length) {
+        obj.segmentos.forEach(seg => {
+          const segId = seg.idsegmento;
+          const SEG_ID_TO_KEY = { 1: 'estudiantes', 2: 'docentes', 3: 'publicoExterno', 4: 'influencers' };
+          const segKey = SEG_ID_TO_KEY[segId];
+          
+          if (segKey) {
+            nuevosSegmentos[segKey] = true;
+            if (seg.texto_personalizado) {
+              nuevosTextosSegmentos[segKey] = seg.texto_personalizado;
+            }
+          } else {
+            nuevosSegmentos.otro = true;
+            if (seg.texto_personalizado) {
+              nuevosSegmentos.otroTexto = seg.texto_personalizado;
+            }
+          }
+        });
+      }
     });
 
+    // Completar PDI con 3 elementos
+    while (pdiTextos.length < 3) pdiTextos.push('');
+    
+    setArgumentacion(argumentacionEncontrada);
+    setObjetivosPDI(pdiTextos);
+    setObjetivos(nuevosObjetivos);
+    setSegmentoObjetivo(nuevosSegmentos);
+    setSegmentosTextoPersonalizado(nuevosTextosSegmentos);
+  }
+
+  // Objetivos PDI independientes
+  if (apiData.ObjetivosPDI?.length) {
+    const pdiTextos = [...apiData.ObjetivosPDI];
     while (pdiTextos.length < 3) pdiTextos.push('');
     setObjetivosPDI(pdiTextos);
-    setObjetivos(nuevosObjetivos);  // ← una sola vez
   }
 
-  const SEG_ID_TO_KEY = { 1: 'estudiantes', 2: 'docentes', 3: 'publicoExterno', 4: 'influencers' };
-  if (apiData.Segmentos?.length) {
-    const nuevosSeg = { estudiantes: false, docentes: false, publicoExterno: false, influencers: false, otro: false, otroTexto: '' };
-    const nuevosTextos = {};
-    apiData.Segmentos.forEach(seg => {
-      const key = SEG_ID_TO_KEY[seg.idsegmento];
-      if (key) { nuevosSeg[key] = true; if (seg.texto_personalizado) nuevosTextos[key] = seg.texto_personalizado; }
-      else { nuevosSeg.otro = true; if (seg.texto_personalizado) nuevosSeg.otroTexto = seg.texto_personalizado; }
-    });
-    setSegmentoObjetivo(nuevosSeg);
-    setSegmentosTextoPersonalizado(nuevosTextos);
-  }
-
+  // Resultados esperados
   if (apiData.Resultados?.[0]) {
     const r = apiData.Resultados[0];
     setResultadosEsperados({
       participacion: r.participacion_esperada?.toString() || '',
       satisfaccion: r.satisfaccion_esperada?.toString() || '',
-      otro: r.otros_resultados || '',
+      otro: r.otros_resultados || ''
     });
   }
 
+  // Recursos existentes
   if (apiData.Recursos?.length) {
-    setRecursosSeleccionados(apiData.Recursos.map(r => r.idrecurso?.toString()).filter(Boolean));
+    setRecursosSeleccionados(
+      apiData.Recursos.map(r => r.idrecurso?.toString()).filter(Boolean)
+    );
   }
 
-  if (apiData.RecursosNuevos?.length) {
-    const tec = apiData.RecursosNuevos.filter(r => r.recurso_tipo === 'tecnologico');
-    const mob = apiData.RecursosNuevos.filter(r => r.recurso_tipo === 'mobiliario');
-    const vaj = apiData.RecursosNuevos.filter(r => r.recurso_tipo === 'vajilla');
-    if (tec.length) setRecursosTecnologicos(tec.map(r => ({ nombre: r.nombre_recurso, cantidad: r.cantidad?.toString() || '1' })));
-    if (mob.length) setMobiliario(mob.map(r => ({ nombre: r.nombre_recurso, cantidad: r.cantidad?.toString() || '1' })));
-    if (vaj.length) setVajilla(vaj.map(r => ({ nombre: r.nombre_recurso, cantidad: r.cantidad?.toString() || '1' })));
-  }
-
+  // Comité
   if (apiData.Comite?.length) {
-    setComiteSeleccionado(apiData.Comite.map(m => m.id ?? m.idusuario ?? m.usuario_id).filter(Boolean));
+    setComiteSeleccionado(
+      apiData.Comite.map(m => m.idusuario || m.id).filter(Boolean)
+    );
   }
 
-  let presupuesto = apiData.Presupuesto || apiData.presupuesto;
-  if (typeof presupuesto === 'string') {
-    try { presupuesto = JSON.parse(presupuesto); } catch { presupuesto = null; }
-  }
-  const egresosData = presupuesto?.egresos || apiData.egresos || [];
-  const ingresosData = presupuesto?.ingresos || apiData.ingresos || [];
+  // Presupuesto - Egresos e Ingresos están en el nivel superior
+  const egresosData = apiData.Egresos || [];
+  const ingresosData = apiData.Ingresos || [];
 
   if (egresosData.length) {
     setEgresos(egresosData.map((e, i) => ({
       key: `egreso-${e.idegreso ?? i}-${Date.now()}`,
       descripcion: e.descripcion ?? '',
       cantidad: String(e.cantidad ?? ''),
-      precio: String(e.precio_unitario ?? e.precio ?? ''),
+      precio: String(e.precio_unitario ?? e.precio ?? '')
     })));
   }
+
   if (ingresosData.length) {
     setIngresos(ingresosData.map((e, i) => ({
       key: `ingreso-${e.idingreso ?? i}-${Date.now()}`,
       descripcion: e.descripcion ?? '',
       cantidad: String(e.cantidad ?? ''),
-      precio: String(e.precio_unitario ?? e.precio ?? ''),
+      precio: String(e.precio_unitario ?? e.precio ?? '')
     })));
   }
+
+  console.log('✅ Formulario poblado correctamente');
 };
 
 useEffect(() => {
