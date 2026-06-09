@@ -20,6 +20,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { BarChart } from 'react-native-chart-kit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import ChatEmbed from '../../components/ChatEmbed';
 // Configuración de API
 let determinedApiBaseUrl;
 /*if (Platform.OS === 'android') {
@@ -29,8 +30,8 @@ let determinedApiBaseUrl;
 } else {
   determinedApiBaseUrl = 'http://localhost:3001/api';
 }*/
-//const API_BASE_URL =  'https://evento.cidtec-uc.com';
-const API_BASE_URL = 'https://backendgestion-production.up.railway.app';
+const API_BASE_URL =  'https://evento.cidtec-uc.com';
+//const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend1-production.up.railway.app';
 
 //const API_BASE_URL =  'https://unifrontend.onrender.com';
 const TOKEN_KEY = 'adminAuthToken';
@@ -350,9 +351,9 @@ const NotificationsModal = ({ visible, onClose, notifications, markAsRead }) => 
       <View style={styles.notificationsModalContent}>
         <View style={styles.notificationsModalHeader}>
           <Text style={styles.notificationsModalTitle}>Notificaciones</Text>
-          <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={24} color={COLORS.textPrimary} />
-          </TouchableOpacity>
+         <TouchableOpacity onPress={() => setIsChatOpen(false)} style={{ padding: 6 }}>
+          <Ionicons name="close" size={24} color={COLORS.textSecondary} />
+        </TouchableOpacity>
         </View>
         
         <ScrollView style={styles.notificationsList}>
@@ -431,322 +432,7 @@ const getNotificationIcon = (type) => {
 };
 const ROL_COLORS = { admin: '#FF6B35', creador: '#007AFF', logistica: '#34C759', academico: '#9B59B6' };
 
-const ChatEmbed = ({ userId, userRole, userName }) => {
-  const [vista, setVista]           = useState('eventos'); // 'eventos' | 'chat'
-  const [eventos, setEventos]       = useState([]);
-  const [loadingEventos, setLoadingEventos] = useState(true);
-  const [eventoActual, setEventoActual]     = useState(null);
-  const [messages, setMessages]     = useState([]);
-  const [input, setInput]           = useState('');
-  const [connected, setConnected]   = useState(false);
-  const socketRef   = useRef(null);
-  const flatListRef = useRef(null);
-  const ioRef       = useRef(null);
 
-  // ─── Cargar eventos del usuario ───────────────────────────────────
-  useEffect(() => {
-    const cargarEventos = async () => {
-      try {
-        const token = Platform.OS === 'web'
-          ? localStorage.getItem('adminAuthToken')
-          : await SecureStore.getItemAsync('adminAuthToken');
-
-        const res = await fetch(`${API_BASE_URL}/eventos`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const data = await res.json();
-        // Solo aprobados con comité
-        const aprobados = Array.isArray(data)
-          ? data.filter(e => e.estado === 'aprobado')
-          : [];
-        setEventos(aprobados);
-      } catch (e) {
-        console.warn('Error cargando eventos:', e.message);
-      } finally {
-        setLoadingEventos(false);
-      }
-    };
-    cargarEventos();
-  }, []);
-// ─── Cargar SOLO los eventos donde el usuario es del comité ───────
-
-useEffect(() => {
-  const cargarEventos = async () => {
-    try {
-      const token = Platform.OS === 'web'
-        ? localStorage.getItem('adminAuthToken')
-        : await SecureStore.getItemAsync('adminAuthToken');
-
-      // Cargar eventos del comité Y eventos que creé yo
-      const [resComite, resCreados] = await Promise.all([
-        fetch(`${API_BASE_URL}/dashboard/my-committee-events`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }),
-        fetch(`${API_BASE_URL}/eventos`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-      ]);
-
-      const dataComite  = await resComite.json();
-      const dataCreados = await resCreados.json();
-
-      const eventosComite = dataComite.events || [];
-
-      // Solo aprobados creados por este usuario (idacademico)
-      const eventosCreados = Array.isArray(dataCreados)
-        ? dataCreados.filter(e =>
-            e.estado === 'aprobado' &&
-            String(e.idacademico) === String(userId)
-          )
-        : [];
-
-      // Unir sin duplicados por idevento
-      const idsVistos = new Set(eventosComite.map(e => e.idevento));
-      const extras    = eventosCreados.filter(e => !idsVistos.has(e.idevento));
-
-      setEventos([...eventosComite, ...extras]);
-
-    } catch (e) {
-      console.warn('Error cargando eventos:', e.message);
-    } finally {
-      setLoadingEventos(false);
-    }
-  };
-  cargarEventos();
-}, []);
-  // ─── Conectar socket al seleccionar evento ────────────────────────
-  const abrirChat = (evento) => {
-    setEventoActual(evento);
-    setMessages([]);
-    setVista('chat');
-const esMiembroComite = evento.Comite?.some(
-      miembro => String(miembro.idusuario) === String(userId)
-    );
-
-    if (!esMiembroComite) {
-      Alert.alert('Acceso Denegado', 'Solo los miembros del comité pueden acceder a este chat');
-      return;
-    }
-
-    setEventoActual(evento);
-    setMessages([]);
-    setVista('chat');
-    import('socket.io-client').then(mod => {
-      ioRef.current = mod.io || mod.default;
-
-      // Desconectar anterior si existe
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
-
-     const socket = ioRef.current(API_BASE_URL, {
-  transports: ['polling', 'websocket'],  // polling primero en web
-  upgrade: true,
-  reconnection: true,
-  reconnectionAttempts: 5,
-  timeout: 10000
-});
-      socketRef.current = socket;
-
-      socket.on('connect', () => {
-        setConnected(true);
-        socket.emit('join_event', {
-          eventoId: String(evento.idevento),
-          userId,
-          role: userRole,
-          userName: userId
-        });
-      });
-
-      socket.on('disconnect', () => setConnected(false));
-
-      socket.on('history', (h) => {
-        setMessages(h.map((m, i) => ({ ...m, id: `h_${i}` })));
-        setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 100);
-      });
-
-      socket.on('receive_message', (msg) => {
-        setMessages(prev => [...prev, { ...msg, id: `m_${Date.now()}` }]);
-        setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-      });
-       socket.on('error', (error) => {
-        console.error('❌ Error en socket:', error);
-        Alert.alert('Error', error.message || 'Error en el chat');
-      });
-    });
-  };
-
-  const volverAEventos = () => {
-    if (socketRef.current) {
-      socketRef.current.emit('leave_event', { eventoId: String(eventoActual?.idevento) });
-      socketRef.current.disconnect();
-    }
-    setVista('eventos');
-    setConnected(false);
-    setMessages([]);
-  };
-
-  const handleSend = () => {
-    const texto = input.trim();
-    if (!texto || !socketRef.current?.connected) return;
-    socketRef.current.emit('send_message', {
-      eventoId: String(eventoActual?.idevento),
-      userId, role: userRole, userName: userId, message: texto
-    });
-    setInput('');
-  };
-
-  if (vista === 'eventos') {
-    return (
-      <View style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
-        <View style={{ padding: 14, backgroundColor: '#fff', borderBottomWidth: 1, borderColor: '#eee' }}>
-          <Text style={{ fontSize: 14, fontWeight: '600', color: '#666' }}>
-            Selecciona un evento para chatear
-          </Text>
-        </View>
-
-         {loadingEventos ? (
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-          </View>
-        ) : eventos.length === 0 ? (
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-            <Ionicons name="people-outline" size={40} color="#ccc" />
-            <Text style={{ color: '#aaa', marginTop: 10, textAlign: 'center' }}>
-              No eres miembro de ningún comité aún
-            </Text>
-          </View>
-        ) : (
-          <ScrollView contentContainerStyle={{ padding: 12 }}>
-            {eventos.map((evento) => (
-              <TouchableOpacity
-                key={evento.idevento || evento.id}
-                onPress={() => abrirChat(evento)}
-                style={{
-                  backgroundColor: '#fff', borderRadius: 12, padding: 14,
-                  marginBottom: 10, flexDirection: 'row', alignItems: 'center',
-                  borderLeftWidth: 4, borderLeftColor: COLORS.primary,
-                  shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: 0.06, shadowRadius: 3, elevation: 2,
-                }}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#1A1A1A', marginBottom: 4 }}>
-                    {evento.nombreevento || 'Sin nombre'}
-                  </Text>
-                  <Text style={{ fontSize: 12, color: '#888' }}>
-                    {evento.fechaevento?.split('T')[0] || '–'} · {evento.lugarevento || '–'}
-                  </Text>
-                  {evento.Comite && evento.Comite.length > 0 && (
-                    <Text style={{ fontSize: 11, color: COLORS.primary, marginTop: 4 }}>
-                      👥 {evento.Comite.length} miembro{evento.Comite.length > 1 ? 's' : ''} en el comité
-                    </Text>
-                  )}
-                </View>
-                <Ionicons name="chatbubbles-outline" size={22} color={COLORS.primary} />
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        )}
-      </View>
-    );
-  }
-
-  return (
-    <View style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
-      {/* Sub-header del evento */}
-      <View style={{
-        flexDirection: 'row', alignItems: 'center', gap: 10,
-        paddingHorizontal: 12, paddingVertical: 10,
-        backgroundColor: '#fff', borderBottomWidth: 1, borderColor: '#eee'
-      }}>
-        <TouchableOpacity onPress={volverAEventos}>
-          <Ionicons name="arrow-back" size={20} color={COLORS.primary} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 13, fontWeight: '700', color: '#1A1A1A' }} numberOfLines={1}>
-            {eventoActual?.nombreevento || 'Evento'}
-          </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
-            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: connected ? '#34C759' : '#FF3B30' }} />
-            <Text style={{ fontSize: 10, color: '#888' }}>{connected ? 'En línea' : 'Conectando...'}</Text>
-          </View>
-        </View>
-      </View>
-
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        keyExtractor={item => item.id}
-        contentContainerStyle={{ padding: 12 }}
-        renderItem={({ item }) => {
-          if (item.system) return (
-            <View style={{ alignItems: 'center', marginVertical: 6 }}>
-              <Text style={{ fontSize: 11, color: '#bbb', fontStyle: 'italic' }}>{item.text}</Text>
-            </View>
-          );
-          const isMe = String(item.userId) === String(userId);
-          const color = ROL_COLORS[item.role] || '#888';
-          return (
-            <View style={{ flexDirection: 'row', marginVertical: 3, justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
-              <View style={{ maxWidth: '75%' }}>
-                {!isMe && (
-                  <Text style={{ fontSize: 11, color, fontWeight: '600', marginBottom: 2, marginLeft: 4 }}>
-                    {item.userName}
-                  </Text>
-                )}
-                <View style={{
-                  backgroundColor: isMe ? COLORS.primary : '#fff',
-                  paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16,
-                  borderBottomRightRadius: isMe ? 2 : 16,
-                  borderBottomLeftRadius: isMe ? 16 : 2
-                }}>
-                  <Text style={{ fontSize: 14, color: isMe ? '#fff' : '#1A1A1A' }}>{item.message}</Text>
-                </View>
-              </View>
-            </View>
-          );
-        }}
-        ListEmptyComponent={
-          <View style={{ alignItems: 'center', paddingTop: 40 }}>
-            <Ionicons name="chatbubbles-outline" size={36} color="#ddd" />
-            <Text style={{ color: '#ccc', fontSize: 13, marginTop: 8 }}>Aún no hay mensajes en este evento</Text>
-          </View>
-        }
-      />
-
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <View style={{
-          flexDirection: 'row', padding: 10, backgroundColor: '#fff',
-          borderTopWidth: 1, borderColor: '#eee', gap: 8
-        }}>
-          <TextInput
-            value={input}
-            onChangeText={setInput}
-            placeholder="Escribe un mensaje..."
-            placeholderTextColor="#999"
-            style={{
-              flex: 1, borderWidth: 1, borderColor: '#ddd', borderRadius: 20,
-              paddingHorizontal: 14, paddingVertical: 8, fontSize: 14, backgroundColor: '#f9f9f9'
-            }}
-            multiline
-            editable={connected}
-          />
-          <TouchableOpacity
-            onPress={handleSend}
-            disabled={!input.trim() || !connected}
-            style={{
-              backgroundColor: !input.trim() || !connected ? '#ccc' : COLORS.primary,
-              borderRadius: 20, paddingHorizontal: 16, justifyContent: 'center'
-            }}
-          >
-            <Text style={{ color: '#fff', fontWeight: '600' }}>Enviar</Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </View>
-  );
-};
 const HomeAcademicoScreen = () => {
   const params = useLocalSearchParams();
   const nombreUsuario = params.nombre || 'Administrador';
@@ -1399,8 +1085,7 @@ const handleActionPress = (action) => {
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: 0.25, shadowRadius: 6,
           }}
-          onPress={() => setIsChatOpen(true)}
-        >
+          onPress={() => setIsChatOpen(true)}>
           <Ionicons name="chatbubble-ellipses" size={24} color={COLORS.white} />
         </TouchableOpacity>
       )}
@@ -1427,12 +1112,7 @@ const handleActionPress = (action) => {
               <Text style={{ fontSize: 18, fontWeight: '700', color: COLORS.textPrimary }}>
                 Chat General
               </Text>
-              <TouchableOpacity onPress={() =>{ 
-                if (!userProfile.id) {
-                Alert.alert('Espera', 'Cargando tu perfil...');
-                return;
-                }
-              setIsChatOpen(true);}}>
+             <TouchableOpacity onPress={() => setIsChatOpen(false)} style={{ padding: 6 }}>
                 <Ionicons name="close" size={24} color={COLORS.textSecondary} />
               </TouchableOpacity>
             </View>
