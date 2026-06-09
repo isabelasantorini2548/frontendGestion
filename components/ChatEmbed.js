@@ -359,6 +359,7 @@ const VistaEvento = ({ evento, userId, userRole, userName, onVolver }) => {
 };
 
 // ─── Componente principal exportable ─────────────────────────────────
+// ─── Componente principal exportable ─────────────────────────────────
 const ChatEmbed = ({ userId, userRole, userName }) => {
   const [vista, setVista]               = useState('eventos');
   const [eventos, setEventos]           = useState([]);
@@ -369,22 +370,60 @@ const ChatEmbed = ({ userId, userRole, userName }) => {
     const cargar = async () => {
       try {
         const token = await getToken();
-        const [resComite, resCreados] = await Promise.all([
-          fetch(`${API_BASE_URL}/dashboard/my-committee-events`, { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`${API_BASE_URL}/eventos`, { headers: { Authorization: `Bearer ${token}` } }),
-        ]);
-        const dataComite  = await resComite.json();
-        const dataCreados = await resCreados.json();
-
+        
+        // 1. Obtener eventos como comité
+        const resComite = await fetch(`${API_BASE_URL}/dashboard/my-committee-events`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const dataComite = await resComite.json();
         const eventosComite = dataComite.events || [];
+
+        // 2. Obtener eventos creados por el usuario
+        const resCreados = await fetch(`${API_BASE_URL}/eventos`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const dataCreados = await resCreados.json();
         const eventosCreados = Array.isArray(dataCreados)
           ? dataCreados.filter(e => e.estado === 'aprobado' && String(e.idacademico) === String(userId))
           : [];
 
-        const idsVistos = new Set(eventosComite.map(e => e.idevento));
-        setEventos([...eventosComite, ...eventosCreados.filter(e => !idsVistos.has(e.idevento))]);
+        // 3. Cargar detalles completos de cada evento (incluyendo comité)
+        const eventosCompletos = await Promise.all(
+          [...eventosComite, ...eventosCreados].map(async (evento) => {
+            try {
+              const resDetalle = await fetch(`${API_BASE_URL}/eventos/${evento.idevento}`, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              const detalle = await resDetalle.json();
+              return detalle;
+            } catch (e) {
+              console.warn(`Error cargando evento ${evento.idevento}:`, e);
+              return evento;
+            }
+          })
+        );
+
+        // Eliminar duplicados
+        const idsVistos = new Set();
+        const eventosUnicos = eventosCompletos.filter(e => {
+          if (idsVistos.has(e.idevento)) return false;
+          idsVistos.add(e.idevento);
+          return true;
+        });
+
+        console.log('📋 Eventos cargados:', eventosUnicos.length);
+        eventosUnicos.forEach(e => {
+          console.log(`Evento ${e.idevento}:`, {
+            nombre: e.nombreevento,
+            miembrosComite: e.Comite?.length || 0,
+            comite: e.Comite
+          });
+        });
+
+        setEventos(eventosUnicos);
       } catch (e) {
-        console.warn('Error cargando eventos:', e.message);
+        console.error('❌ Error cargando eventos:', e);
+        Alert.alert('Error', 'No se pudieron cargar los eventos del chat');
       } finally {
         setLoading(false);
       }
@@ -425,11 +464,17 @@ const ChatEmbed = ({ userId, userRole, userName }) => {
       ) : (
         <ScrollView contentContainerStyle={{ padding: 12 }}>
           {eventos.map((evento) => {
-            const nMiembros = (evento.Comite || []).length;
+            const comite = evento.Comite || evento.comite || [];
+            const nMiembros = comite.length;
+            
             return (
               <TouchableOpacity
                 key={evento.idevento}
-                onPress={() => { setEventoActual(evento); setVista('evento'); }}
+                onPress={() => { 
+                  console.log('🔵 Abriendo evento:', evento.idevento, 'Miembros:', nMiembros);
+                  setEventoActual(evento); 
+                  setVista('evento'); 
+                }}
                 style={{
                   backgroundColor: COLORS.white, borderRadius: 12, padding: 14,
                   marginBottom: 10, flexDirection: 'row', alignItems: 'center',
