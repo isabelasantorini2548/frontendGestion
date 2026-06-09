@@ -687,7 +687,7 @@ const GoogleStyleCalendarView = ({ fechaHoraSeleccionada, setFechaHoraSelecciona
                   <View style={styles.eventPreview}>
                     {dayEvents.slice(0, 2).map((evento, idx) => (
                       <Text key={idx} style={styles.eventPreviewText}>
-                        {dayjs(evento.horaevento.split('+')[0], 'HH:mm:ss').format('HH:mm')} {evento.nombreevento}
+                        {evento.nombreevento}
                       </Text>
                     ))}
                     {dayEvents.length > 2 && <Text style={styles.eventPreviewMore}>+{dayEvents.length - 2} más</Text>}
@@ -1632,9 +1632,9 @@ if (!tieneAlgunObjetivo) newErrors.objetivos = 'Selecciona al menos un objetivo.
         />
       </View>
       <View style={styles.mainContainer}>
-        {width > 768 && (
-          <View style={styles.calendarColumn}>
-            <View style={styles.calendarSection}>
+        {width <= 768 && (
+            <>
+              <Text style={styles.label}>Fecha de Realización</Text>
               <GoogleStyleCalendarView
                 fechaHoraSeleccionada={fechaHoraSeleccionada}
                 setFechaHoraSeleccionada={setFechaHoraSeleccionada}
@@ -1646,9 +1646,8 @@ if (!tieneAlgunObjetivo) newErrors.objetivos = 'Selecciona al menos un objetivo.
                 eventosDelDia={eventosDelDia}
                 fechaHoraSeleccionada={fechaHoraSeleccionada}
               />
-            </View>
-          </View>
-        )}
+            </>
+          )}
         <ScrollView
           ref={scrollViewRef}
           style={styles.formColumn}
