@@ -25,12 +25,7 @@ const COLORS = {
   pendingLight: '#FFF3E0',
 };
 
-// ── Helpers de fecha ────────────────────────────────────────────────────────
-const isEventExpired = (eventDate) => {
-  if (!eventDate) return false;
-  const daysRemaining = getDaysRemaining(eventDate);
-  return daysRemaining !== null && daysRemaining < 0;
-}
+
   if (typeof eventDate === 'string') {
     if (/^\d{4}-\d{2}-\d{2}/.test(eventDate)) {
       eventDateObj = new Date(eventDate);
@@ -45,9 +40,10 @@ const isEventExpired = (eventDate) => {
     return false;
   }
   
-  const getDaysRemaining = (eventDate) => {
+const getDaysRemaining = (eventDate) => {
   if (!eventDate) return null;
-  const today = new Date(); today.setHours(0,0,0,0);
+  const today = new Date(); 
+  today.setHours(0, 0, 0, 0);
   let eventDateObj;
   
   if (typeof eventDate === 'string') {
@@ -56,19 +52,39 @@ const isEventExpired = (eventDate) => {
     } else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(eventDate)) {
       const [day, month, year] = eventDate.split('/').map(Number);
       eventDateObj = new Date(year, month - 1, day);
-    } else { eventDateObj = new Date(eventDate); }
-  } else { eventDateObj = new Date(eventDate); }
+    } else { 
+      eventDateObj = new Date(eventDate); 
+    }
+  } else { 
+    eventDateObj = new Date(eventDate); 
+  }
   
   if (isNaN(eventDateObj.getTime())) {
     console.warn('⚠️ Fecha inválida:', eventDate);
     return null;
   }
   
-  eventDateObj.setHours(0,0,0,0);
-  const diffDays = Math.ceil((eventDateObj - today) / (1000*60*60*24));
+  eventDateObj.setHours(0, 0, 0, 0);
+  const diffDays = Math.ceil((eventDateObj - today) / (1000 * 60 * 60 * 24));
   return diffDays;
 };
+const isEventExpired = (eventDate) => {
+  if (!eventDate) return false;
+  const daysRemaining = getDaysRemaining(eventDate);
+  return daysRemaining !== null && daysRemaining < 0;
+};
 
+// ✅ TERCERO: formatSubmittedDate (sin cambios)
+const formatSubmittedDate = (date) => {
+  if (!date) return 'Sin fecha';
+  const now = new Date(); 
+  const submittedDate = new Date(date);
+  const diff = Math.floor((now - submittedDate) / 1000);
+  if (diff < 3600) return `Hace ${Math.floor(diff/60)} min`;
+  if (diff < 86400) return `Hace ${Math.floor(diff/3600)} h`;
+  const days = Math.floor(diff / 86400);
+  return `Hace ${days} día${days > 1 ? 's' : ''}`;
+};
 
 const formatSubmittedDate = (date) => {
   if (!date) return 'Sin fecha';
