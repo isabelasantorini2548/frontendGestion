@@ -202,12 +202,12 @@ const PendingEventCard = ({ event, onView, onApprove, onReject, onMarkExpired, o
         </TouchableOpacity>
         
         {/* Si NO está vencido, mostrar Aprobar, Rechazar, Cancelar */}
+        {!isAlreadyExpired && (
+          <>
             <TouchableOpacity style={[styles.actionButton, styles.approveButton]} onPress={() => onApprove(event)}>
               <Ionicons name="checkmark" size={18} color={COLORS.white} />
               <Text style={[styles.actionButtonText, { color: COLORS.white }]}>Aprobar</Text>
             </TouchableOpacity>
-        {!isAlreadyExpired && (
-          <>
             <TouchableOpacity style={[styles.actionButton, styles.rejectButton]} onPress={() => onReject(event)}>
               <Ionicons name="close" size={18} color={COLORS.danger} />
               <Text style={[styles.actionButtonText, { color: COLORS.danger }]}>Rechazar</Text>
@@ -278,42 +278,70 @@ const EventosPendientes = () => {
   const handleView = (event) => router.push({ pathname:'/admin/EventDetailScreen', params:{ eventId: event.idevento || event.id }});
 
   const handleAction = async (event, action) => {
-    const config = {
-      aprobar: { title:'Aprobar Evento', text:'aprobar', success:'✓ Evento Aprobado', endpoint:'aprobar' },
-      rechazar: { title:'Rechazar Evento', text:'rechazar', success:'✓ Evento Rechazado', endpoint:'rechazar' },
-      vencer: { title:'Marcar como Vencido', text:'archivar como vencido', success:'✓ Evento Archivado', endpoint:'vencer' },
-      cancelar: { title:'Cancelar Evento', text:'cancelar', success:'✓ Evento Cancelado', endpoint:'cancelar', color: COLORS.info }
-    }[action];
-    
-    if (!config) return;
-    
-    Alert.alert(config.title, `¿${config.text} "${event.nombreevento || event.title}"?`, [
+  console.log('🔴 handleAction llamado con:', { event, action });
+  
+  const config = {
+    aprobar: { title:'Aprobar Evento', text:'aprobar', success:'✓ Evento Aprobado', endpoint:'aprobar' },
+    rechazar: { title:'Rechazar Evento', text:'rechazar', success:'✓ Evento Rechazado', endpoint:'rechazar' },
+    vencer: { title:'Marcar como Vencido', text:'archivar como vencido', success:'✓ Evento Archivado', endpoint:'vencer' },
+    cancelar: { title:'Cancelar Evento', text:'cancelar', success:'✓ Evento Cancelado', endpoint:'cancelar', color: COLORS.info }
+  }[action];
+  
+  console.log('🔵 Config:', config);
+  
+  if (!config) {
+    console.error('❌ Config no encontrada para action:', action);
+    return;
+  }
+  
+  Alert.alert(config.title, `¿${config.text} "${event.nombreevento || event.title}"?`, [
     { text:'Cancelar', style:'cancel' },
     { 
       text:'Confirmar', 
       style: action==='aprobar' ? 'default' : 'destructive', 
       onPress: async () => {
+        console.log('🟢 Confirmado, ejecutando acción...');
         try {
           const token = await getTokenAsync();
+          console.log('🔑 Token:', token ? 'Existe' : 'NO existe');
+          
+          if (!token) {
+            Alert.alert('Error', 'No hay token de autenticación');
+            return;
+          }
+          
           const endpoint = config.endpoint === 'vencer' ? 'estado' : config.endpoint;
+          const payload = config.endpoint === 'vencer' 
+            ? { estado: 'vencido' } 
+            : config.endpoint === 'cancelar' 
+            ? { estado: 'cancelado' } 
+            : {};
+            
+          console.log('📡 Enviando request:', {
+            url: `${API_BASE_URL}/eventos/${event.idevento || event.id}/${endpoint}`,
+            payload
+          });
+          
           await axios.put(
             `${API_BASE_URL}/eventos/${event.idevento || event.id}/${endpoint}`,
-            config.endpoint === 'vencer' ? { estado: 'vencido' } : config.endpoint === 'cancelar' ? { estado: 'cancelado' } : {},
+            payload,
             { headers: { 'Authorization': `Bearer ${token}` }}
           );
           
+          console.log('✅ Éxito');
           setEvents(prev => prev.filter(e => (e.idevento || e.id) !== (event.idevento || event.id)));
           Alert.alert(config.success, action==='aprobar' ? 'Redirigiendo...' : '', [
             { text: action==='aprobar' ? 'Ver aprobados' : 'OK', onPress: () => action==='aprobar' && router.replace('/admin/EventosAprobados') }
           ]);
         } catch (err) { 
-          console.error(err); 
-          Alert.alert('Error', `No se pudo ${config.text} el evento`); 
+          console.error('❌ Error:', err);
+          console.error('Response:', err.response?.data);
+          Alert.alert('Error', `No se pudo ${config.text} el evento: ${err.message}`); 
         }
       }
     }
   ]);
-  };
+};
 
   // Stats para banner
   const stats = useMemo(() => {
