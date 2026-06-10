@@ -277,70 +277,80 @@ const EventosPendientes = () => {
 
   const handleView = (event) => router.push({ pathname:'/admin/EventDetailScreen', params:{ eventId: event.idevento || event.id }});
 
-  const handleAction = async (event, action) => {
-  console.log('🔴 handleAction llamado con:', { event, action });
-  
+const handleAction = async (event, action) => {
   const config = {
-    aprobar: { title:'Aprobar Evento', text:'aprobar', success:'✓ Evento Aprobado', endpoint:'aprobar' },
-    rechazar: { title:'Rechazar Evento', text:'rechazar', success:'✓ Evento Rechazado', endpoint:'rechazar' },
-    vencer: { title:'Marcar como Vencido', text:'archivar como vencido', success:'✓ Evento Archivado', endpoint:'vencer' },
-    cancelar: { title:'Cancelar Evento', text:'cancelar', success:'✓ Evento Cancelado', endpoint:'cancelar', color: COLORS.info }
+    aprobar: { title:'Aprobar', text:'aprobar', success:'✓ Evento Aprobado', endpoint:'aprobar' },
+    rechazar: { title:'Rechazar', text:'rechazar', success:'✓ Evento Rechazado', endpoint:'rechazar' },
+    vencer: { title:'Archivar', text:'archivar', success:'✓ Evento Archivado', endpoint:'vencer' },
+    cancelar: { title:'Cancelar', text:'cancelar', success:'✓ Evento Cancelado', endpoint:'cancelar' }
   }[action];
   
-  console.log('🔵 Config:', config);
+  if (!config) return;
   
-  if (!config) {
-    console.error('❌ Config no encontrada para action:', action);
-    return;
-  }
+  // ✅ FIX: Confirmación compatible con web
+  const confirmed = Platform.OS === 'web' 
+    ? window.confirm(`¿${config.text} "${event.nombreevento || event.title}"?`)
+    : await new Promise((resolve) => {
+        Alert.alert(
+          config.title,
+          `¿${config.text} "${event.nombreevento || event.title}"?`,
+          [
+            { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Confirmar', onPress: () => resolve(true) }
+          ]
+        );
+      });
   
-  Alert.alert(config.title, `¿${config.text} "${event.nombreevento || event.title}"?`, [
-    { text:'Cancelar', style:'cancel' },
-    { 
-      text:'Confirmar', 
-      style: action==='aprobar' ? 'default' : 'destructive', 
-      onPress: async () => {
-        console.log('🟢 Confirmado, ejecutando acción...');
-        try {
-          const token = await getTokenAsync();
-          console.log('🔑 Token:', token ? 'Existe' : 'NO existe');
-          
-          if (!token) {
-            Alert.alert('Error', 'No hay token de autenticación');
-            return;
-          }
-          
-          const endpoint = config.endpoint === 'vencer' ? 'estado' : config.endpoint;
-          const payload = config.endpoint === 'vencer' 
-            ? { estado: 'vencido' } 
-            : config.endpoint === 'cancelar' 
-            ? { estado: 'cancelado' } 
-            : {};
-            
-          console.log('📡 Enviando request:', {
-            url: `${API_BASE_URL}/eventos/${event.idevento || event.id}/${endpoint}`,
-            payload
-          });
-          
-          await axios.put(
-            `${API_BASE_URL}/eventos/${event.idevento || event.id}/${endpoint}`,
-            payload,
-            { headers: { 'Authorization': `Bearer ${token}` }}
-          );
-          
-          console.log('✅ Éxito');
-          setEvents(prev => prev.filter(e => (e.idevento || e.id) !== (event.idevento || event.id)));
-          Alert.alert(config.success, action==='aprobar' ? 'Redirigiendo...' : '', [
-            { text: action==='aprobar' ? 'Ver aprobados' : 'OK', onPress: () => action==='aprobar' && router.replace('/admin/EventosAprobados') }
-          ]);
-        } catch (err) { 
-          console.error('❌ Error:', err);
-          console.error('Response:', err.response?.data);
-          Alert.alert('Error', `No se pudo ${config.text} el evento: ${err.message}`); 
-        }
-      }
+  if (!confirmed) return;
+  
+  try {
+    const token = await getTokenAsync();
+    if (!token) {
+      router.replace('/LoginAdmin');
+      return;
     }
-  ]);
+    
+    const eventId = event.idevento || event.id;
+    const endpoint = config.endpoint === 'vencer' ? 'estado' : config.endpoint;
+    const payload = config.endpoint === 'vencer' 
+      ? { estado: 'vencido' } 
+      : config.endpoint === 'cancelar' 
+      ? { estado: 'cancelado' } 
+      : {};
+    
+    await axios.put(
+      `${API_BASE_URL}/eventos/${eventId}/${endpoint}`,
+      payload,
+      { headers: { 'Authorization': `Bearer ${token}` }}
+    );
+    
+    setEvents(prev => prev.filter(e => (e.idevento || e.id) !== eventId));
+    
+    if (action === 'aprobar') {
+      if (Platform.OS === 'web') {
+        if (window.confirm(`${config.success}\n\n¿Ir a eventos aprobados?`)) {
+          router.replace('/admin/EventosAprobados');
+        }
+      } else {
+        Alert.alert(config.success, '', [
+          { text: 'Ver aprobados', onPress: () => router.replace('/admin/EventosAprobados') }
+        ]);
+      }
+    } else if (Platform.OS === 'web') {
+      window.alert(config.success);
+    }
+  } catch (err) {
+    console.error('Error:', err);
+    const msg = Platform.OS === 'web' 
+      ? `Error: ${err.response?.data?.message || err.message}`
+      : `No se pudo ${config.text} el evento`;
+    
+    if (Platform.OS === 'web') {
+      window.alert(msg);
+    } else {
+      Alert.alert('Error', msg);
+    }
+  }
 };
 
   // Stats para banner
