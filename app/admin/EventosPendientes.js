@@ -202,12 +202,12 @@ const PendingEventCard = ({ event, onView, onApprove, onReject, onMarkExpired, o
         </TouchableOpacity>
         
         {/* Si NO está vencido, mostrar Aprobar, Rechazar, Cancelar */}
-        {!isAlreadyExpired && (
-          <>
             <TouchableOpacity style={[styles.actionButton, styles.approveButton]} onPress={() => onApprove(event)}>
               <Ionicons name="checkmark" size={18} color={COLORS.white} />
               <Text style={[styles.actionButtonText, { color: COLORS.white }]}>Aprobar</Text>
             </TouchableOpacity>
+        {!isAlreadyExpired && (
+          <>
             <TouchableOpacity style={[styles.actionButton, styles.rejectButton]} onPress={() => onReject(event)}>
               <Ionicons name="close" size={18} color={COLORS.danger} />
               <Text style={[styles.actionButtonText, { color: COLORS.danger }]}>Rechazar</Text>
