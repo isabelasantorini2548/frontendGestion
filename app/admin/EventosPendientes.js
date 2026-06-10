@@ -34,7 +34,10 @@ const getDaysRemaining = (eventDate) => {
   
   if (typeof eventDate === 'string') {
     if (/^\d{4}-\d{2}-\d{2}/.test(eventDate)) {
-      eventDateObj = new Date(eventDate);
+      // ✅ FIX: parseo local en lugar de UTC para evitar desfase de zona horaria
+      const datePart = eventDate.substring(0, 10);
+      const [year, month, day] = datePart.split('-').map(Number);
+      eventDateObj = new Date(year, month - 1, day);
     } else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(eventDate)) {
       const [day, month, year] = eventDate.split('/').map(Number);
       eventDateObj = new Date(year, month - 1, day);
@@ -55,19 +58,31 @@ const getDaysRemaining = (eventDate) => {
   return diffDays;
 };
 
-// ✅ SEGUNDO: isEventExpired (usa getDaysRemaining)
 const isEventExpired = (eventDate) => {
   if (!eventDate) return false;
   const daysRemaining = getDaysRemaining(eventDate);
   return daysRemaining !== null && daysRemaining < 0;
 };
 
-// ✅ TERCERO: formatSubmittedDate (sin cambios)
+// ✅ FIX: formatSubmittedDate con manejo de diff negativo y formato dd/mm/yyyy
 const formatSubmittedDate = (date) => {
   if (!date) return 'Sin fecha';
-  const now = new Date(); 
-  const submittedDate = new Date(date);
+  const now = new Date();
+  let submittedDate = new Date(date);
+
+  // Si el parseo falla o da fecha futura (ej. formato dd/mm/yyyy mal interpretado)
+  if (isNaN(submittedDate.getTime()) || submittedDate > now) {
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(date)) {
+      const parts = date.substring(0, 10).split('/');
+      const [day, month, year] = parts.map(Number);
+      submittedDate = new Date(year, month - 1, day);
+    }
+  }
+
+  if (isNaN(submittedDate.getTime())) return 'Sin fecha';
+
   const diff = Math.floor((now - submittedDate) / 1000);
+  if (diff < 0) return 'Recién creado';
   if (diff < 3600) return `Hace ${Math.floor(diff/60)} min`;
   if (diff < 86400) return `Hace ${Math.floor(diff/3600)} h`;
   const days = Math.floor(diff / 86400);
