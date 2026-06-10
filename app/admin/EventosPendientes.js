@@ -28,9 +28,9 @@ const COLORS = {
 // ── Helpers de fecha ────────────────────────────────────────────────────────
 const isEventExpired = (eventDate) => {
   if (!eventDate) return false;
-  const today = new Date(); today.setHours(0,0,0,0);
-  let eventDateObj;
-  
+  const daysRemaining = getDaysRemaining(eventDate);
+  return daysRemaining !== null && daysRemaining < 0;
+}
   if (typeof eventDate === 'string') {
     if (/^\d{4}-\d{2}-\d{2}/.test(eventDate)) {
       eventDateObj = new Date(eventDate);
@@ -68,8 +68,6 @@ const isEventExpired = (eventDate) => {
   const diffDays = Math.ceil((eventDateObj - today) / (1000*60*60*24));
   return diffDays;
 };
-}
-
 
 
 const formatSubmittedDate = (date) => {
