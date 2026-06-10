@@ -66,9 +66,21 @@ const isEventExpired = (eventDate) => {
 // ✅ TERCERO: formatSubmittedDate (sin cambios)
 const formatSubmittedDate = (date) => {
   if (!date) return 'Sin fecha';
-  const now = new Date(); 
-  const submittedDate = new Date(date);
+  const now = new Date();
+  let submittedDate = new Date(date);
+  
+  // Si el parseo falla o da fecha futura, intentar formato dd/mm/yyyy
+  if (isNaN(submittedDate.getTime()) || submittedDate > now) {
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(date)) {
+      const [day, month, year] = date.split(/[\/ ]/).map(Number);
+      submittedDate = new Date(year, month - 1, day);
+    }
+  }
+  
+  if (isNaN(submittedDate.getTime())) return 'Sin fecha';
+  
   const diff = Math.floor((now - submittedDate) / 1000);
+  if (diff < 0) return 'Recién creado';  // evita "Hace -X min"
   if (diff < 3600) return `Hace ${Math.floor(diff/60)} min`;
   if (diff < 86400) return `Hace ${Math.floor(diff/3600)} h`;
   const days = Math.floor(diff / 86400);
