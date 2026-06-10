@@ -25,20 +25,6 @@ const COLORS = {
   pendingLight: '#FFF3E0',
 };
 
-
-  if (typeof eventDate === 'string') {
-    if (/^\d{4}-\d{2}-\d{2}/.test(eventDate)) {
-      eventDateObj = new Date(eventDate);
-    } else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(eventDate)) {
-      const [day, month, year] = eventDate.split('/').map(Number);
-      eventDateObj = new Date(year, month - 1, day);
-    } else { eventDateObj = new Date(eventDate); }
-  } else { eventDateObj = new Date(eventDate); }
-  
-  if (isNaN(eventDateObj.getTime())) {
-    console.warn('⚠️ Fecha inválida:', eventDate);
-    return false;
-  }
   
 const getDaysRemaining = (eventDate) => {
   if (!eventDate) return null;
@@ -84,16 +70,6 @@ const formatSubmittedDate = (date) => {
   if (diff < 86400) return `Hace ${Math.floor(diff/3600)} h`;
   const days = Math.floor(diff / 86400);
   return `Hace ${days} día${days > 1 ? 's' : ''}`;
-};
-
-const formatSubmittedDate = (date) => {
-  if (!date) return 'Sin fecha';
-  const now = new Date(); const submittedDate = new Date(date);
-  const diff = Math.floor((now - submittedDate) / 1000);
-  if (diff < 3600) return `Hace ${Math.floor(diff/60)} min`;
-  if (diff < 86400) return `Hace ${Math.floor(diff/3600)} h`;
-  const days = Math.floor(diff / 86400);
-  return `Hace ${days} día${days>1?'s':''}`;
 };
 
 const getTokenAsync = async () => {
