@@ -40,13 +40,12 @@ const isEventExpired = (eventDate) => {
     } else { eventDateObj = new Date(eventDate); }
   } else { eventDateObj = new Date(eventDate); }
   
-  if (isNaN(eventDateObj.getTime())) return false;
-  eventDateObj.setHours(0,0,0,0);
-  const diffDays = Math.ceil((eventDateObj - today) / (1000*60*60*24));
-  return diffDays <= 3; // ≤3 días = considerado "por vencer"
-};
-
-const getDaysRemaining = (eventDate) => {
+  if (isNaN(eventDateObj.getTime())) {
+    console.warn('⚠️ Fecha inválida:', eventDate);
+    return false;
+  }
+  
+  const getDaysRemaining = (eventDate) => {
   if (!eventDate) return null;
   const today = new Date(); today.setHours(0,0,0,0);
   let eventDateObj;
@@ -60,10 +59,18 @@ const getDaysRemaining = (eventDate) => {
     } else { eventDateObj = new Date(eventDate); }
   } else { eventDateObj = new Date(eventDate); }
   
-  if (isNaN(eventDateObj.getTime())) return null;
+  if (isNaN(eventDateObj.getTime())) {
+    console.warn('⚠️ Fecha inválida:', eventDate);
+    return null;
+  }
+  
   eventDateObj.setHours(0,0,0,0);
-  return Math.ceil((eventDateObj - today) / (1000*60*60*24));
+  const diffDays = Math.ceil((eventDateObj - today) / (1000*60*60*24));
+  return diffDays;
 };
+}
+
+
 
 const formatSubmittedDate = (date) => {
   if (!date) return 'Sin fecha';
@@ -90,13 +97,18 @@ const deleteTokenAsync = async () => {
   } catch (e) { console.error("Error al eliminar token:", e); }
 };
 
-// ── Card de Evento ─────────────────────────────────────────────────────────
 const PendingEventCard = ({ event, onView, onApprove, onReject, onMarkExpired, onMarkCancelled }) => {
   const fechaEvento = event.fechaevento || event.date;
-  const expired = isEventExpired(fechaEvento);
   const daysRemaining = getDaysRemaining(fechaEvento);
   const isAlreadyExpired = daysRemaining !== null && daysRemaining < 0;
   const isUrgent = daysRemaining !== null && daysRemaining >= 0 && daysRemaining <= 3;
+
+  console.log(`🔍 Evento ${event.idevento}:`, {
+    fecha: fechaEvento,
+    daysRemaining,
+    isExpired: isAlreadyExpired,
+    isUrgent
+  });
 
   const getStatusBadge = () => {
     if (isAlreadyExpired) return { text:'VENCIDO', icon:'close-circle', bg:COLORS.danger, color:COLORS.white };
@@ -106,11 +118,11 @@ const PendingEventCard = ({ event, onView, onApprove, onReject, onMarkExpired, o
   const badge = getStatusBadge();
 
   return (
-    <View style={[styles.eventCard, expired && styles.eventCardExpired]}>
+    <View style={[styles.eventCard, isAlreadyExpired && styles.eventCardExpired]}>
       {/* Header */}
       <View style={styles.eventHeader}>
         <View style={styles.titleContainer}>
-          <Text style={[styles.eventTitle, expired && styles.eventTitleExpired]} numberOfLines={2}>
+          <Text style={[styles.eventTitle, isAlreadyExpired && styles.eventTitleExpired]} numberOfLines={2}>
             {event.nombreevento || event.title || 'Sin título'}
           </Text>
           <View style={styles.idBadge}>
@@ -150,7 +162,7 @@ const PendingEventCard = ({ event, onView, onApprove, onReject, onMarkExpired, o
       <View style={styles.infoGrid}>
         <View style={styles.infoRow}>
           <Ionicons name="calendar-outline" size={16} color={COLORS.grayText} />
-          <Text style={[styles.infoText, expired && { color: COLORS.danger, fontWeight:'600' }]}>
+          <Text style={[styles.infoText, isAlreadyExpired && { color: COLORS.danger, fontWeight:'600' }]}>
             {fechaEvento?.split('T')[0] || 'Sin fecha'}
           </Text>
         </View>
@@ -175,14 +187,15 @@ const PendingEventCard = ({ event, onView, onApprove, onReject, onMarkExpired, o
         </Text>
       </View>
 
-      {/* Botones de acción */}
+      {/* Botones de acción - SIEMPRE mostrar todos los botones excepto cuando está vencido */}
       <View style={styles.actionButtonsContainer}>
         <TouchableOpacity style={[styles.actionButton, styles.viewButton]} onPress={() => onView(event)}>
           <Ionicons name="eye-outline" size={18} color={COLORS.blue} />
           <Text style={[styles.actionButtonText, { color: COLORS.blue }]}>Ver</Text>
         </TouchableOpacity>
         
-        {!isAlreadyExpired ? (
+        {/* Si NO está vencido, mostrar Aprobar, Rechazar, Cancelar */}
+        {!isAlreadyExpired && (
           <>
             <TouchableOpacity style={[styles.actionButton, styles.approveButton]} onPress={() => onApprove(event)}>
               <Ionicons name="checkmark" size={18} color={COLORS.white} />
@@ -192,12 +205,15 @@ const PendingEventCard = ({ event, onView, onApprove, onReject, onMarkExpired, o
               <Ionicons name="close" size={18} color={COLORS.danger} />
               <Text style={[styles.actionButtonText, { color: COLORS.danger }]}>Rechazar</Text>
             </TouchableOpacity>
-             <TouchableOpacity style={[styles.actionButton, styles.rejectButton]} onPress={() => onMarkCancelled(event)}>
-              <Ionicons name="close" size={18} color={COLORS.info} />
+            <TouchableOpacity style={[styles.actionButton, styles.rejectButton]} onPress={() => onMarkCancelled(event)}>
+              <Ionicons name="close-circle-outline" size={18} color={COLORS.info} />
               <Text style={[styles.actionButtonText, { color: COLORS.info }]}>Cancelar</Text>
             </TouchableOpacity>
           </>
-        ) : (
+        )}
+        
+        {/* Si está vencido, mostrar Archivar */}
+        {isAlreadyExpired && (
           <TouchableOpacity style={[styles.actionButton, styles.rejectButton]} onPress={() => onMarkExpired(event)}>
             <Ionicons name="archive-outline" size={18} color={COLORS.white} />
             <Text style={[styles.actionButtonText, { color: COLORS.white }]}>Archivar</Text>
