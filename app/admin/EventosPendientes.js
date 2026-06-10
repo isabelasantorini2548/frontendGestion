@@ -34,7 +34,10 @@ const getDaysRemaining = (eventDate) => {
   
   if (typeof eventDate === 'string') {
     if (/^\d{4}-\d{2}-\d{2}/.test(eventDate)) {
-      eventDateObj = new Date(eventDate);
+      // Extraer solo la parte de fecha para evitar interpretación UTC
+      const datePart = eventDate.substring(0, 10); // "2025-06-15"
+      const [year, month, day] = datePart.split('-').map(Number);
+      eventDateObj = new Date(year, month - 1, day); // ✅ hora local
     } else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(eventDate)) {
       const [day, month, year] = eventDate.split('/').map(Number);
       eventDateObj = new Date(year, month - 1, day);
