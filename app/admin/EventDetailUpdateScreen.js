@@ -748,66 +748,7 @@ console.log('objetivos_pdi del backend:', eventData.objetivos_pdi);
         {/* Estado */}
        
 
-        <View style={styles.actionButtonsContainer}>
-          {event.status === 'aprobado' && event.idfase === 1 && (
-            <TouchableOpacity
-              style={styles.nextStepButton}
-              onPress={() => router.push(`/admin/ProgramacionEvento?idevento=${event.id}`)}
-            >
-              <Ionicons name="calendar-outline" size={20} color={COLORS.white} />
-              <Text style={styles.nextStepButtonText}>Ir a Programación del Evento</Text>
-            </TouchableOpacity>
-          )}
-
-          <TouchableOpacity
-            style={styles.editButton}
-            onPress={() => router.push(`/admin/EventDetailUpdateScreen?eventId=${event.id}`)}
-          >
-            <Ionicons name="create-outline" size={20} color={COLORS.white} />
-            <Text style={styles.editButtonText}>Editar Evento</Text>
-          </TouchableOpacity>
-          <View style={styles.actionButtonsContainer}>
-  {/* ✅ Botón chat comité */}
-  {event.comite && event.comite.length > 0 && (
-    <TouchableOpacity
-      style={[styles.editButton, { backgroundColor: '#007AFF', marginBottom: 10 }]}
-      onPress={() => router.push({
-        pathname: '/evento-chat',
-        params: {
-          eventoId:     String(event.id),
-          userId:       user?.id ? String(user.id) : 'academico',
-          userRole:     user?.role || 'academico',
-          userName:     user?.nombre || 'Académico',
-          eventoNombre: event.title
-        }
-      })}
-    >
-      <Ionicons name="chatbubbles-outline" size={20} color={COLORS.white} />
-      <Text style={styles.editButtonText}>
-        Chat del Comité ({event.comite.length} miembros)
-      </Text>
-    </TouchableOpacity>
-  )}
-
-    {event.status === 'aprobado' && event.idfase === 1 && (
-      <TouchableOpacity
-        style={styles.nextStepButton}
-        onPress={() => router.push(`/admin/ProgramacionEvento?idevento=${event.id}`)}
-      >
-        <Ionicons name="calendar-outline" size={20} color={COLORS.white} />
-        <Text style={styles.nextStepButtonText}>Ir a Programación del Evento</Text>
-      </TouchableOpacity>
-    )}
-
-    <TouchableOpacity
-      style={styles.editButton}
-      onPress={() => router.push(`/admin/EventDetailUpdateScreen?eventId=${event.id}`)}
-    >
-      <Ionicons name="create-outline" size={20} color={COLORS.white} />
-      <Text style={styles.editButtonText}>Editar Evento</Text>
-    </TouchableOpacity>
-  </View>
-        </View>
+        
       </ScrollView>
     </View>
   );
