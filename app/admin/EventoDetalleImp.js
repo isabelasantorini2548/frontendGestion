@@ -186,6 +186,7 @@ console.log('objetivos_pdi del backend:', eventData.objetivos_pdi);
       }
 
       const transformedEvent = {
+        
   id: eventData.idevento || null,
   title: eventData.nombreevento || 'Sin título',
   date: formatDate(eventData.fechaevento),
@@ -221,6 +222,8 @@ console.log('objetivos_pdi del backend:', eventData.objetivos_pdi);
   recursos: eventData.Recursos || [],
   comite: eventData.Comite || [],
   presupuesto: eventData.Presupuesto || null,
+   egresos: eventData.Egresos || eventData.egresos || [],
+  ingresos: eventData.Ingresos || eventData.ingresos || [],
   tags: eventData.tags || [],
   
   creador: eventData.creador ? {
@@ -229,6 +232,7 @@ console.log('objetivos_pdi del backend:', eventData.objetivos_pdi);
     role: eventData.creador.role
   } : null
 };
+console.log('Keys del eventData:', Object.keys(eventData));
      
       if (!transformedEvent.id) {
         throw new Error('El evento no tiene un ID válido.');
@@ -1031,6 +1035,11 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.grayLight,
+  },
+  contentContainer: {
+    padding: 16,
+    paddingBottom: 40, 
+    flexGrow: 1, 
   },
   segmentHeader: {
     flexDirection: 'row',
