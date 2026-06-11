@@ -287,23 +287,8 @@ const handleAction = async (event, action) => {
   
   if (!config) return;
   
-  // ✅ FIX: Confirmación compatible con web
-  const confirmed = Platform.OS === 'web' 
-    ? window.confirm(`¿${config.text} "${event.nombreevento || event.title}"?`)
-    : await new Promise((resolve) => {
-        Alert.alert(
-          config.title,
-          `¿${config.text} "${event.nombreevento || event.title}"?`,
-          [
-            { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
-            { text: 'Confirmar', onPress: () => resolve(true) }
-          ]
-        );
-      });
   
-  if (!confirmed) return;
-  
-  try {
+ try {
     const token = await getTokenAsync();
     if (!token) {
       router.replace('/LoginAdmin');
@@ -318,8 +303,18 @@ const handleAction = async (event, action) => {
       ? { estado: 'cancelado' } 
       : {};
     
+    // 🔍 DEBUG: Ver URL exacta
+    const url = `${API_BASE_URL}/eventos/${eventId}/${endpoint}`;
+    console.log('📡 Request:', {
+      method: 'PUT',
+      url: url,
+      payload: payload,
+      eventId: eventId,
+      endpoint: endpoint
+    });
+    
     await axios.put(
-      `${API_BASE_URL}/eventos/${eventId}/${endpoint}`,
+      url,
       payload,
       { headers: { 'Authorization': `Bearer ${token}` }}
     );
@@ -340,9 +335,16 @@ const handleAction = async (event, action) => {
       window.alert(config.success);
     }
   } catch (err) {
-    console.error('Error:', err);
+    console.error('❌ Error completo:', {
+      message: err.message,
+      status: err.response?.status,
+      data: err.response?.data,
+      url: err.config?.url,
+      method: err.config?.method
+    });
+    
     const msg = Platform.OS === 'web' 
-      ? `Error: ${err.response?.data?.message || err.message}`
+      ? `Error ${err.response?.status}: ${err.response?.data?.message || err.message}\n\nURL: ${err.config?.url}`
       : `No se pudo ${config.text} el evento`;
     
     if (Platform.OS === 'web') {
