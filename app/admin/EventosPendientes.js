@@ -279,10 +279,10 @@ const EventosPendientes = () => {
 
 const handleAction = async (event, action) => {
   const config = {
-    aprobar: { title:'Aprobar', text:'aprobar', success:'✓ Evento Aprobado', endpoint:'aprobar' },
-    rechazar: { title:'Rechazar', text:'rechazar', success:'✓ Evento Rechazado', endpoint:'rechazar' },
-    vencer: { title:'Archivar', text:'archivar', success:'✓ Evento Archivado', endpoint:'vencer' },
-    cancelar: { title:'Cancelar', text:'cancelar', success:'✓ Evento Cancelado', endpoint:'cancelar' }
+    aprobar: { title:'Aprobar', text:'aprobar', success:'✓ Evento Aprobado', endpoint:'approve' },
+    rechazar: { title:'Rechazar', text:'rechazar', success:'✓ Evento Rechazado', endpoint:'reject' },
+    vencer: { title:'Archivar', text:'archivar', success:'✓ Evento Archivado', endpoint:'expire' },
+    cancelar: { title:'Cancelar', text:'cancelar', success:'✓ Evento Cancelado', endpoint:'cancel' }
   }[action];
   
   if (!config) return;
