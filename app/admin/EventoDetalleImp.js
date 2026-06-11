@@ -219,11 +219,11 @@ console.log('objetivos_pdi del backend:', eventData.objetivos_pdi);
       otros_resultados: null,
       satisfaccion_real: null
     },
-  recursos: eventData.Recursos || [],
-  comite: eventData.Comite || [],
-  presupuesto: eventData.Presupuesto || null,
-   egresos: eventData.Egresos || eventData.egresos || [],
-  ingresos: eventData.Ingresos || eventData.ingresos || [],
+ recursos: eventData.Recursos || eventData.recursos || eventData.RecursosEvento || [],
+comite: eventData.Comite || eventData.comite || eventData.ComiteEvento || [],
+presupuesto: eventData.Presupuesto || eventData.presupuesto || null,
+egresos: eventData.Egresos || eventData.egresos || eventData.presupuesto?.egresos || eventData.Presupuesto?.egresos || [],
+ingresos: eventData.Ingresos || eventData.ingresos || eventData.presupuesto?.ingresos || eventData.Presupuesto?.ingresos || [],
   tags: eventData.tags || [],
   
   creador: eventData.creador ? {
@@ -239,6 +239,10 @@ console.log('Keys del eventData:', Object.keys(eventData));
       }
 
       setEvent(transformedEvent);
+      console.log('RECURSOS:', transformedEvent.recursos);
+      console.log('COMITE:', transformedEvent.comite);
+      console.log('PRESUPUESTO:', transformedEvent.presupuesto);
+      console.log('TODAS LAS KEYS:', Object.keys(eventData));
     } catch (err) {
       let errorMessage = `Error al cargar evento: ${err.message}`;
       if (err.response?.status === 401 || err.response?.status === 403) {
