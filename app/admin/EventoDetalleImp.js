@@ -774,7 +774,7 @@ const generateEventPDF = async () => {
         )}
 
         {/* Recursos Solicitados */}
-        {event.recursos && event.recursos.length > 0 && (
+        {event.recursos && (
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Recursos Solicitados</Text>
             
@@ -835,7 +835,7 @@ const generateEventPDF = async () => {
         )}
 
         {/* Comité del Evento */}
-        {event.comite && event.comite.length > 0 && (
+        {event.comite && (
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Comité del Evento</Text>
             {event.comite.map((miembro, index) => (
@@ -858,7 +858,7 @@ const generateEventPDF = async () => {
     <Text style={styles.sectionTitle}>Presupuesto del Evento</Text>
     
     {/* EGRESOS */}
-    {event.egresos && event.egresos.length > 0 && (
+    {event.egresos && (
       <View style={styles.budgetSubsection}>
         <View style={styles.budgetHeader}>
           <Ionicons name="arrow-down-circle" size={20} color={COLORS.logout} />
@@ -894,7 +894,7 @@ const generateEventPDF = async () => {
     )}
     
     {/* INGRESOS */}
-    {event.ingresos && event.ingresos.length > 0 && (
+    {event.ingresos && (
       <View style={styles.budgetSubsection}>
         <View style={styles.budgetHeader}>
           <Ionicons name="arrow-up-circle" size={20} color={COLORS.success} />
