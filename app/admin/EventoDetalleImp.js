@@ -693,31 +693,63 @@ const generateEventPDF = async () => {
           </View>
         )}
 
-        {/* Segmentos Objetivo del Evento - ¡MEJORADO! */}
-        {event.objetivos && event.objetivos.some(obj => obj.segmentos && obj.segmentos.length > 0) && (
+      {event.objetivos && event.objetivos.some(obj => obj.segmentos && obj.segmentos.length > 0) && (
+  <View style={styles.sectionCard}>
+    <Text style={styles.sectionTitle}>Segmentos Objetivo</Text>
+    {(() => {
+      // 1️⃣ Extraer todos los segmentos de todos los objetivos
+      const allSegments = event.objetivos
+        .filter(obj => obj.segmentos && Array.isArray(obj.segmentos))
+        .flatMap(obj => obj.segmentos);
+      
+      // 2️⃣ Eliminar duplicados usando Map (por idsegmento)
+      const uniqueSegmentsMap = new Map();
+      allSegments.forEach(seg => {
+        const key = seg.idsegmento || seg.nombre_segmento || JSON.stringify(seg);
+        if (!uniqueSegmentsMap.has(key)) {
+          uniqueSegmentsMap.set(key, seg);
+        }
+      });
+      
+      // 3️⃣ Convertir a array para renderizar
+      const uniqueSegments = Array.from(uniqueSegmentsMap.values());
+      
+      // 4️⃣ Renderizar segmentos únicos
+      return uniqueSegments.map((seg, index) => (
+        <View key={`seg-unique-${seg.idsegmento || index}`} style={styles.segmentItem}>
+          <View style={styles.segmentHeader}>
+            <Ionicons name="person-outline" size={16} color={COLORS.primary} style={styles.segmentIcon} />
+            <Text style={styles.segmentName}>
+              {seg.nombre_segmento || `Segmento ID ${seg.idsegmento}`}
+            </Text>
+          </View>
+          {seg.texto_personalizado && (
+            <Text style={styles.segmentDescription}>
+              {seg.texto_personalizado}
+            </Text>
+          )}
+        </View>
+      ));
+    })()}
+  </View>
+)}
+
+        {/* Objetivos PDI Institucional */}
+        {event.objetivosPDI && event.objetivosPDI.length > 0 && (
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Segmentos Objetivo</Text>
-            {event.objetivos.map((obj, objIndex) => {
-              if (!obj.segmentos || obj.segmentos.length === 0) return null;
-              
-              return obj.segmentos.map((seg, segIndex) => (
-                <View key={`seg-${seg.idsegmento || segIndex}`} style={styles.segmentItem}>
-                  <View style={styles.segmentHeader}>
-                    <Ionicons name="person-outline" size={16} color={COLORS.primary} style={styles.segmentIcon} />
-                    <Text style={styles.segmentName}>
-                      {seg.nombre_segmento || `Segmento ID ${seg.idsegmento}`}
-                    </Text>
-                  </View>
-                  {seg.texto_personalizado && (
-                    <Text style={styles.segmentDescription}>
-                      {seg.texto_personalizado}
-                    </Text>
-                  )}
-                </View>
-              ));
-            })}
+            <Text style={styles.sectionTitle}>Objetivos del PDI Institucional</Text>
+            {event.objetivosPDI.map((pdi, index) => (
+              <View key={index} style={styles.listItem}>
+                <Text style={[styles.listText, { fontWeight: 'bold', color: COLORS.primary }]}>
+                  {index + 1}.
+                </Text>
+                <Text style={styles.listText}>{pdi}</Text>
+              </View>
+            ))}
           </View>
         )}
+
+       
 
         {/* Resultados Esperados */}
         {event.resultados && (
@@ -810,91 +842,7 @@ const generateEventPDF = async () => {
             )}
           </View>
         )}
-   {event.actividadesPrevias && event.actividadesPrevias.length > 0 && (
-  <View style={styles.sectionCard}>
-    <Text style={styles.sectionTitle}>Actividades Previas</Text>
-    {event.actividadesPrevias.map((act, index) => (
-      <View key={index} style={styles.listItem}>
-        <Ionicons name="calendar-outline" size={16} color={COLORS.grayText} style={styles.listIcon} />
-        <View style={{ flex: 1 }}>
-          <Text style={styles.listText}>
-            <Text style={{ fontWeight: 'bold' }}>{act.nombre}</Text> - {act.responsable}
-          </Text>
-          <Text style={[styles.listText, { fontSize: 13, color: COLORS.grayText }]}>
-            {new Date(act.fecha_inicio).toLocaleDateString('es-ES')} - {new Date(act.fecha_fin).toLocaleDateString('es-ES')}
-          </Text>
-        </View>
-      </View>
-    ))}
-  </View>
-)}
-{event.actividadesDurante && event.actividadesDurante.length > 0 && (
-  <View style={styles.sectionCard}>
-    <Text style={styles.sectionTitle}>Actividades Durante el Evento</Text>
-    {event.actividadesDurante.map((act, index) => (
-      <View key={index} style={styles.listItem}>
-        <Ionicons name="calendar-outline" size={16} color={COLORS.grayText} style={styles.listIcon} />
-        <View style={{ flex: 1 }}>
-          <Text style={styles.listText}>
-            <Text style={{ fontWeight: 'bold' }}>{act.nombre}</Text> - {act.responsable}
-          </Text>
-          <Text style={[styles.listText, { fontSize: 13, color: COLORS.grayText }]}>
-            {new Date(act.fecha_inicio).toLocaleDateString('es-ES')} - {new Date(act.fecha_fin).toLocaleDateString('es-ES')}
-          </Text>
-        </View>
-      </View>
-    ))}
-  </View>
-)}
 
-{/* === ACTIVIDADES POST === */}
-{event.actividadesPost && event.actividadesPost.length > 0 && (
-  <View style={styles.sectionCard}>
-    <Text style={styles.sectionTitle}>Actividades Post Evento</Text>
-    {event.actividadesPost.map((act, index) => (
-      <View key={index} style={styles.listItem}>
-        <Ionicons name="calendar-outline" size={16} color={COLORS.grayText} style={styles.listIcon} />
-        <View style={{ flex: 1 }}>
-          <Text style={styles.listText}>
-            <Text style={{ fontWeight: 'bold' }}>{act.nombre}</Text> - {act.responsable}
-          </Text>
-          <Text style={[styles.listText, { fontSize: 13, color: COLORS.grayText }]}>
-            {new Date(act.fecha_inicio).toLocaleDateString('es-ES')} - {new Date(act.fecha_fin).toLocaleDateString('es-ES')}
-          </Text>
-        </View>
-      </View>
-    ))}
-  </View>
-)}
-
-{event.serviciosContratados && event.serviciosContratados.length > 0 && (
-  <View style={styles.sectionCard}>
-    <Text style={styles.sectionTitle}>Servicios Contratados</Text>
-    {event.serviciosContratados.map((serv, index) => (
-      <View key={index} style={styles.listItem}>
-        <Ionicons name="build-outline" size={16} color={COLORS.grayText} style={styles.listIcon} />
-        <View style={{ flex: 1 }}>
-          <Text style={styles.listText}>
-            <Text style={{ fontWeight: 'bold' }}>{serv.nombreservicio}</Text>
-          </Text>
-          <Text style={[styles.listText, { fontSize: 13, color: COLORS.grayText }]}>
-            Entrega: {serv.fechadeentrega}
-          </Text>
-          {serv.caracteristicas && (
-            <Text style={[styles.listText, { fontSize: 13, color: COLORS.grayText }]}>
-              Características: {serv.caracteristicas}
-            </Text>
-          )}
-          {serv.observaciones && (
-            <Text style={[styles.listText, { fontSize: 13, color: COLORS.grayText }]}>
-              Observaciones: {serv.observaciones}
-            </Text>
-          )}
-        </View>
-      </View>
-    ))}
-  </View>
-)}
         {/* Comité del Evento */}
         {event.comite && event.comite.length > 0 && (
           <View style={styles.sectionCard}>
@@ -914,29 +862,96 @@ const generateEventPDF = async () => {
           </View>
         )}
 
-        {/* Presupuesto */}
         {event.presupuesto && (
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Presupuesto</Text>
-            <View style={styles.budgetRow}>
-              <Text>Total Egresos:</Text>
-              <Text>Bs {(event.presupuesto.total_egresos || 0).toFixed(2)}</Text>
-            </View>
-            <View style={styles.budgetRow}>
-              <Text>Total Ingresos:</Text>
-              <Text>Bs {(event.presupuesto.total_ingresos || 0).toFixed(2)}</Text>
-            </View>
-            <View style={styles.budgetRow}>
-              <Text style={{ fontWeight: 'bold' }}>Balance:</Text>
-              <Text style={{ 
-                fontWeight: 'bold',
-                color: (event.presupuesto.balance || 0) >= 0 ? COLORS.success : COLORS.logout
-              }}>
-                Bs {(event.presupuesto.balance || 0).toFixed(2)}
-              </Text>
-            </View>
+  <View style={styles.sectionCard}>
+    <Text style={styles.sectionTitle}>Presupuesto del Evento</Text>
+    
+    {/* EGRESOS */}
+    {event.egresos && event.egresos.length > 0 && (
+      <View style={styles.budgetSubsection}>
+        <View style={styles.budgetHeader}>
+          <Ionicons name="arrow-down-circle" size={20} color={COLORS.logout} />
+          <Text style={styles.budgetSubtitle}>Egresos</Text>
+        </View>
+        
+        {/* Header de tabla */}
+        <View style={styles.budgetTableHeader}>
+          <Text style={[styles.budgetCell, styles.budgetCellDesc]}>Descripción</Text>
+          <Text style={[styles.budgetCell, styles.budgetCellNum]}>Cant.</Text>
+          <Text style={[styles.budgetCell, styles.budgetCellNum]}>Precio</Text>
+          <Text style={[styles.budgetCell, styles.budgetCellNum]}>Total</Text>
+        </View>
+        
+        {/* Filas de egresos */}
+        {event.egresos.map((egreso, index) => (
+          <View key={egreso.idegreso || index} style={styles.budgetTableRow}>
+            <Text style={[styles.budgetCell, styles.budgetCellDesc]}>{egreso.descripcion}</Text>
+            <Text style={[styles.budgetCell, styles.budgetCellNum]}>{egreso.cantidad}</Text>
+            <Text style={[styles.budgetCell, styles.budgetCellNum]}>Bs {parseFloat(egreso.precio_unitario).toFixed(2)}</Text>
+            <Text style={[styles.budgetCell, styles.budgetCellNum, styles.budgetCellTotal]}>
+              Bs {parseFloat(egreso.total).toFixed(2)}
+            </Text>
           </View>
-        )}
+        ))}
+        
+        {/* Total Egresos */}
+        <View style={styles.budgetTotalRow}>
+          <Text style={[styles.budgetTotalLabel, { flex: 3 }]}>TOTAL EGRESOS:</Text>
+          <Text style={styles.budgetTotalValue}>Bs {(event.presupuesto.total_egresos || 0).toFixed(2)}</Text>
+        </View>
+      </View>
+    )}
+    
+    {/* INGRESOS */}
+    {event.ingresos && event.ingresos.length > 0 && (
+      <View style={styles.budgetSubsection}>
+        <View style={styles.budgetHeader}>
+          <Ionicons name="arrow-up-circle" size={20} color={COLORS.success} />
+          <Text style={styles.budgetSubtitle}>Ingresos</Text>
+        </View>
+        
+        {/* Header de tabla */}
+        <View style={styles.budgetTableHeader}>
+          <Text style={[styles.budgetCell, styles.budgetCellDesc]}>Descripción</Text>
+          <Text style={[styles.budgetCell, styles.budgetCellNum]}>Cant.</Text>
+          <Text style={[styles.budgetCell, styles.budgetCellNum]}>Precio</Text>
+          <Text style={[styles.budgetCell, styles.budgetCellNum]}>Total</Text>
+        </View>
+        
+        {/* Filas de ingresos */}
+        {event.ingresos.map((ingreso, index) => (
+          <View key={ingreso.idingreso || index} style={styles.budgetTableRow}>
+            <Text style={[styles.budgetCell, styles.budgetCellDesc]}>{ingreso.descripcion}</Text>
+            <Text style={[styles.budgetCell, styles.budgetCellNum]}>{ingreso.cantidad}</Text>
+            <Text style={[styles.budgetCell, styles.budgetCellNum]}>Bs {parseFloat(ingreso.precio_unitario).toFixed(2)}</Text>
+            <Text style={[styles.budgetCell, styles.budgetCellNum, styles.budgetCellTotal]}>
+              Bs {parseFloat(ingreso.total).toFixed(2)}
+            </Text>
+          </View>
+        ))}
+        
+        {/* Total Ingresos */}
+        <View style={styles.budgetTotalRow}>
+          <Text style={[styles.budgetTotalLabel, { flex: 3 }]}>TOTAL INGRESOS:</Text>
+          <Text style={[styles.budgetTotalValue, { color: COLORS.success }]}>
+            Bs {(event.presupuesto.total_ingresos || 0).toFixed(2)}
+          </Text>
+        </View>
+      </View>
+    )}
+    
+    {/* BALANCE FINAL */}
+    <View style={styles.balanceFinal}>
+      <Text style={styles.balanceFinalLabel}>BALANCE ECONÓMICO:</Text>
+      <Text style={[
+        styles.balanceFinalValue,
+        { color: (event.presupuesto.balance || 0) >= 0 ? COLORS.success : COLORS.logout }
+      ]}>
+        Bs {(event.presupuesto.balance || 0).toFixed(2)}
+      </Text>
+    </View>
+  </View>
+)}
 
         {/* Estado */}
         <View style={styles.sectionCard}>
