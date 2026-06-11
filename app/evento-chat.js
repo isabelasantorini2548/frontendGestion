@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   FlatList, KeyboardAvoidingView, Platform,
-  StyleSheet, SafeAreaView, ActivityIndicator
+  StyleSheet, SafeAreaView, ActivityIndicator, Modal
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { io } from 'socket.io-client';
@@ -23,6 +23,8 @@ export default function EventoChatScreen() {
   const [input, setInput]           = useState('');
   const [connected, setConnected]   = useState(false);
   const [connecting, setConnecting] = useState(true);
+  const [connectedUsers, setConnectedUsers] = useState([]);
+  const [showUsersModal, setShowUsersModal] = useState(false);
 
   const socketRef   = useRef(null);
   const flatListRef = useRef(null);
@@ -60,6 +62,21 @@ export default function EventoChatScreen() {
         system: true,
         text: `${nombre || 'Un usuario'} (${ROL_CONFIG[role]?.label || role}) se unió`
       }]);
+    });
+
+    // ✅ NUEVO: Escuchar cuando alguien sale
+    socket.on('user_left', ({ userName: nombre, role }) => {
+      setMessages(prev => [...prev, {
+        id: `sys_${Date.now()}`,
+        system: true,
+        text: `${nombre || 'Un usuario'} (${ROL_CONFIG[role]?.label || role}) salió`
+      }]);
+    });
+
+    // ✅ NUEVO: Escuchar la lista de usuarios conectados
+    socket.on('user_list', (users) => {
+      console.log('👥 Usuarios conectados:', users);
+      setConnectedUsers(users);
     });
 
     return () => {
@@ -142,6 +159,20 @@ export default function EventoChatScreen() {
             <Text style={styles.statusText}>{connected ? 'En línea' : 'Sin conexión'}</Text>
           </View>
         </View>
+
+        {/* ✅ NUEVO: Botón de usuarios conectados */}
+        <TouchableOpacity 
+          style={styles.usersBtn}
+          onPress={() => setShowUsersModal(true)}
+        >
+          <Text style={styles.usersBtnIcon}>👥</Text>
+          {connectedUsers.length > 0 && (
+            <View style={styles.usersBadge}>
+              <Text style={styles.usersBadgeText}>{connectedUsers.length}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+
         <View style={[styles.rolChip, { backgroundColor: (ROL_CONFIG[userRole]?.color || '#888') + '22' }]}>
           <Text style={[styles.rolChipText, { color: ROL_CONFIG[userRole]?.color || '#888' }]}>
             {ROL_CONFIG[userRole]?.label || userRole}
@@ -186,6 +217,75 @@ export default function EventoChatScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* ✅ NUEVO: Modal de usuarios conectados */}
+      <Modal
+        visible={showUsersModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowUsersModal(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowUsersModal(false)}
+        >
+          <TouchableOpacity 
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={styles.modalContent}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                Usuarios Conectados ({connectedUsers.length})
+              </Text>
+              <TouchableOpacity onPress={() => setShowUsersModal(false)}>
+                <Text style={styles.modalCloseBtn}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <FlatList
+              data={connectedUsers}
+              keyExtractor={(item) => String(item.userId)}
+              renderItem={({ item }) => {
+                const rolCfg = ROL_CONFIG[item.role] || { color: '#888', label: item.role, icono: '?' };
+                const isMe = String(item.userId) === String(userId);
+                
+                return (
+                  <View style={styles.userRow}>
+                    <View style={[styles.userAvatar, { backgroundColor: rolCfg.color + '22' }]}>
+                      <Text style={[styles.userAvatarText, { color: rolCfg.color }]}>
+                        {rolCfg.icono}
+                      </Text>
+                    </View>
+                    <View style={styles.userInfo}>
+                      <Text style={styles.userName}>
+                        {item.userName || `Usuario ${item.userId}`}
+                        {isMe && <Text style={styles.youBadge}> (Tú)</Text>}
+                      </Text>
+                      <View style={styles.userRoleContainer}>
+                        <View style={[styles.userRoleDot, { backgroundColor: rolCfg.color }]} />
+                        <Text style={[styles.userRoleText, { color: rolCfg.color }]}>
+                          {rolCfg.label}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.onlineIndicator}>
+                      <View style={styles.onlineDot} />
+                      <Text style={styles.onlineText}>En línea</Text>
+                    </View>
+                  </View>
+                );
+              }}
+              ListEmptyComponent={
+                <View style={styles.emptyUsersBox}>
+                  <Text style={styles.emptyUsersText}>No hay usuarios conectados</Text>
+                </View>
+              }
+            />
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -207,6 +307,32 @@ const styles = StyleSheet.create({
   headerStatus: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   statusDot:    { width: 7, height: 7, borderRadius: 4 },
   statusText:   { fontSize: 11, color: '#888' },
+  
+  // ✅ NUEVOS ESTILOS: Botón de usuarios
+  usersBtn: {
+    position: 'relative',
+    padding: 8,
+    marginRight: 4,
+  },
+  usersBtnIcon: { fontSize: 20 },
+  usersBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  usersBadgeText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  
   rolChip:      { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   rolChipText:  { fontSize: 12, fontWeight: '600' },
   listContent:  { padding: 16, paddingBottom: 8 },
@@ -238,4 +364,109 @@ const styles = StyleSheet.create({
   sendBtn:         { backgroundColor: '#007AFF', borderRadius: 22, paddingHorizontal: 18, paddingVertical: 10 },
   sendBtnDisabled: { backgroundColor: '#B0C4DE' },
   sendBtnText:     { color: '#FFF', fontWeight: '600', fontSize: 15 },
+  
+  // ✅ NUEVOS ESTILOS: Modal de usuarios
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+    paddingBottom: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E8E8',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
+  modalCloseBtn: {
+    fontSize: 24,
+    color: '#999',
+    padding: 4,
+  },
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  userAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  userAvatarText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginBottom: 4,
+  },
+  youBadge: {
+    fontSize: 13,
+    color: '#888',
+    fontWeight: '400',
+  },
+  userRoleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  userRoleDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  userRoleText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  onlineIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    padding: 4,
+  },
+  onlineDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#34C759',
+  },
+  onlineText: {
+    fontSize: 11,
+    color: '#34C759',
+    fontWeight: '600',
+  },
+  emptyUsersBox: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyUsersText: {
+    fontSize: 14,
+    color: '#AAA',
+    textAlign: 'center',
+  },
 });
