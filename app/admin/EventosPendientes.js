@@ -319,7 +319,12 @@ const handleAction = async (event, action) => {
       { headers: { 'Authorization': `Bearer ${token}` }}
     );
     
-    setEvents(prev => prev.filter(e => (e.idevento || e.id) !== eventId));
+      setEvents(prev => {
+        const eventId = event.idevento || event.id;
+        const newEvents = prev.filter(e => (e.idevento || e.id) !== eventId);
+        console.log('✅ Evento removido. Nuevos eventos:', newEvents.length);
+        return newEvents;
+      });
     
     if (action === 'aprobar') {
       if (Platform.OS === 'web') {
@@ -369,49 +374,67 @@ const handleAction = async (event, action) => {
     </View>
   );
 
-  return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={()=>router.back()}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.white} />
-        </TouchableOpacity>
-        <View style={styles.headerTextContainer}>
-          <Text style={styles.headerTitle}>Eventos Pendientes</Text>
-          <Text style={styles.headerSubtitle}>
-            {stats.total} evento{stats.total!==1?'s':''} • {stats.urgent>0 && <Text style={{color:COLORS.warning}}>{stats.urgent} por vencer</Text>}
+return (
+  <View style={styles.container}>
+    <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+    
+    {/* Header */}
+    <View style={styles.header}>
+      <TouchableOpacity style={styles.backButton} onPress={()=>router.back()}>
+        <Ionicons name="arrow-back" size={24} color={COLORS.white} />
+      </TouchableOpacity>
+      <View style={styles.headerTextContainer}>
+        <Text style={styles.headerTitle}>Eventos Pendientes</Text>
+        <Text style={styles.headerSubtitle}>
+          {stats.total} evento{stats.total!==1?'s':''}
+          {stats.urgent > 0 && (
+            <Text style={{color: COLORS.warning}}> • {stats.urgent} por vencer</Text>
+          )}
+        </Text>
+      </View>
+      <TouchableOpacity 
+        style={styles.refreshButton} 
+        onPress={onRefresh} 
+        disabled={refreshing}
+      >
+        <Ionicons 
+          name="refresh" 
+          size={24} 
+          color={COLORS.white} 
+          style={refreshing && {transform: [{rotate: '360deg'}]}} 
+        />
+      </TouchableOpacity>
+    </View>
+
+    {/* Banner resumen */}
+    {stats.total > 0 && (
+      <View style={styles.summaryBanner}>
+        <View style={styles.summaryIconContainer}>
+          <Ionicons 
+            name={stats.expired>0 ? "alert-circle" : "hourglass-outline"} 
+            size={24} 
+            color={stats.expired>0 ? COLORS.danger : COLORS.pendingOrange} 
+          />
+        </View>
+        <View style={styles.summaryTextContainer}>
+          <Text style={styles.summaryTitle}>
+            {stats.expired>0 ? '⚠️ Atención Requerida' : 'Revisión Pendiente'}
+          </Text>
+          <Text style={styles.summarySubtitle}>
+            {stats.expired>0 
+              ? `${stats.expired} evento${stats.expired!==1?'s':''} ya vencido${stats.expired!==1?'s':''}` 
+              : `${stats.total} evento${stats.total!==1?'s':''} esperando aprobación`}
           </Text>
         </View>
-        <TouchableOpacity style={styles.refreshButton} onPress={onRefresh} disabled={refreshing}>
-          <Ionicons name="refresh" size={24} color={COLORS.white} style={refreshing && {transform:[{rotate:'180deg'}]}} />
-        </TouchableOpacity>
       </View>
+    )}
 
-      {/* Banner resumen */}
-      {stats.total > 0 && (
-        <View style={styles.summaryBanner}>
-          <View style={styles.summaryIconContainer}>
-            <Ionicons name={stats.expired>0 ? "alert-circle" : "hourglass-outline"} size={24} color={stats.expired>0 ? COLORS.danger : COLORS.pendingOrange} />
-          </View>
-          <View style={styles.summaryTextContainer}>
-            <Text style={styles.summaryTitle}>
-              {stats.expired>0 ? '⚠️ Atención Requerida' : 'Revisión Pendiente'}
-            </Text>
-            <Text style={styles.summarySubtitle}>
-              {stats.expired>0 
-                ? `${stats.expired} evento${stats.expired!==1?'s':''} ya vencido${stats.expired!==1?'s':''}` 
-                : `${stats.total} evento${stats.total!==1?'s':''} esperando aprobación`}
-            </Text>
-          </View>
-        </View>
-      )}
-
-      {/* Lista */}
-      <FlatList
-        data={events}
-        renderItem={({item}) => (
+    {/* Lista */}
+    <FlatList
+      data={events}
+      renderItem={({item, index}) => {
+        console.log(`Renderizando evento ${index}:`, item.idevento || item.id);
+        return (
           <PendingEventCard 
             event={item}
             onView={handleView}
@@ -420,24 +443,38 @@ const handleAction = async (event, action) => {
             onMarkExpired={(e)=>handleAction(e,'vencer')}
             onMarkCancelled={(e)=>handleAction(e,'cancelar')}
           />
-        )}
-        keyExtractor={(item)=>`pending-${item.idevento||item.id}`}
-        style={styles.eventsList}
-        contentContainerStyle={styles.eventsListContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} tintColor={COLORS.primary} />}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <View style={styles.emptyIconContainer}>
-              <Ionicons name="checkmark-done-circle-outline" size={80} color={COLORS.grayMedium} />
-            </View>
-            <Text style={styles.emptyTitle}>¡Todo al día!</Text>
-            <Text style={styles.emptyText}>No hay eventos pendientes de aprobación</Text>
+        );
+      }}
+      keyExtractor={(item) => {
+        const id = item.idevento || item.id;
+        const key = `pending-${id}`;
+        console.log('KeyExtractor:', key);
+        return key;
+      }}
+      style={styles.eventsList}
+      contentContainerStyle={styles.eventsListContent}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl 
+          refreshing={refreshing} 
+          onRefresh={onRefresh} 
+          colors={[COLORS.primary]} 
+          tintColor={COLORS.primary} 
+        />
+      }
+      ListEmptyComponent={
+        <View style={styles.emptyContainer}>
+          <View style={styles.emptyIconContainer}>
+            <Ionicons name="checkmark-done-circle-outline" size={80} color={COLORS.grayMedium} />
           </View>
-        }
-      />
-    </View>
-  );
+          <Text style={styles.emptyTitle}>¡Todo al día!</Text>
+          <Text style={styles.emptyText}>No hay eventos pendientes de aprobación</Text>
+        </View>
+      }
+      removeClippedSubviews={Platform.OS === 'android'}
+    />
+  </View>
+);
 };
 
 // ── Styles ─────────────────────────────────────────────────────────────────
