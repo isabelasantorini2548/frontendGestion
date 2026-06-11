@@ -738,23 +738,6 @@ const generateEventPDF = async () => {
   </View>
 )}
 
-        {/* Objetivos PDI Institucional */}
-        {event.objetivosPDI && event.objetivosPDI.length > 0 && (
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Objetivos del PDI Institucional</Text>
-            {event.objetivosPDI.map((pdi, index) => (
-              <View key={index} style={styles.listItem}>
-                <Text style={[styles.listText, { fontWeight: 'bold', color: COLORS.primary }]}>
-                  {index + 1}.
-                </Text>
-                <Text style={styles.listText}>{pdi}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-       
-
         {/* Resultados Esperados */}
         {event.resultados && (
           <View style={styles.sectionCard}>
@@ -1096,6 +1079,97 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 8,
+  },
+   budgetSubsection: {
+    marginBottom: 20,
+    backgroundColor: COLORS.grayLight,
+    borderRadius: 12,
+    padding: 12,
+  },
+  budgetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.grayText,
+  },
+  budgetSubtitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.darkText,
+    marginLeft: 8,
+  },
+  budgetTableHeader: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.primary,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 6,
+    marginBottom: 4,
+  },
+  budgetCell: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: COLORS.white,
+    textAlign: 'center',
+  },
+  budgetCellDesc: {
+    flex: 3,
+    textAlign: 'left',
+    paddingLeft: 8,
+  },
+  budgetCellNum: {
+    flex: 1,
+  },
+  budgetCellTotal: {
+    fontWeight: 'bold',
+  },
+  budgetTableRow: {
+    flexDirection: 'row',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.grayLight,
+    alignItems: 'center',
+  },
+  budgetTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 2,
+    borderTopColor: COLORS.primary,
+    paddingHorizontal: 4,
+  },
+  budgetTotalLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: COLORS.darkText,
+  },
+  budgetTotalValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+  },
+  balanceFinal: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 2,
+    borderTopColor: COLORS.accent,
+    paddingHorizontal: 4,
+  },
+  balanceFinalLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.darkText,
+  },
+  balanceFinalValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   phaseBadge: {
     flexDirection: 'row',
