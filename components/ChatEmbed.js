@@ -1,6 +1,3 @@
-// ChatEmbed.jsx
-// Sustituye el componente ChatEmbed en tu HomeAcademicoScreen.jsx
-
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
@@ -33,7 +30,6 @@ const getToken = async () => {
   return await SecureStore.getItemAsync(TOKEN_KEY);
 };
 
-// ─── Burbuja de mensaje ───────────────────────────────────────────────
 const Burbuja = ({ item, myId }) => {
   if (item.system) return (
     <View style={{ alignItems: 'center', marginVertical: 6 }}>
@@ -99,7 +95,6 @@ const InputPanel = ({ input, setInput, onSend, connected }) => (
   </KeyboardAvoidingView>
 );
 
-// ─── Vista de chat (grupal o privado) ────────────────────────────────
 const VistaChat = ({ eventoId, titulo, subtitulo, roomId, userId, userRole, userName, onVolver }) => {
   const [messages, setMessages]   = useState([]);
   const [input, setInput]         = useState('');
@@ -108,70 +103,120 @@ const VistaChat = ({ eventoId, titulo, subtitulo, roomId, userId, userRole, user
   const flatRef    = useRef(null);
   const ioRef      = useRef(null);
 
-  useEffect(() => {
-    import('socket.io-client').then(mod => {
-      ioRef.current = mod.io || mod.default;
-      const socket = ioRef.current(API_BASE_URL, {
-        transports: ['polling', 'websocket'],
-        upgrade: true, reconnection: true,
-        reconnectionAttempts: 5, timeout: 10000,
-      });
-      socketRef.current = socket;
+useEffect(() => {
+  if (!userId) return;
 
-      socket.on('connect', () => {
-        setConnected(true);
-        // Para chat privado usamos 'join_private', para grupal 'join_event'
-        if (roomId.startsWith('private_')) {
-          socket.emit('join_private', { roomId, userId, userName });
-        } else {
-          socket.emit('join_event', { eventoId: String(eventoId), userId, role: userRole, userName });
-        }
-      });
+  let socket;
+  import('socket.io-client').then(mod => {
+    const io = mod.io || mod.default;
+    socket = io(API_BASE_URL, {
+      transports: ['polling', 'websocket'],
+      upgrade: true,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      timeout: 10000,
+    });
+    socketRef.current = socket;
 
-      socket.on('disconnect', () => setConnected(false));
-
-      socket.on('history', (h) => {
-        setMessages(h.map((m, i) => ({ ...m, id: `h_${i}` })));
-        setTimeout(() => flatRef.current?.scrollToEnd({ animated: false }), 100);
-      });
-
-      socket.on('receive_message', (msg) => {
-        setMessages(prev => [...prev, { ...msg, id: `m_${Date.now()}` }]);
-        setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
-      });
-
-      socket.on('private_message', (msg) => {
-        setMessages(prev => [...prev, { ...msg, id: `p_${Date.now()}` }]);
-        setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
-      });
-
-      socket.on('error', (e) => Alert.alert('Error', e.message || 'Error en el chat'));
+    socket.on('connect', () => {
+      console.log('✅ Socket conectado:', socket.id);
+      setConnected(true);
+      if (roomId.startsWith('private_')) {
+        socket.emit('join_private', { roomId, userId, userName });
+      } else {
+        socket.emit('join_event', { 
+          eventoId: String(eventoId), 
+          userId, 
+          role: userRole, 
+          userName 
+        });
+      }
     });
 
-    return () => {
-      if (socketRef.current) {
-        if (roomId.startsWith('private_')) {
-          socketRef.current.emit('leave_private', { roomId });
-        } else {
-          socketRef.current.emit('leave_event', { eventoId: String(eventoId) });
-        }
-        socketRef.current.disconnect();
+    socket.on('connect_error', (err) => {
+      console.error('❌ Error de conexión socket:', err.message);
+      setConnected(false);
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.log('⚠️ Socket desconectado:', reason);
+      setConnected(false);
+    });
+
+    socket.on('history', (h) => {
+      console.log('📜 Historial recibido:', h.length, 'mensajes');
+      setMessages(h.map((m, i) => ({ ...m, id: `h_${i}` })));
+      setTimeout(() => flatRef.current?.scrollToEnd({ animated: false }), 100);
+    });
+
+    socket.on('receive_message', (msg) => {
+      console.log('📨 Mensaje recibido:', msg);
+      setMessages(prev => [...prev, { ...msg, id: `m_${Date.now()}` }]);
+      setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
+    });
+
+    socket.on('private_message', (msg) => {
+      console.log('📨 Mensaje privado recibido:', msg);
+      setMessages(prev => [...prev, { ...msg, id: `p_${Date.now()}` }]);
+      setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
+    });
+
+    socket.on('error', (e) => {
+      console.error('❌ Error del socket:', e);
+      Alert.alert('Error', e.message || 'Error en el chat');
+    });
+  });
+
+  return () => {
+    if (socket) {
+      if (roomId.startsWith('private_')) {
+        socket.emit('leave_private', { roomId });
+      } else {
+        socket.emit('leave_event', { eventoId: String(eventoId) });
       }
-    };
-  }, [roomId]);
-
-  const handleSend = () => {
-    const texto = input.trim();
-    if (!texto || !socketRef.current?.connected) return;
-
-    if (roomId.startsWith('private_')) {
-      socketRef.current.emit('send_private', { roomId, userId, userName, role: userRole, message: texto });
-    } else {
-      socketRef.current.emit('send_message', { eventoId: String(eventoId), userId, role: userRole, userName, message: texto });
+      socket.disconnect();
     }
-    setInput('');
   };
+}, [roomId, userId, userRole, userName, eventoId]); 
 
+ const handleSend = () => {
+  const texto = input.trim();
+  console.log('🔵 Intentando enviar:', {
+    texto,
+    connected: socketRef.current?.connected,
+    roomId,
+    userId,
+    socketId: socketRef.current?.id
+  });
+
+  if (!texto) {
+    console.log('⚠️ Mensaje vacío');
+    return;
+  }
+  if (!socketRef.current?.connected) {
+    console.log('⚠️ Socket no conectado');
+    Alert.alert('Error', 'No hay conexión con el servidor de chat');
+    return;
+  }
+
+  if (roomId.startsWith('private_')) {
+    console.log('📤 [FRONTEND] Enviando mensaje privado...');
+    socketRef.current.emit('send_private', { 
+      roomId, userId, userName, role: userRole, message: texto 
+    });
+  } else {
+    console.log('📤 [FRONTEND] Enviando mensaje grupal...', { eventoId, userId });
+    socketRef.current.emit('send_message', { 
+      eventoId: String(eventoId), 
+      userId, 
+      role: userRole, 
+      userName, 
+      message: texto 
+    });
+  }
+  setInput('');
+  console.log('✅ [FRONTEND] Mensaje enviado al socket');
+};
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.background }}>
       {/* Header */}

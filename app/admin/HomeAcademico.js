@@ -653,6 +653,7 @@ const fetchUserProfile = useCallback(async () => {
       apellidomat: user.apellidomat || '',
       facultad: facultad, // Ya incluye el mensaje corregido
       id: user.id || null,
+      role: user.role || 'academico',
       loading: false,
     });
     console.log('Perfil recibido:', response);
