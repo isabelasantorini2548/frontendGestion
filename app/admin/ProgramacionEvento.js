@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet,
   Platform, ActivityIndicator, Alert, KeyboardAvoidingView, Image
@@ -14,22 +14,68 @@ import dayjs from 'dayjs';
 import * as SecureStore from 'expo-secure-store';
 
 // --- Configuración de API y Tokens ---
-let determinedApiBaseUrl;
-if (Platform.OS === 'android') {
-  determinedApiBaseUrl = 'http://192.168.0.167:3001/api';
-} else if (Platform.OS === 'ios') {
-  determinedApiBaseUrl = 'http://192.168.0.167:3001/api';
-} else {
-  determinedApiBaseUrl = 'http://192.168.0.167:3001/api';
-}
-const API_BASE_URL = determinedApiBaseUrl;
+const API_BASE_URL = Platform.OS === 'web'
+  ? 'http://192.168.0.167:3001/api'
+  : 'http://192.168.0.167:3001/api';
 const TOKEN_KEY = 'adminAuthToken';
+
+// ✅ Funciones globales de formateo (fuera de componentes)
+const formatToISODate = (date) => {
+  if (!date) return new Date().toISOString().split('T')[0];
+  if (!(date instanceof Date) || isNaN(date.valueOf())) {
+    const parsed = new Date(date);
+    if (isNaN(parsed.getTime())) return new Date().toISOString().split('T')[0];
+    return parsed.toISOString().split('T')[0];
+  }
+  return date.toISOString().split('T')[0];
+};
+
+const formatToISOTime = (date) => {
+  if (!(date instanceof Date) || isNaN(date.valueOf())) {
+    return new Date().toTimeString().split(' ')[0].substring(0, 5);
+  }
+  return date.toTimeString().split(' ')[0].substring(0, 5);
+};
+
+const parseDateSafe = (date) => {
+  if (!date) return new Date().toISOString().split('T')[0];
+  if (date instanceof Date) {
+    if (isNaN(date.getTime())) return new Date().toISOString().split('T')[0];
+    return date.toISOString().split('T')[0];
+  }
+  const parsed = new Date(date);
+  if (isNaN(parsed.getTime())) return new Date().toISOString().split('T')[0];
+  return parsed.toISOString().split('T')[0];
+};
+
+// ✅ Formatters para el payload
+const formatActivityForSubmit = (actividad) => ({
+  nombreActividad: actividad.nombreActividad?.trim() || '',
+  responsable: actividad.responsable?.trim() || '',
+  fechaInicio: parseDateSafe(actividad.fechaInicio),
+  fechaFin: parseDateSafe(actividad.fechaFin),
+});
+
+const formatServicioForSubmit = (servicio) => ({
+  nombreServicio: servicio.nombreServicio?.trim() || '',
+  caracteristica: servicio.caracteristica?.trim() || '',
+  fechaInicio: parseDateSafe(servicio.fechaInicio),
+  observaciones: servicio.observaciones?.trim() || '',
+});
+
+const formatAmbienteForSubmit = (ambiente) => ({
+  nombre: ambiente.nombre?.trim() || '',
+  requisito: ambiente.requisito?.trim() || '',
+  observaciones: ambiente.observaciones?.trim() || '',
+});
 
 const getTokenAsync = async () => {
   if (Platform.OS === 'web') {
-    try { return localStorage.getItem(TOKEN_KEY); } catch (e) { console.error("Error al acceder a localStorage en web:", e); return null; }
+    try { return localStorage.getItem(TOKEN_KEY); }
+    catch (e) { console.error("Error localStorage:", e); return null; }
   } else {
-    try { return await SecureStore.getItemAsync(TOKEN_KEY); } catch (e) { console.error("Error al obtener token de SecureStore en nativo:", e); return null; }
+    try { return await SecureStore.getItemAsync(TOKEN_KEY); }
+    catch (e) { console.error("Error SecureStore:", e); return null; }
   }
 };
 
@@ -43,22 +89,26 @@ LocaleConfig.locales['es'] = {
 };
 LocaleConfig.defaultLocale = 'es';
 
-// --- Componente de actividades ---
-const SeccionActividades = ({ titulo, actividades, setActividades, handleActividadDateChange, errors }) => {
+// ─── Componente de Actividades (corregido) ──────────────────────────────────
+const SeccionActividades = ({ titulo, actividades, setActividades, handleActividadDateChange, errors, fechaBase }) => {
+  const baseDate = fechaBase instanceof Date && !isNaN(fechaBase.getTime()) ? fechaBase : new Date();
+
   const agregarActividad = () => {
     setActividades(prev => [...prev, {
-      key: `act-${titulo.replace(/\s/g, '')}-${Date.now()}`,
+      key: `act-${titulo.replace(/\s/g, '')}-${Date.now()}-${Math.random()}`,
       nombreActividad: '',
       responsable: '',
-      fechaInicio: new Date(),
-      fechaFin: new Date(),
+      fechaInicio: new Date(baseDate),
+      fechaFin: new Date(baseDate),
       showDatePickerInicio: false,
       showDatePickerFin: false,
     }]);
   };
+
   const eliminarActividad = (index) => {
     setActividades(prev => prev.filter((_, i) => i !== index));
   };
+
   return (
     <View style={styles.formSection}>
       <Text style={styles.sectionTitle}>{titulo}</Text>
@@ -70,89 +120,119 @@ const SeccionActividades = ({ titulo, actividades, setActividades, handleActivid
               <Ionicons name="trash-bin-outline" size={22} color="#c0392b" />
             </TouchableOpacity>
           </View>
+
           <Text style={styles.label}>Actividad</Text>
-          <View style={styles.inputGroup}>
-            <Ionicons name="archive-outline" size={20} style={styles.inputIcon}/>
-            <TextInput 
-              style={styles.input} 
-              value={actividad.nombreActividad} 
+          <View style={[styles.inputGroup, errors[`${titulo}_${index}_nombre`] && styles.inputError]}>
+            <Ionicons name="archive-outline" size={20} style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              value={actividad.nombreActividad}
               onChangeText={(text) => {
                 setActividades(prev => {
                   const newState = [...prev];
                   newState[index] = { ...newState[index], nombreActividad: text };
                   return newState;
                 });
-              }} 
-              placeholder="Nombre de la Actividad" 
-              placeholderTextColor="#aaa" 
+              }}
+              placeholder="Nombre de la Actividad"
+              placeholderTextColor="#aaa"
             />
           </View>
           {errors[`${titulo}_${index}_nombre`] && <Text style={styles.errorText}>{errors[`${titulo}_${index}_nombre`]}</Text>}
-          
+
           <Text style={styles.label}>Responsable</Text>
-          <View style={styles.inputGroup}>
+          <View style={[styles.inputGroup, errors[`${titulo}_${index}_responsable`] && styles.inputError]}>
             <Ionicons name="person-outline" size={20} style={styles.inputIcon} />
-            <TextInput 
-              style={styles.input} 
-              value={actividad.responsable} 
+            <TextInput
+              style={styles.input}
+              value={actividad.responsable}
               onChangeText={(text) => {
                 setActividades(prev => {
                   const newState = [...prev];
                   newState[index] = { ...newState[index], responsable: text };
                   return newState;
                 });
-              }} 
-              placeholder="Nombre del responsable" 
-              placeholderTextColor="#aaa" 
+              }}
+              placeholder="Nombre del responsable"
+              placeholderTextColor="#aaa"
             />
           </View>
           {errors[`${titulo}_${index}_responsable`] && <Text style={styles.errorText}>{errors[`${titulo}_${index}_responsable`]}</Text>}
-          
+
           <Text style={styles.label}>Fecha Inicio Actividad</Text>
-          <TouchableOpacity 
-            onPress={() => {
-              setActividades(prev => {
-                const newState = [...prev];
-                newState[index] = { ...newState[index], showDatePickerInicio: true };
-                return newState;
-              });
-            }} 
-            style={styles.datePickerButton}
-          >
-            <Ionicons name="calendar-outline" size={20} color="#e95a0c" style={styles.inputIcon} />
-            <Text style={styles.datePickerText}>{actividad.fechaInicio.toLocaleDateString()}</Text>
-          </TouchableOpacity>
-          {actividad.showDatePickerInicio && (
-            <DateTimePicker 
-              value={actividad.fechaInicio} 
-              mode="date" 
-              display="default" 
-              onChange={(event, date) => handleActividadDateChange(index, 'fechaInicio', event, date, setActividades)} 
+          {Platform.OS === 'web' ? (
+            <input
+              type="date"
+              value={formatToISODate(actividad.fechaInicio)}
+              onChange={(e) => {
+                const date = new Date(e.target.value + 'T00:00:00');
+                handleActividadDateChange(index, 'fechaInicio', { type: 'set' }, date, setActividades);
+              }}
+              style={styles.webDateInput}
             />
+          ) : (
+            <>
+              <TouchableOpacity
+                onPress={() => {
+                  setActividades(prev => {
+                    const newState = [...prev];
+                    newState[index] = { ...newState[index], showDatePickerInicio: true };
+                    return newState;
+                  });
+                }}
+                style={styles.datePickerButton}
+              >
+                <Ionicons name="calendar-outline" size={20} color="#e95a0c" style={styles.inputIcon} />
+                <Text style={styles.datePickerText}>{actividad.fechaInicio.toLocaleDateString('es-ES')}</Text>
+              </TouchableOpacity>
+              {actividad.showDatePickerInicio && (
+                <DateTimePicker
+                  value={actividad.fechaInicio}
+                  mode="date"
+                  display="default"
+                  onChange={(event, date) => handleActividadDateChange(index, 'fechaInicio', event, date, setActividades)}
+                />
+              )}
+            </>
           )}
-          
+
           <Text style={styles.label}>Fecha Fin Actividad</Text>
-          <TouchableOpacity 
-            onPress={() => {
-              setActividades(prev => {
-                const newState = [...prev];
-                newState[index] = { ...newState[index], showDatePickerFin: true };
-                return newState;
-              });
-            }} 
-            style={styles.datePickerButton}
-          >
-            <Ionicons name="calendar-outline" size={20} color="#e95a0c" style={styles.inputIcon} />
-            <Text style={styles.datePickerText}>{actividad.fechaFin.toLocaleDateString()}</Text>
-          </TouchableOpacity>
-          {actividad.showDatePickerFin && (
-            <DateTimePicker 
-              value={actividad.fechaFin} 
-              mode="date" 
-              display="default" 
-              minimumDate={actividad.fechaInicio} 
-              onChange={(event, date) => handleActividadDateChange(index, 'fechaFin', event, date, setActividades)} 
+          {Platform.OS === 'web' ? (
+            <input
+              type="date"
+              value={formatToISODate(actividad.fechaFin)}
+              min={formatToISODate(actividad.fechaInicio)}
+              onChange={(e) => {
+                const date = new Date(e.target.value + 'T00:00:00');
+                handleActividadDateChange(index, 'fechaFin', { type: 'set' }, date, setActividades);
+              }}
+              style={styles.webDateInput}
             />
+          ) : (
+            <>
+              <TouchableOpacity
+                onPress={() => {
+                  setActividades(prev => {
+                    const newState = [...prev];
+                    newState[index] = { ...newState[index], showDatePickerFin: true };
+                    return newState;
+                  });
+                }}
+                style={styles.datePickerButton}
+              >
+                <Ionicons name="calendar-outline" size={20} color="#e95a0c" style={styles.inputIcon} />
+                <Text style={styles.datePickerText}>{actividad.fechaFin.toLocaleDateString('es-ES')}</Text>
+              </TouchableOpacity>
+              {actividad.showDatePickerFin && (
+                <DateTimePicker
+                  value={actividad.fechaFin}
+                  mode="date"
+                  display="default"
+                  minimumDate={actividad.fechaInicio}
+                  onChange={(event, date) => handleActividadDateChange(index, 'fechaFin', event, date, setActividades)}
+                />
+              )}
+            </>
           )}
         </View>
       ))}
@@ -164,10 +244,11 @@ const SeccionActividades = ({ titulo, actividades, setActividades, handleActivid
   );
 };
 
-// --- Componente principal ---
+// ─── Componente Principal ───────────────────────────────────────────────────
 const programacionEvento = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const isMountedRef = useRef(true); // ✅ Protección contra updates en componentes desmontados
 
   const getInitialDate = () => {
     if (params.selectedDate) {
@@ -180,7 +261,7 @@ const programacionEvento = () => {
     return new Date();
   };
 
-  // Estados generales
+  // Estados
   const [authToken, setAuthToken] = useState(null);
   const [nombreevento, setNombreevento] = useState('');
   const [lugarevento, setLugarevento] = useState('');
@@ -196,34 +277,22 @@ const programacionEvento = () => {
   const [errors, setErrors] = useState({});
   const [isLoadingEventos, setIsLoadingEventos] = useState(false);
   const [comiteSeleccionado, setComiteSeleccionado] = useState([]);
-  
   const [layoutsDisponibles, setLayoutsDisponibles] = useState([]);
   const [layoutSeleccionado, setLayoutSeleccionado] = useState(null);
   const [cargandoLayouts, setCargandoLayouts] = useState(false);
-  
+
   const { idevento } = params;
   const isEditing = !!idevento;
 
-  // Formateo de fechas
-  const formatToISODate = (date) => {
-    if (!(date instanceof Date) || isNaN(date.valueOf())) return new Date().toISOString().split('T')[0];
-    return date.toISOString().split('T')[0];
-  };
-  const formatToISOTime = (date) => {
-    if (!(date instanceof Date) || isNaN(date.valueOf())) return new Date().toTimeString().split(' ')[0].substring(0, 5);
-    return date.toTimeString().split(' ')[0].substring(0, 5);
-  };
+  // ✅ Cleanup
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
-  const formatActivityForSubmit = (actividad) => ({
-    nombreActividad: actividad.nombreActividad,
-    responsable: actividad.responsable,
-    fechaInicio: actividad.fechaInicio.toISOString().split('T')[0],
-    fechaFin: actividad.fechaFin.toISOString().split('T')[0],
-  });
-
-
-
-  // Manejo de fechas y validación
+  // Manejo de fechas
   const handleActividadDateChange = (index, field, event, selectedDate, setActividades) => {
     const pickerFlag = field === 'fechaInicio' ? 'showDatePickerInicio' : 'showDatePickerFin';
     setActividades(prev => {
@@ -245,52 +314,46 @@ const programacionEvento = () => {
     }
   };
 
+  // Validación
   const validateForm = () => {
     const newErrors = {};
     if (!nombreevento.trim()) newErrors.nombreevento = 'El nombre del evento es requerido.';
 
     const validateActivityList = (list, listName) => {
-    list.forEach((act, index) => {
-      if (!act.nombreActividad?.trim()) {
-        newErrors[`${listName}_${index}_nombre`] = 'Nombre de actividad requerido.';
-      }
-      if (!act.responsable?.trim()) {
-        newErrors[`${listName}_${index}_responsable`] = 'Responsable requerido.';
-      }
-    });
-  };
-     if (actividadesPrevias.length > 0) {
-    validateActivityList(actividadesPrevias, 'Programación de Actividades Previas');
-  }
-  if (actividadesDurante.length > 0) {
-    validateActivityList(actividadesDurante, 'Programación de Actividades Durante el Evento');
-  }
-  if (actividadesPost.length > 0) {
-    validateActivityList(actividadesPost, 'Programación de Actividades Después del Evento');
-  }
+      list.forEach((act, index) => {
+        if (!act.nombreActividad?.trim()) {
+          newErrors[`${listName}_${index}_nombre`] = 'Nombre de actividad requerido.';
+        }
+        if (!act.responsable?.trim()) {
+          newErrors[`${listName}_${index}_responsable`] = 'Responsable requerido.';
+        }
+      });
+    };
 
-  console.log('📊 Errores encontrados:', Object.keys(newErrors).length);
-  console.log('📋 Detalles de errores:', newErrors);
+    if (actividadesPrevias.length > 0) validateActivityList(actividadesPrevias, 'Programación de Actividades Previas');
+    if (actividadesDurante.length > 0) validateActivityList(actividadesDurante, 'Programación de Actividades Durante el Evento');
+    if (actividadesPost.length > 0) validateActivityList(actividadesPost, 'Programación de Actividades Después del Evento');
 
-  setErrors(newErrors);
-  return Object.keys(newErrors).length === 0;
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  // Funciones de servicios y ambientes
-  const agregarAmbiente = () => setAmbientes(prev => [...prev, { key: `ambiente_${Date.now()}`, nombre: '', requisito: '', observaciones: '' }]);
-  const eliminarAmbiente = (index) => setAmbientes(ambientes.filter((_, i) => i !== index));
-  const actualizarAmbiente = (index, campo, valor) => {
-    const nuevos = [...ambientes];
-    nuevos[index][campo] = valor;
-    setAmbientes(nuevos);
-  };
-
-  const agregarServicio = () => setServiciosContratados(prev => [...prev, { key: `servicio_${Date.now()}`, nombreServicio: '', caracteristica: '', fechaInicio: new Date(), observaciones: '', showDatePickerInicio: false }]);
-  const eliminarServicio = (index) => setServiciosContratados(serviciosContratados.filter((_, i) => i !== index));
+  // Servicios
+  const agregarServicio = () => setServiciosContratados(prev => [...prev, {
+    key: `servicio_${Date.now()}`,
+    nombreServicio: '',
+    caracteristica: '',
+    fechaInicio: new Date(fechaHoraSeleccionada),
+    observaciones: '',
+    showDatePickerInicio: false,
+  }]);
+  const eliminarServicio = (index) => setServiciosContratados(prev => prev.filter((_, i) => i !== index));
   const actualizarServicio = (index, campo, valor) => {
-    const nuevos = [...serviciosContratados];
-    nuevos[index][campo] = valor;
-    setServiciosContratados(nuevos);
+    setServiciosContratados(prev => {
+      const nuevos = [...prev];
+      nuevos[index] = { ...nuevos[index], [campo]: valor };
+      return nuevos;
+    });
   };
   const handleServicioDateChange = (index, field, event, selectedDate) => {
     actualizarServicio(index, 'showDatePickerInicio', false);
@@ -299,159 +362,158 @@ const programacionEvento = () => {
     }
   };
 
- 
-const cargarLayouts = async (token) => {
-  const authTokenToUse = token || authToken;
-  
-  if (!authTokenToUse) {
-    console.log('No hay token para cargar layouts');
-    return;
-  }
-
-  console.log('Iniciando carga de layouts...');
-  setCargandoLayouts(true);
-  
-  try {
-    const response = await axios.get(`${API_BASE_URL}/layouts`, {
-      headers: { 'Authorization': `Bearer ${authTokenToUse}` }
+  // Ambientes
+  const agregarAmbiente = () => setAmbientes(prev => [...prev, {
+    key: `ambiente_${Date.now()}`,
+    nombre: '',
+    requisito: '',
+    observaciones: ''
+  }]);
+  const eliminarAmbiente = (index) => setAmbientes(prev => prev.filter((_, i) => i !== index));
+  const actualizarAmbiente = (index, campo, valor) => {
+    setAmbientes(prev => {
+      const nuevos = [...prev];
+      nuevos[index] = { ...nuevos[index], [campo]: valor };
+      return nuevos;
     });
-    
-    console.log('Respuesta de layouts:', response.data);
-    console.log('Cantidad de layouts:', response.data?.length || 0);
-    
-    if (response.data && Array.isArray(response.data)) {
-      setLayoutsDisponibles(response.data);
-      console.log('Layouts guardados en estado:', response.data.length);
-    } else {
-      console.error('Formato de respuesta incorrecto:', response.data);
-      setLayoutsDisponibles([]);
-    }
-    
-  } catch (error) {
-    console.error('Error al cargar layouts:', error.response?.data || error.message);
-    Alert.alert('Error', 'No se pudieron cargar los layouts disponibles.');
-    setLayoutsDisponibles([]);
-  } finally {
-    setCargandoLayouts(false);
-  }
-};
+  };
 
+  // ✅ CORREGIDO: cargarLayouts ahora retorna los datos directamente
+  const cargarLayouts = async (token) => {
+    const authTokenToUse = token || authToken;
+    if (!authTokenToUse) return [];
+
+    setCargandoLayouts(true);
+    try {
+      const response = await axios.get(`${API_BASE_URL}/layouts`, {
+        headers: { 'Authorization': `Bearer ${authTokenToUse}` }
+      });
+      const data = Array.isArray(response.data) ? response.data : [];
+      setLayoutsDisponibles(data);
+      return data; // ✅ Retornar los datos para uso inmediato
+    } catch (error) {
+      console.error('Error al cargar layouts:', error.response?.data || error.message);
+      Alert.alert('Error', 'No se pudieron cargar los layouts disponibles.');
+      setLayoutsDisponibles([]);
+      return [];
+    } finally {
+      if (isMountedRef.current) setCargandoLayouts(false);
+    }
+  };
+
+  // Carga inicial
   useEffect(() => {
     const initializeAndFetch = async () => {
-  const token = await getTokenAsync();
-  setAuthToken(token);
+      const token = await getTokenAsync();
+      if (!isMountedRef.current) return;
+      setAuthToken(token);
 
-  if (!token) {
-    Alert.alert('Error', 'No autenticado');
-    router.back();
-    return;
-  }
-
-  await cargarLayouts(token);
-
- if (isEditing) {
-  setIsLoadingEventos(true);
-  try {
-    const response = await axios.get(`${API_BASE_URL}/eventos/${idevento}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const evento = response.data;
-
-    // Asignar datos principales
-    setNombreevento(evento.nombreevento || '');
-    setLugarevento(evento.lugarevento || '');
-    setResponsable(evento.responsable_evento || '');
-
-    // Fecha y hora
-    if (evento.fechaevento && evento.horaevento) {
-      const fechaCompleta = new Date(`${evento.fechaevento}T${evento.horaevento}`);
-      if (!isNaN(fechaCompleta.getTime())) {
-        setFechaHoraSeleccionada(fechaCompleta);
+      if (!token) {
+        Alert.alert('Error', 'No autenticado');
+        router.back();
+        return;
       }
-    }
 
-    // Tipo de evento
-    setIdtipoevento(evento.idtipoevento?.toString() || '');
+      // ✅ Guardar layouts en variable local para usar inmediatamente
+      const layoutsData = await cargarLayouts(token);
 
-    // Actividades
-    if (evento.actividadesPrevias && Array.isArray(evento.actividadesPrevias)) {
-      setActividadesPrevias(evento.actividadesPrevias.map((act, index) => ({
-        key: `act-prev-${index}-${Date.now()}`,
-        nombreActividad: act.nombreActividad || '',
-        responsable: act.responsable || '',
-        fechaInicio: new Date(act.fechaInicio),
-        fechaFin: new Date(act.fechaFin),
-        showDatePickerInicio: false,
-        showDatePickerFin: false,
-      })));
-    }
+      if (isEditing && idevento) {
+        if (!isMountedRef.current) return;
+        setIsLoadingEventos(true);
+        try {
+          const response = await axios.get(`${API_BASE_URL}/eventos/${idevento}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (!isMountedRef.current) return;
+          const evento = response.data;
 
-    if (evento.actividadesDurante && Array.isArray(evento.actividadesDurante)) {
-      setActividadesDurante(evento.actividadesDurante.map((act, index) => ({
-        key: `act-durante-${index}-${Date.now()}`,
-        nombreActividad: act.nombreActividad || '',
-        responsable: act.responsable || '',
-        fechaInicio: new Date(act.fechaInicio),
-        fechaFin: new Date(act.fechaFin),
-        showDatePickerInicio: false,
-        showDatePickerFin: false,
-      })));
-    }
+          setNombreevento(evento.nombreevento || '');
+          setLugarevento(evento.lugarevento || '');
+          setResponsable(evento.responsable_evento || '');
 
-    if (evento.actividadesPost && Array.isArray(evento.actividadesPost)) {
-      setActividadesPost(evento.actividadesPost.map((act, index) => ({
-        key: `act-post-${index}-${Date.now()}`,
-        nombreActividad: act.nombreActividad || '',
-        responsable: act.responsable || '',
-        fechaInicio: new Date(act.fechaInicio),
-        fechaFin: new Date(act.fechaFin),
-        showDatePickerInicio: false,
-        showDatePickerFin: false,
-      })));
-    }
+          if (evento.fechaevento && evento.horaevento) {
+            const fechaCompleta = new Date(`${evento.fechaevento}T${evento.horaevento}`);
+            if (!isNaN(fechaCompleta.getTime())) setFechaHoraSeleccionada(fechaCompleta);
+          }
 
-    // Servicios
-    if (evento.serviciosContratados && Array.isArray(evento.serviciosContratados)) {
-      setServiciosContratados(evento.serviciosContratados.map((serv, index) => ({
-        key: `servicio-${index}-${Date.now()}`,
-        nombreServicio: serv.nombreServicio || '',
-        caracteristica: serv.caracteristica || '',
-        fechaInicio: new Date(serv.fechaInicio),
-        observaciones: serv.observaciones || '',
-        showDatePickerInicio: false,
-      })));
-    }
+          setIdtipoevento(evento.idtipoevento?.toString() || '');
 
-    // Ambientes
-    if (evento.ambientes && Array.isArray(evento.ambientes)) {
-      setAmbientes(evento.ambientes.map((amb, index) => ({
-        key: `ambiente-${index}-${Date.now()}`,
-        nombre: amb.nombre || '',
-        requisito: amb.requisito || '',
-        observaciones: amb.observaciones || '',
-      })));
-    }
+          if (Array.isArray(evento.actividadesPrevias)) {
+            setActividadesPrevias(evento.actividadesPrevias.map((act, i) => ({
+              key: `act-prev-${i}-${Date.now()}-${Math.random()}`,
+              nombreActividad: act.nombreActividad || '',
+              responsable: act.responsable || '',
+              fechaInicio: act.fechaInicio ? new Date(act.fechaInicio) : new Date(),
+              fechaFin: act.fechaFin ? new Date(act.fechaFin) : new Date(),
+              showDatePickerInicio: false,
+              showDatePickerFin: false,
+            })));
+          }
 
-    // Layout
-    if (evento.idlayout) {
-      const layoutEncontrado = layoutsDisponibles.find(l => l.idlayout === evento.idlayout);
-      setLayoutSeleccionado(layoutEncontrado || null);
-    }
+          if (Array.isArray(evento.actividadesDurante)) {
+            setActividadesDurante(evento.actividadesDurante.map((act, i) => ({
+              key: `act-durante-${i}-${Date.now()}-${Math.random()}`,
+              nombreActividad: act.nombreActividad || '',
+              responsable: act.responsable || '',
+              fechaInicio: act.fechaInicio ? new Date(act.fechaInicio) : new Date(),
+              fechaFin: act.fechaFin ? new Date(act.fechaFin) : new Date(),
+              showDatePickerInicio: false,
+              showDatePickerFin: false,
+            })));
+          }
 
-    // Comité (si lo tienes)
-    if (evento.comite && Array.isArray(evento.comite)) {
-      setComiteSeleccionado(evento.comite); // Asegúrate de tener este estado definido
-    }
+          if (Array.isArray(evento.actividadesPost)) {
+            setActividadesPost(evento.actividadesPost.map((act, i) => ({
+              key: `act-post-${i}-${Date.now()}-${Math.random()}`,
+              nombreActividad: act.nombreActividad || '',
+              responsable: act.responsable || '',
+              fechaInicio: act.fechaInicio ? new Date(act.fechaInicio) : new Date(),
+              fechaFin: act.fechaFin ? new Date(act.fechaFin) : new Date(),
+              showDatePickerInicio: false,
+              showDatePickerFin: false,
+            })));
+          }
 
-  } catch (error) {
-    console.error("Error al cargar el evento:", error);
-    Alert.alert("Error", "No se pudo cargar el evento.");
-    router.back();
-  } finally {
-    setIsLoadingEventos(false);
-  }
-}
-};
+          if (Array.isArray(evento.serviciosContratados)) {
+            setServiciosContratados(evento.serviciosContratados.map((serv, i) => ({
+              key: `servicio-${i}-${Date.now()}`,
+              nombreServicio: serv.nombreServicio || '',
+              caracteristica: serv.caracteristica || '',
+              fechaInicio: serv.fechaInicio ? new Date(serv.fechaInicio) : new Date(),
+              observaciones: serv.observaciones || '',
+              showDatePickerInicio: false,
+            })));
+          }
+
+          if (Array.isArray(evento.ambientes)) {
+            setAmbientes(evento.ambientes.map((amb, i) => ({
+              key: `ambiente-${i}-${Date.now()}`,
+              nombre: amb.nombre || '',
+              requisito: amb.requisito || '',
+              observaciones: amb.observaciones || '',
+            })));
+          }
+
+          // ✅ FIX CRÍTICO: Usar layoutsData (local) en lugar del estado (que aún no está actualizado)
+          if (evento.idlayout && layoutsData.length > 0) {
+            const layoutEncontrado = layoutsData.find(l => l.idlayout === evento.idlayout);
+            if (layoutEncontrado) {
+              setLayoutSeleccionado(layoutEncontrado);
+            }
+          }
+
+          if (Array.isArray(evento.comite)) {
+            setComiteSeleccionado(evento.comite);
+          }
+        } catch (error) {
+          console.error("Error al cargar el evento:", error);
+          Alert.alert("Error", "No se pudo cargar el evento.");
+          router.back();
+        } finally {
+          if (isMountedRef.current) setIsLoadingEventos(false);
+        }
+      }
+    };
     initializeAndFetch();
   }, [idevento]);
 
@@ -463,90 +525,91 @@ const cargarLayouts = async (token) => {
       </View>
     );
   }
-const handleCrearEvento = async () => {
-   console.log('=== INICIO handleCrearEvento ===');
-  console.log('isEditing:', isEditing);
-  console.log('idevento:', idevento);
-  
-  // Validación del formulario
-  const validationResult = validateForm();
-  console.log('Resultado de validación:', validationResult);
-  console.log('Errores:', errors);
-  
-  if (!validationResult) {
-    console.log(' Validación falló');
-    Alert.alert("Formulario Incompleto", "Por favor, revisa los campos marcados en rojo.");
-    return;
-  }
-  if (!validateForm()) {
-    Alert.alert("Formulario Incompleto", "Por favor, revisa los campos marcados en rojo.");
-    return;
-  }
-  if (!authToken) {
-    Alert.alert("Error de Autenticación", "No estás autenticado.");
-    return;
-  }
- console.log('✅ Validaciones pasadas, preparando payload...');
 
-  setIsLoading(true);
-   const fasePayload = {
-    nrofase: 2,
-    ...(isEditing && idevento && { idevento: parseInt(idevento, 10) })
-  };
-  const payload = {
-    nombreevento: nombreevento.trim(),
-    lugarevento: lugarevento.trim(),
-    fechaevento: formatToISODate(fechaHoraSeleccionada),
-    horaevento: formatToISOTime(fechaHoraSeleccionada),
-    responsable: responsable.trim(),
-    actividadesPrevias: actividadesPrevias.map(formatActivityForSubmit),
-    actividadesDurante: actividadesDurante.map(formatActivityForSubmit),
-    actividadesPost: actividadesPost.map(formatActivityForSubmit),
-    serviciosContratados,
-    ambientes,
-    idlayout: layoutSeleccionado ? layoutSeleccionado.idlayout : null,
-    comite: comiteSeleccionado,
-    nuevaFase:fasePayload
-    
-  };
-console.log('📦 Payload completo:', JSON.stringify(payload, null, 2));
-  console.log('Layout seleccionado:', layoutSeleccionado);
-  console.log('ID Layout en payload:', payload.idlayout);
+  // Guardar evento
+  const handleCrearEvento = async () => {
+    if (!isMountedRef.current) return;
 
-  try {
-    let response;
-    if (isEditing) {
-       console.log(`🔄 Actualizando evento: PUT ${API_BASE_URL}/eventos/${idevento}`);
-      
-      response = await axios.put(`${API_BASE_URL}/eventos/${idevento}`, payload, {
-        headers: { 'Authorization': `Bearer ${authToken}` },
-      });
-       console.log('✅ Respuesta del servidor (UPDATE):', response.data);
-      Alert.alert('Éxito', 'Evento actualizado correctamente.');
-    } else {
-      response = await axios.post(`${API_BASE_URL}/eventos`, payload, {
-        headers: { 'Authorization': `Bearer ${authToken}` },
-      });
-      Alert.alert('Éxito', 'Evento creado correctamente.');
+    // ✅ Validación UNA sola vez
+    if (!validateForm()) {
+      Alert.alert("Formulario Incompleto", "Por favor, revisa los campos marcados en rojo.");
+      return;
     }
-    router.back();
-  } catch (error) {
-    console.error("Error al guardar evento:", error.response?.data || error.message);
-    const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Ocurrió un error al conectar con el servidor.';
-    Alert.alert('Error', errorMessage);
-  } finally {
-    setIsLoading(false);
-  }
-};
+
+    if (!authToken) {
+      Alert.alert("Error de Autenticación", "No estás autenticado.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      if (!fechaHoraSeleccionada || isNaN(fechaHoraSeleccionada.getTime())) {
+        throw new Error('Fecha del evento inválida');
+      }
+
+      const fasePayload = {
+        nrofase: 2,
+        ...(isEditing && idevento && { idevento: parseInt(idevento, 10) })
+      };
+
+      // ✅ CORREGIDO: Formatear servicios y ambientes antes de enviar
+      const payload = {
+        nombreevento: nombreevento.trim(),
+        lugarevento: lugarevento.trim(),
+        fechaevento: formatToISODate(fechaHoraSeleccionada),
+        horaevento: formatToISOTime(fechaHoraSeleccionada),
+        responsable: responsable.trim(),
+        actividadesPrevias: actividadesPrevias.map(formatActivityForSubmit),
+        actividadesDurante: actividadesDurante.map(formatActivityForSubmit),
+        actividadesPost: actividadesPost.map(formatActivityForSubmit),
+        serviciosContratados: serviciosContratados.map(formatServicioForSubmit),
+        ambientes: ambientes.map(formatAmbienteForSubmit),
+        idlayout: layoutSeleccionado ? layoutSeleccionado.idlayout : null,
+        comite: comiteSeleccionado,
+        nuevaFase: fasePayload,
+      };
+
+      console.log('📦 Payload:', JSON.stringify(payload, null, 2));
+
+      let response;
+      if (isEditing) {
+        response = await axios.put(`${API_BASE_URL}/eventos/${idevento}`, payload, {
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        Alert.alert('Éxito', 'Evento actualizado correctamente.');
+      } else {
+        response = await axios.post(`${API_BASE_URL}/eventos`, payload, {
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        Alert.alert('Éxito', 'Evento creado correctamente.');
+      }
+      router.back();
+    } catch (error) {
+      console.error("Error al guardar evento:", error.response?.data || error.message);
+      const errorMessage = error.response?.data?.message
+        || error.response?.data?.error
+        || (typeof error.response?.data === 'string' ? error.response.data : '')
+        || 'Ocurrió un error al guardar el evento.';
+      Alert.alert('Error', errorMessage);
+    } finally {
+      if (isMountedRef.current) setIsLoading(false);
+    }
+  };
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === "ios" ? "padding" : "height"} 
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.keyboardAvoidingContainer}
     >
-      <ScrollView 
-        style={styles.scrollView} 
-        contentContainerStyle={styles.scrollContentContainer} 
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContentContainer}
         keyboardShouldPersistTaps="handled"
       >
         <Stack.Screen options={{ title: isEditing ? 'Programar Evento' : 'Crear Nuevo Evento' }} />
@@ -561,14 +624,10 @@ console.log('📦 Payload completo:', JSON.stringify(payload, null, 2));
             <Text style={styles.infoLabel}>Lugar del Evento</Text>
             <Text style={styles.infoValue}>{lugarevento || 'No especificado'}</Text>
           </View>
-          
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Fecha</Text>
-            <Text style={styles.infoValue}>
-              {formatToISODate(fechaHoraSeleccionada)} 
-            </Text>
+            <Text style={styles.infoValue}>{formatToISODate(fechaHoraSeleccionada)}</Text>
           </View>
-          
         </View>
 
         <SeccionActividades
@@ -577,6 +636,7 @@ console.log('📦 Payload completo:', JSON.stringify(payload, null, 2));
           setActividades={setActividadesPrevias}
           handleActividadDateChange={handleActividadDateChange}
           errors={errors}
+          fechaBase={fechaHoraSeleccionada}
         />
         <SeccionActividades
           titulo="Programación de Actividades Durante el Evento"
@@ -584,6 +644,7 @@ console.log('📦 Payload completo:', JSON.stringify(payload, null, 2));
           setActividades={setActividadesDurante}
           handleActividadDateChange={handleActividadDateChange}
           errors={errors}
+          fechaBase={fechaHoraSeleccionada}
         />
         <SeccionActividades
           titulo="Programación de Actividades Después del Evento"
@@ -591,63 +652,91 @@ console.log('📦 Payload completo:', JSON.stringify(payload, null, 2));
           setActividades={setActividadesPost}
           handleActividadDateChange={handleActividadDateChange}
           errors={errors}
+          fechaBase={fechaHoraSeleccionada}
         />
 
         {/* Servicios */}
         <View style={styles.formSection}>
-          <Text style={styles.sectionTitle}>Servicios</Text>
+          <Text style={styles.sectionTitle}>Servicios Contratados</Text>
           {serviciosContratados.map((servicio, index) => (
             <View key={servicio.key} style={styles.servicioItemContainer}>
               <View style={styles.servicioItemHeader}>
-                <Text style={styles.sectionTitle}>Servicio #{index + 1}</Text>
+                <Text style={styles.actividadPreviaTitle}>Servicio #{index + 1}</Text>
                 <TouchableOpacity onPress={() => eliminarServicio(index)} style={styles.deleteButton}>
                   <Ionicons name="trash-bin-outline" size={22} color="#c0392b" />
                 </TouchableOpacity>
               </View>
+
               <Text style={styles.label}>Servicio</Text>
               <View style={styles.inputGroup}>
                 <Ionicons name="build-outline" size={20} style={styles.inputIcon} />
-                <TextInput 
-                  style={styles.input} 
-                  value={servicio.nombreServicio} 
-                  onChangeText={(text) => actualizarServicio(index, 'nombreServicio', text)} 
-                  placeholder="Nombre Servicio" 
+                <TextInput
+                  style={styles.input}
+                  value={servicio.nombreServicio}
+                  onChangeText={(text) => actualizarServicio(index, 'nombreServicio', text)}
+                  placeholder="Nombre Servicio"
                   placeholderTextColor="#aaa"
                 />
               </View>
-              <Text style={styles.label}>Caracteristicas</Text>
+
+              <Text style={styles.label}>Características</Text>
               <View style={styles.inputGroup}>
                 <Ionicons name="list-outline" size={20} style={styles.inputIcon} />
-                <TextInput 
-                  style={styles.input} 
-                  value={servicio.caracteristica} 
-                  onChangeText={(text) => actualizarServicio(index, 'caracteristica', text)} 
-                  placeholder="Caracteristica" 
+                <TextInput
+                  style={styles.input}
+                  value={servicio.caracteristica}
+                  onChangeText={(text) => actualizarServicio(index, 'caracteristica', text)}
+                  placeholder="Característica"
                   placeholderTextColor="#aaa"
                 />
               </View>
+
               <Text style={styles.label}>Fecha Entrega</Text>
-              <TouchableOpacity onPress={() => actualizarServicio(index, 'showDatePickerInicio', true)} style={styles.datePickerButton}>
-                <Ionicons name="calendar-outline" size={20} color="#e95a0c" style={styles.inputIcon} />
-                <Text style={styles.datePickerText}>{servicio.fechaInicio.toLocaleDateString()}</Text>
-              </TouchableOpacity>
-              {servicio.showDatePickerInicio && (
-                <DateTimePicker 
-                  value={servicio.fechaInicio} 
-                  mode="date" 
-                  display="default" 
-                  onChange={(event, date) => handleServicioDateChange(index, 'fechaInicio', event, date)}
+              {Platform.OS === 'web' ? (
+                <input
+                  type="date"
+                  value={formatToISODate(servicio.fechaInicio)}
+                  onChange={(e) => {
+                    const date = new Date(e.target.value + 'T00:00:00');
+                    actualizarServicio(index, 'fechaInicio', date);
+                  }}
+                  style={styles.webDateInput}
                 />
+              ) : (
+                <>
+                  <TouchableOpacity
+                    onPress={() => actualizarServicio(index, 'showDatePickerInicio', true)}
+                    style={styles.datePickerButton}
+                  >
+                    <Ionicons name="calendar-outline" size={20} color="#e95a0c" style={styles.inputIcon} />
+                    <Text style={styles.datePickerText}>
+                      {servicio.fechaInicio instanceof Date && !isNaN(servicio.fechaInicio)
+                        ? servicio.fechaInicio.toLocaleDateString('es-ES')
+                        : 'Seleccionar fecha'}
+                    </Text>
+                  </TouchableOpacity>
+                  {servicio.showDatePickerInicio && (
+                    <DateTimePicker
+                      value={servicio.fechaInicio instanceof Date && !isNaN(servicio.fechaInicio) ? servicio.fechaInicio : new Date()}
+                      mode="date"
+                      display="default"
+                      onChange={(event, date) => handleServicioDateChange(index, 'fechaInicio', event, date)}
+                    />
+                  )}
+                </>
               )}
+
               <Text style={styles.label}>Observaciones</Text>
               <View style={styles.inputGroup}>
                 <Ionicons name="document-text-outline" size={20} style={styles.inputIcon} />
-                <TextInput 
-                  style={styles.input} 
-                  value={servicio.observaciones} 
-                  onChangeText={(text) => actualizarServicio(index, 'observaciones', text)} 
-                  placeholder="Observaciones" 
+                <TextInput
+                  style={[styles.input, styles.inputMultiline]}
+                  value={servicio.observaciones}
+                  onChangeText={(text) => actualizarServicio(index, 'observaciones', text)}
+                  placeholder="Observaciones"
                   placeholderTextColor="#aaa"
+                  multiline
+                  numberOfLines={3}
                 />
               </View>
             </View>
@@ -660,46 +749,48 @@ console.log('📦 Payload completo:', JSON.stringify(payload, null, 2));
 
         {/* Ambientes */}
         <View style={styles.formSection}>
-          <Text style={styles.sectionTitle}>Ambiente</Text>
+          <Text style={styles.sectionTitle}>Ambientes</Text>
           {ambientes.map((ambiente, index) => (
             <View key={ambiente.key} style={styles.ambienteItemContainer}>
               <View style={styles.ambienteItemHeader}>
-                <Text style={styles.sectionTitle}>Ambiente #{index + 1}</Text>
+                <Text style={styles.actividadPreviaTitle}>Ambiente #{index + 1}</Text>
                 <TouchableOpacity onPress={() => eliminarAmbiente(index)} style={styles.deleteButton}>
                   <Ionicons name="trash-bin-outline" size={22} color="#c0392b" />
                 </TouchableOpacity>
               </View>
-              <Text style={styles.label}>Ambiente</Text>
+              <Text style={styles.label}>Nombre del Ambiente</Text>
               <View style={styles.inputGroup}>
                 <Ionicons name="business-outline" size={20} style={styles.inputIcon} />
-                <TextInput 
-                  style={styles.input} 
-                  value={ambiente.nombre} 
-                  onChangeText={(text) => actualizarAmbiente(index, 'nombre', text)} 
-                  placeholder="Nombre Ambiente" 
+                <TextInput
+                  style={styles.input}
+                  value={ambiente.nombre}
+                  onChangeText={(text) => actualizarAmbiente(index, 'nombre', text)}
+                  placeholder="Nombre Ambiente"
                   placeholderTextColor="#aaa"
                 />
               </View>
               <Text style={styles.label}>Requisito</Text>
               <View style={styles.inputGroup}>
-                <Ionicons name="list-outline" size={20} style={styles.inputIcon} />
-                <TextInput 
-                  style={styles.input} 
-                  value={ambiente.requisito} 
-                  onChangeText={(text) => actualizarAmbiente(index, 'requisito', text)} 
-                  placeholder="Requisito" 
+                <Ionicons name="checkmark-circle-outline" size={20} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  value={ambiente.requisito}
+                  onChangeText={(text) => actualizarAmbiente(index, 'requisito', text)}
+                  placeholder="Requisito"
                   placeholderTextColor="#aaa"
                 />
               </View>
               <Text style={styles.label}>Observaciones</Text>
               <View style={styles.inputGroup}>
                 <Ionicons name="document-text-outline" size={20} style={styles.inputIcon} />
-                <TextInput 
-                  style={styles.input} 
-                  value={ambiente.observaciones} 
-                  onChangeText={(text) => actualizarAmbiente(index, 'observaciones', text)} 
-                  placeholder="Observaciones" 
+                <TextInput
+                  style={[styles.input, styles.inputMultiline]}
+                  value={ambiente.observaciones}
+                  onChangeText={(text) => actualizarAmbiente(index, 'observaciones', text)}
+                  placeholder="Observaciones"
                   placeholderTextColor="#aaa"
+                  multiline
+                  numberOfLines={3}
                 />
               </View>
             </View>
@@ -710,80 +801,87 @@ console.log('📦 Payload completo:', JSON.stringify(payload, null, 2));
           </TouchableOpacity>
         </View>
 
-        {/* === GALERÍA DE LAYOUTS SUBIDOS === */}
-          <View style={styles.formSection}>
-  <Text style={styles.sectionTitle}>Layouts Disponibles</Text>
+        {/* Layouts */}
+        <View style={styles.formSection}>
+          <Text style={styles.sectionTitle}>Layouts Disponibles</Text>
+          {cargandoLayouts ? (
+            <View style={styles.centered}>
+              <ActivityIndicator size="small" color="#e95a0c" />
+              <Text style={{ marginTop: 8, color: '#666' }}>Cargando layouts...</Text>
+            </View>
+          ) : layoutsDisponibles.length === 0 ? (
+            <View>
+              <Text style={{ color: '#777', fontStyle: 'italic', textAlign: 'center', marginVertical: 20 }}>
+                No hay layouts subidos aún.
+              </Text>
+              <TouchableOpacity
+                onPress={() => cargarLayouts(authToken)}
+                style={styles.retryButton}
+              >
+                <Ionicons name="reload" size={20} color="#e95a0c" />
+                <Text style={styles.retryButtonText}>Reintentar carga</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.layoutsGrid}>
+                {layoutsDisponibles.map((layout) => {
+                  const imageUrl = layout.imagenUrl || `${API_BASE_URL.replace('/api', '')}/uploads/${layout.url_imagen}`;
+                  const isSelected = layoutSeleccionado?.idlayout === layout.idlayout;
 
-  {cargandoLayouts ? (
-    <View style={styles.centered}>
-      <ActivityIndicator size="small" color="#e95a0c" />
-      <Text style={{ marginTop: 8, color: '#666' }}>Cargando layouts...</Text>
-    </View>
-  ) : layoutsDisponibles.length === 0 ? (
-    <View>
-      <Text style={{ color: '#777', fontStyle: 'italic', textAlign: 'center', marginVertical: 20 }}>
-        No hay layouts subidos aún.
-      </Text>
-      <TouchableOpacity 
-        onPress={() => cargarLayouts(authToken)} 
-        style={styles.retryButton}
-      >
-        <Ionicons name="reload" size={20} color="#e95a0c" />
-        <Text style={styles.retryButtonText}>Reintentar carga</Text>
-      </TouchableOpacity>
-    </View>
-  ) : (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-      <View style={styles.layoutsGrid}>
-        {layoutsDisponibles.map((layout) => {
-  const imageUrl = layout.imagenUrl || `${API_BASE_URL.replace('/api', '')}/uploads/${layout.url_imagen}`;
-  const isSelected = layoutSeleccionado?.idlayout === layout.idlayout;
+                  return (
+                    <TouchableOpacity
+                      key={layout.idlayout}
+                      onPress={() => setLayoutSeleccionado(isSelected ? null : layout)}
+                      activeOpacity={0.8}
+                      style={[styles.layoutItem, isSelected && styles.layoutItemSelected]}
+                    >
+                      <Image
+                        source={{ uri: imageUrl }}
+                        style={styles.layoutImage}
+                        resizeMode="cover"
+                      />
+                      <Text style={styles.layoutName} numberOfLines={2}>
+                        {layout.nombre}
+                      </Text>
+                      {isSelected && (
+                        <View style={styles.selectedBadge}>
+                          <Ionicons name="checkmark-circle" size={18} color="#e95a0c" />
+                          <Text style={styles.selectedBadgeText}>Seleccionado</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
+          )}
+        </View>
 
-  return (
-    <View key={layout.idlayout} style={[styles.layoutItem, isSelected && styles.layoutItemSelected]}>
-      <TouchableOpacity 
-        onPress={() => setLayoutSeleccionado(layout)} // ← SELECCIONA EL LAYOUT
-      >
-        <Image
-          source={{ uri: imageUrl }}
-          style={styles.layoutImage}
-          resizeMode="cover"
-        />
-      </TouchableOpacity>
-      <Text style={styles.layoutName} numberOfLines={2}>
-        {layout.nombre}
-      </Text>
-    </View>
-  );
-})}
-      </View>
-    </ScrollView>
-  )}
-</View>
-
-
-        {/* Botón de guardar */}
         <TouchableOpacity
           style={[styles.button, isLoading && styles.buttonDisabled]}
           onPress={handleCrearEvento}
           disabled={isLoading || !authToken}
         >
-          <Text style={styles.buttonText}>
-            {isEditing ? 'Guardar Cambios' : 'Crear Evento'}
+          {isLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>
+              {isEditing ? 'Guardar Cambios' : 'Crear Evento'}
             </Text>
+          )}
         </TouchableOpacity>
+
+        <View style={{ height: 30 }} />
       </ScrollView>
     </KeyboardAvoidingView>
   );
-}
+};
 
-
-
-// --- ESTILOS (sin cambios) ---
+// ─── Estilos ─────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  retryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 15, borderWidth: 1, borderColor: '#e95a0c', borderRadius: 8, alignSelf: 'center', marginTop: 10, },
-  retryButtonText: { marginLeft: 8, color: '#e95a0c', fontSize: 16, fontWeight: '500', },
-  layoutsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start', },
+  retryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 15, borderWidth: 1, borderColor: '#e95a0c', borderRadius: 8, alignSelf: 'center', marginTop: 10 },
+  retryButtonText: { marginLeft: 8, color: '#e95a0c', fontSize: 16, fontWeight: '500' },
   keyboardAvoidingContainer: { flex: 1, backgroundColor: '#F4F7F9' },
   scrollView: { flex: 1 },
   scrollContentContainer: { padding: 20, paddingBottom: 60 },
@@ -793,107 +891,42 @@ const styles = StyleSheet.create({
   inputGroup: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8F9FA', borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 8, marginBottom: 15 },
   inputIcon: { paddingHorizontal: 12, color: '#888' },
   input: { flex: 1, paddingVertical: Platform.OS === 'ios' ? 14 : 10, paddingRight: 15, fontSize: 16, color: '#333' },
-  inputError: { borderColor: '#D32F2F' },
+  inputMultiline: { minHeight: 80, textAlignVertical: 'top', paddingTop: 10 },
+  inputError: { borderColor: '#D32F2F', backgroundColor: '#FEF2F2' },
   errorText: { color: '#D32F2F', fontSize: 12, marginBottom: 10, marginLeft: 5, marginTop: -10 },
-  datePickerButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8F9FA', borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 8, paddingVertical: Platform.OS === 'ios' ? 14 : 12, marginBottom: 15, paddingLeft: 0 },
-  datePickerText: { fontSize: 16, color: '#333', flex:1, marginLeft: 5 },
+  datePickerButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8F9FA', borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 8, paddingVertical: Platform.OS === 'ios' ? 14 : 12, marginBottom: 15 },
+  datePickerText: { fontSize: 16, color: '#333', flex: 1, marginLeft: 5 },
+  webDateInput: {
+    width: '100%',
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    backgroundColor: '#F8F9FA',
+    color: '#333',
+    fontSize: 16,
+    marginBottom: 15,
+    outlineStyle: 'none',
+  },
   button: { backgroundColor: '#e95a0c', paddingVertical: 15, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginTop: 10, flexDirection: 'row', shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.23, shadowRadius: 2.62, elevation: 4 },
   buttonDisabled: { backgroundColor: '#f9bda3' },
   buttonText: { color: '#fff', fontSize: 17, fontWeight: '600' },
-  pickerContainer: { backgroundColor: '#F8F9FA', borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 8, marginBottom: 15, },
-  picker: { height: Platform.OS === 'ios' ? undefined : 50, width: '100%', color: '#333', },
-  pickerItemPlaceholder: { color: '#aaa', },
-  pickerItem: { color: '#333', },
-  imagePickerButton: { backgroundColor: '#F8F9FA', borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 8, padding: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 20, minHeight: 180, },
-  imagePreview: { width: '100%', height: 180, borderRadius: 8, resizeMode: 'contain', },
-  imagePlaceholder: { alignItems: 'center', justifyContent: 'center', paddingVertical: 20, },
-  imagePlaceholderText: { marginTop: 10, color: '#888', fontSize: 14, },
   actividadPreviaItemContainer: { borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 10, padding: 15, marginBottom: 15, backgroundColor: '#fdfdfd' },
-  actividadItemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#f0f0f0', },
-  actividadPreviaTitle: { fontSize: 16, fontWeight: '600', color: '#333', },
-  deleteButton: { padding: 6, },
-  addButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, backgroundColor: '#e6ffee', borderRadius: 8, borderWidth: 1, borderColor: '#27ae60', marginTop: 10, },
-  addButtonText: { marginLeft: 8, color: '#27ae60', fontSize: 16, fontWeight: '500', },
+  actividadItemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  actividadPreviaTitle: { fontSize: 16, fontWeight: '600', color: '#333' },
+  deleteButton: { padding: 6 },
+  addButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, backgroundColor: '#fff3ec', borderRadius: 8, borderWidth: 1, borderColor: '#e95a0c', marginTop: 10 },
+  addButtonText: { marginLeft: 8, color: '#e95a0c', fontSize: 16, fontWeight: '500' },
   ambienteItemContainer: { borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 10, padding: 15, marginBottom: 15, backgroundColor: '#fdfdfd' },
-  ambienteItemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#f0f0f0', },
+  ambienteItemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   servicioItemContainer: { borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 10, padding: 15, marginBottom: 15, backgroundColor: '#fdfdfd' },
-  servicioItemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#f0f0f0', },
-  calendarContainer:{borderWidth:1,borderColor:'#e0e0e0', borderRadius:8, marginBottom:15,overflow:'hidden'  },
-  eventListContainer: { marginTop: 20, paddingTop: 15, borderTopWidth: 1, borderTopColor: '#eee', },
-  eventListHeader: { fontSize: 16, fontWeight: '600', color: '#444', marginBottom: 10, },
-  eventListItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f9f9f9', padding: 12, borderRadius: 8, marginBottom: 8, },
-  eventTypeIndicator: { width: 8, height: 8, borderRadius: 4, marginRight: 12, },
-  eventListTime: { fontSize: 15, fontWeight: '500', color: '#333', width: 60, },
-  eventListName: { fontSize: 15, color: '#555', flex: 1, },
-  emptyListText: { textAlign: 'center', color: '#777', paddingVertical: 20, fontStyle: 'italic', },
-    centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-    infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  layoutItemSelected: {
-  borderColor: '#e95a0c',
-  borderWidth: 2,
-  borderRadius: 10,
-  backgroundColor: '#fffaf5',
-},
-  infoLabel: {
-    fontSize: 14,
-    color: '#64748b',
-    fontWeight: '500',
-    flex: 1,
-    flexWrap: 'wrap',
-  },
-  infoValue: {
-    fontSize: 15,
-    color: '#1e293b',
-    fontWeight: '600',
-    textAlign: 'right',
-    flex: 1.2,
-    flexWrap: 'wrap',
-  },  rowContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  fieldContainer: {
-    marginBottom: 20,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  infoLabel: {
-    fontSize: 14,
-    color: '#64748b',
-    fontWeight: '500',
-    flex: 1,
-    flexWrap: 'wrap',
-  },
-  infoValue: {
-    fontSize: 15,
-    color: '#1e293b',
-    fontWeight: '600',
-    textAlign: 'right',
-    flex: 1.2,
-    flexWrap: 'wrap',
-  },
- layoutsGrid: {
-    flexDirection: 'row',
-    paddingVertical: 10,
-  },
+  servicioItemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 20 },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  infoLabel: { fontSize: 14, color: '#64748b', fontWeight: '500', flex: 1, flexWrap: 'wrap' },
+  infoValue: { fontSize: 15, color: '#1e293b', fontWeight: '600', textAlign: 'right', flex: 1.2, flexWrap: 'wrap' },
+  layoutsGrid: { flexDirection: 'row', paddingVertical: 10 },
   layoutItem: {
     width: 150,
     marginRight: 15,
@@ -901,19 +934,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 8,
     padding: 10,
+    borderWidth: 2,
+    borderColor: 'transparent',
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 3,
   },
+  layoutItemSelected: {
+    borderColor: '#e95a0c',
+    backgroundColor: '#fffaf5',
+  },
   layoutImage: {
     width: 130,
     height: 130,
     borderRadius: 8,
     backgroundColor: '#f0f0f0',
-    borderWidth: 1,
-    borderColor: '#eee',
   },
   layoutName: {
     marginTop: 8,
@@ -923,12 +960,17 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     width: '100%',
   },
-centered: {
-  flex: 1,
-  justifyContent: 'center',
-  alignItems: 'center',
-  paddingVertical: 20,
-},
+  selectedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 4,
+  },
+  selectedBadgeText: {
+    fontSize: 11,
+    color: '#e95a0c',
+    fontWeight: '600',
+  },
 });
 
 export default programacionEvento;
