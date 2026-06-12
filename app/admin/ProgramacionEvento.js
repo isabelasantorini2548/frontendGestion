@@ -51,6 +51,17 @@ LocaleConfig.locales['es'] = {
 };
 LocaleConfig.defaultLocale = 'es';
 
+// ✅ MOVER ESTAS FUNCIONES FUERA DE LOS COMPONENTES
+const formatToISODate = (date) => {
+  if (!(date instanceof Date) || isNaN(date.valueOf())) return new Date().toISOString().split('T')[0];
+  return date.toISOString().split('T')[0];
+};
+
+const formatToISOTime = (date) => {
+  if (!(date instanceof Date) || isNaN(date.valueOf())) return new Date().toTimeString().split(' ')[0].substring(0, 5);
+  return date.toTimeString().split(' ')[0].substring(0, 5);
+};
+
 const parseDateSafe = (date) => {
   if (!date) return new Date().toISOString().split('T')[0];
   if (date instanceof Date) {
@@ -102,7 +113,6 @@ const SeccionActividades = ({ titulo, actividades, setActividades, handleActivid
     setActividades(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Icon mapping for section titles
   const getIcon = () => {
     if (titulo.includes('Previas')) return 'time-outline';
     if (titulo.includes('Durante')) return 'play-circle-outline';
@@ -119,7 +129,6 @@ const SeccionActividades = ({ titulo, actividades, setActividades, handleActivid
 
   return (
     <View style={styles.card}>
-      {/* Section Header */}
       <View style={[styles.sectionHeader, { borderLeftColor: accent }]}>
         <View style={[styles.sectionIconWrap, { backgroundColor: accent + '15' }]}>
           <Ionicons name={getIcon()} size={18} color={accent} />
@@ -132,7 +141,6 @@ const SeccionActividades = ({ titulo, actividades, setActividades, handleActivid
 
       {actividades.map((actividad, index) => (
         <View key={actividad.key} style={styles.subCard}>
-          {/* Sub-card header */}
           <View style={styles.subCardHeader}>
             <View style={styles.actIndexBadge}>
               <Text style={styles.actIndexText}>{index + 1}</Text>
@@ -176,18 +184,30 @@ const SeccionActividades = ({ titulo, actividades, setActividades, handleActivid
           <View style={styles.dateRow}>
             <View style={{ flex: 1, marginRight: 8 }}>
               <Text style={styles.fieldLabel}>Fecha Inicio</Text>
-              <TouchableOpacity
-                onPress={() => setActividades(prev => {
-                  const s = [...prev];
-                  s[index] = { ...s[index], showDatePickerInicio: true };
-                  return s;
-                })}
-                style={styles.datePill}
-              >
-                <Ionicons name="calendar-outline" size={15} color={COLORS.primary} />
-                <Text style={styles.datePillText}>{actividad.fechaInicio.toLocaleDateString('es-ES')}</Text>
-              </TouchableOpacity>
-              {actividad.showDatePickerInicio && (
+              {Platform.OS === 'web' ? (
+                <input
+                  type="date"
+                  value={formatToISODate(actividad.fechaInicio)}
+                  onChange={(e) => {
+                    const date = new Date(e.target.value + 'T00:00:00');
+                    handleActividadDateChange(index, 'fechaInicio', { type: 'set' }, date, setActividades);
+                  }}
+                  style={styles.webDateInput}
+                />
+              ) : (
+                <TouchableOpacity
+                  onPress={() => setActividades(prev => {
+                    const s = [...prev];
+                    s[index] = { ...s[index], showDatePickerInicio: true };
+                    return s;
+                  })}
+                  style={styles.datePill}
+                >
+                  <Ionicons name="calendar-outline" size={15} color={COLORS.primary} />
+                  <Text style={styles.datePillText}>{actividad.fechaInicio.toLocaleDateString('es-ES')}</Text>
+                </TouchableOpacity>
+              )}
+              {Platform.OS !== 'web' && actividad.showDatePickerInicio && (
                 <DateTimePicker
                   value={actividad.fechaInicio}
                   mode="date"
@@ -198,18 +218,31 @@ const SeccionActividades = ({ titulo, actividades, setActividades, handleActivid
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.fieldLabel}>Fecha Fin</Text>
-              <TouchableOpacity
-                onPress={() => setActividades(prev => {
-                  const s = [...prev];
-                  s[index] = { ...s[index], showDatePickerFin: true };
-                  return s;
-                })}
-                style={styles.datePill}
-              >
-                <Ionicons name="calendar-outline" size={15} color={COLORS.primary} />
-                <Text style={styles.datePillText}>{actividad.fechaFin.toLocaleDateString('es-ES')}</Text>
-              </TouchableOpacity>
-              {actividad.showDatePickerFin && (
+              {Platform.OS === 'web' ? (
+                <input
+                  type="date"
+                  value={formatToISODate(actividad.fechaFin)}
+                  min={formatToISODate(actividad.fechaInicio)}
+                  onChange={(e) => {
+                    const date = new Date(e.target.value + 'T00:00:00');
+                    handleActividadDateChange(index, 'fechaFin', { type: 'set' }, date, setActividades);
+                  }}
+                  style={styles.webDateInput}
+                />
+              ) : (
+                <TouchableOpacity
+                  onPress={() => setActividades(prev => {
+                    const s = [...prev];
+                    s[index] = { ...s[index], showDatePickerFin: true };
+                    return s;
+                  })}
+                  style={styles.datePill}
+                >
+                  <Ionicons name="calendar-outline" size={15} color={COLORS.primary} />
+                  <Text style={styles.datePillText}>{actividad.fechaFin.toLocaleDateString('es-ES')}</Text>
+                </TouchableOpacity>
+              )}
+              {Platform.OS !== 'web' && actividad.showDatePickerFin && (
                 <DateTimePicker
                   value={actividad.fechaFin}
                   mode="date"
@@ -285,18 +318,10 @@ const programacionEvento = () => {
   const [layoutsDisponibles, setLayoutsDisponibles] = useState([]);
   const [layoutSeleccionado, setLayoutSeleccionado] = useState(null);
   const [cargandoLayouts, setCargandoLayouts] = useState(false);
+  const [isMounted, setIsMounted] = useState(true);
 
   const { idevento } = params;
   const isEditing = !!idevento;
-
-  const formatToISODate = (date) => {
-    if (!(date instanceof Date) || isNaN(date.valueOf())) return new Date().toISOString().split('T')[0];
-    return date.toISOString().split('T')[0];
-  };
-  const formatToISOTime = (date) => {
-    if (!(date instanceof Date) || isNaN(date.valueOf())) return new Date().toTimeString().split(' ')[0].substring(0, 5);
-    return date.toTimeString().split(' ')[0].substring(0, 5);
-  };
 
   const handleActividadDateChange = (index, field, event, selectedDate, setActividades) => {
     const pickerFlag = field === 'fechaInicio' ? 'showDatePickerInicio' : 'showDatePickerFin';
@@ -334,7 +359,7 @@ const programacionEvento = () => {
   };
 
   const agregarAmbiente = () => setAmbientes(prev => [...prev, { key: `ambiente_${Date.now()}`, nombre: '', requisito: '', observaciones: '' }]);
-  const eliminarAmbiente = (index) => setAmbientes(ambientes.filter((_, i) => i !== index));
+  const eliminarAmbiente = (index) => setAmbientes(prev => prev.filter((_, i) => i !== index));
   const actualizarAmbiente = (index, campo, valor) => {
     const nuevos = [...ambientes];
     nuevos[index][campo] = valor;
@@ -342,7 +367,7 @@ const programacionEvento = () => {
   };
 
   const agregarServicio = () => setServiciosContratados(prev => [...prev, { key: `servicio_${Date.now()}`, nombreServicio: '', caracteristica: '', fechaInicio: new Date(), observaciones: '', showDatePickerInicio: false }]);
-  const eliminarServicio = (index) => setServiciosContratados(serviciosContratados.filter((_, i) => i !== index));
+  const eliminarServicio = (index) => setServiciosContratados(prev => prev.filter((_, i) => i !== index));
   const actualizarServicio = (index, campo, valor) => {
     const nuevos = [...serviciosContratados];
     nuevos[index][campo] = valor;
@@ -371,6 +396,7 @@ const programacionEvento = () => {
   };
 
   useEffect(() => {
+    setIsMounted(true);
     const initializeAndFetch = async () => {
       const token = await getTokenAsync();
       setAuthToken(token);
@@ -442,7 +468,7 @@ const programacionEvento = () => {
               observaciones: amb.observaciones || '',
             })));
           }
-          if (evento.idlayout) {
+          if (evento.idlayout && layoutsDisponibles.length > 0) {
             const layoutEncontrado = layoutsDisponibles.find(l => l.idlayout === evento.idlayout);
             setLayoutSeleccionado(layoutEncontrado || null);
           }
@@ -457,6 +483,10 @@ const programacionEvento = () => {
       }
     };
     initializeAndFetch();
+
+    return () => {
+      setIsMounted(false);
+    };
   }, [idevento]);
 
   if (isEditing && idevento && isLoadingEventos) {
@@ -469,6 +499,7 @@ const programacionEvento = () => {
   }
 
   const handleCrearEvento = async () => {
+    if (!isMounted) return;
     if (!validateForm()) {
       Alert.alert("Formulario Incompleto", "Por favor, revisa los campos marcados en rojo.");
       return;
@@ -609,23 +640,44 @@ const programacionEvento = () => {
                 onChangeText={(text) => actualizarServicio(index, 'nombreServicio', text)} placeholder="Ej: Catering, Sonido..." />
               <FormField label="Características" icon="list-outline" value={servicio.caracteristica}
                 onChangeText={(text) => actualizarServicio(index, 'caracteristica', text)} placeholder="Descripción del servicio" />
+              
+              {/* ✅ CORREGIDO: Usar input nativo para web */}
               <View style={styles.fieldWrap}>
                 <Text style={styles.fieldLabel}>Fecha de Entrega</Text>
-                <TouchableOpacity onPress={() => actualizarServicio(index, 'showDatePickerInicio', true)} style={styles.datePill}>
-                  <Ionicons name="calendar-outline" size={15} color={COLORS.primary} />
-                  <Text style={styles.datePillText}>
-                    {servicio.fechaInicio instanceof Date && !isNaN(servicio.fechaInicio)
-                      ? servicio.fechaInicio.toLocaleDateString('es-ES') : 'Seleccionar fecha'}
-                  </Text>
-                </TouchableOpacity>
-                {servicio.showDatePickerInicio && (
-                  <DateTimePicker
-                    value={servicio.fechaInicio instanceof Date && !isNaN(servicio.fechaInicio) ? servicio.fechaInicio : new Date()}
-                    mode="date" display="default"
-                    onChange={(event, date) => handleServicioDateChange(index, 'fechaInicio', event, date)}
+                {Platform.OS === 'web' ? (
+                  <input
+                    type="date"
+                    value={formatToISODate(servicio.fechaInicio)}
+                    onChange={(e) => {
+                      const date = new Date(e.target.value + 'T00:00:00');
+                      actualizarServicio(index, 'fechaInicio', date);
+                    }}
+                    style={styles.webDateInput}
                   />
+                ) : (
+                  <>
+                    <TouchableOpacity 
+                      onPress={() => actualizarServicio(index, 'showDatePickerInicio', true)} 
+                      style={styles.datePill}
+                    >
+                      <Ionicons name="calendar-outline" size={15} color={COLORS.primary} />
+                      <Text style={styles.datePillText}>
+                        {servicio.fechaInicio instanceof Date && !isNaN(servicio.fechaInicio)
+                          ? servicio.fechaInicio.toLocaleDateString('es-ES') : 'Seleccionar fecha'}
+                      </Text>
+                    </TouchableOpacity>
+                    {servicio.showDatePickerInicio && (
+                      <DateTimePicker
+                        value={servicio.fechaInicio instanceof Date && !isNaN(servicio.fechaInicio) ? servicio.fechaInicio : new Date()}
+                        mode="date" 
+                        display="default"
+                        onChange={(event, date) => handleServicioDateChange(index, 'fechaInicio', event, date)}
+                      />
+                    )}
+                  </>
                 )}
               </View>
+
               <FormField label="Observaciones" icon="document-text-outline" value={servicio.observaciones}
                 onChangeText={(text) => actualizarServicio(index, 'observaciones', text)} placeholder="Notas adicionales" multiline />
             </View>
@@ -969,6 +1021,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.primary,
     fontWeight: '600',
+  },
+
+  // ── Web Date Input ──
+  webDateInput: {
+    width: '100%',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.primaryMid,
+    backgroundColor: COLORS.primaryLight,
+    color: COLORS.primary,
+    fontWeight: '600',
+    fontSize: 14,
+    outlineStyle: 'none',
   },
 
   // ── Buttons ──
