@@ -14,9 +14,7 @@ import dayjs from 'dayjs';
 import * as SecureStore from 'expo-secure-store';
 
 // --- Configuración de API y Tokens ---
-const API_BASE_URL = Platform.OS === 'web'
-  ? 'http://192.168.0.167:3001/api'
-  : 'http://192.168.0.167:3001/api';
+const API_BASE_URL = 'https://backendgestion-production.up.railway.app';
 const TOKEN_KEY = 'adminAuthToken';
 
 // ✅ Funciones globales de formateo (fuera de componentes)
