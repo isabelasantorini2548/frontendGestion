@@ -1,17 +1,20 @@
-import React, { useState, useEffect, createElement } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet,
   Platform, ActivityIndicator, Alert, KeyboardAvoidingView, Image
 } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
-import { LocaleConfig } from 'react-native-calendars';
+import * as ImagePicker from 'expo-image-picker';
+import { Calendar, LocaleConfig } from 'react-native-calendars';
 import dayjs from 'dayjs';
 import * as SecureStore from 'expo-secure-store';
 
-const API_BASE_URL = 'https://backendgestion-production.up.railway.app';
+//const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend1-production.up.railway.app';
+const API_BASE_URL =  'https://evento.cidtec-uc.com';
 const TOKEN_KEY = 'adminAuthToken';
 
 const COLORS = {
@@ -40,37 +43,6 @@ const getTokenAsync = async () => {
   }
 };
 
-// ─── WebDateInput: usa createElement para evitar conflictos de reconciliación DOM ──
-const WebDateInput = ({ value, onChange, min }) => {
-  const inputRef = React.useRef(null);
-  
-  return (
-    <input
-      ref={inputRef}
-      type="date"
-      value={value || ''}
-      min={min || undefined}
-      onChange={onChange}
-      style={{
-        width: '100%',
-        boxSizing: 'border-box',
-        paddingTop: 10,
-        paddingBottom: 10,
-        paddingLeft: 12,
-        paddingRight: 12,
-        borderRadius: 8,
-        border: '1px solid #FDE8D8',
-        backgroundColor: '#FFF3EC',
-        color: '#E95A0C',
-        fontWeight: '600',
-        fontSize: 14,
-        outline: 'none',
-        cursor: 'pointer',
-      }}
-    />
-  );
-};
-
 LocaleConfig.locales['es'] = {
   monthNames: ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'],
   monthNamesShort: ['Ene.','Feb.','Mar.','Abr.','May.','Jun.','Jul.','Ago.','Sep.','Oct.','Nov.','Dic.'],
@@ -79,17 +51,6 @@ LocaleConfig.locales['es'] = {
   today: 'Hoy'
 };
 LocaleConfig.defaultLocale = 'es';
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-const formatToISODate = (date) => {
-  if (!(date instanceof Date) || isNaN(date.valueOf())) return new Date().toISOString().split('T')[0];
-  return date.toISOString().split('T')[0];
-};
-
-const formatToISOTime = (date) => {
-  if (!(date instanceof Date) || isNaN(date.valueOf())) return new Date().toTimeString().split(' ')[0].substring(0, 5);
-  return date.toTimeString().split(' ')[0].substring(0, 5);
-};
 
 const parseDateSafe = (date) => {
   if (!date) return new Date().toISOString().split('T')[0];
@@ -128,7 +89,7 @@ const SeccionActividades = ({ titulo, actividades, setActividades, handleActivid
 
   const agregarActividad = () => {
     setActividades(prev => [...prev, {
-      id: Date.now().toString(),
+      key: `act-${titulo.replace(/\s/g, '')}-${Date.now()}`,
       nombreActividad: '',
       responsable: '',
       fechaInicio: new Date(fechaBase),
@@ -142,6 +103,7 @@ const SeccionActividades = ({ titulo, actividades, setActividades, handleActivid
     setActividades(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Icon mapping for section titles
   const getIcon = () => {
     if (titulo.includes('Previas')) return 'time-outline';
     if (titulo.includes('Durante')) return 'play-circle-outline';
@@ -158,6 +120,7 @@ const SeccionActividades = ({ titulo, actividades, setActividades, handleActivid
 
   return (
     <View style={styles.card}>
+      {/* Section Header */}
       <View style={[styles.sectionHeader, { borderLeftColor: accent }]}>
         <View style={[styles.sectionIconWrap, { backgroundColor: accent + '15' }]}>
           <Ionicons name={getIcon()} size={18} color={accent} />
@@ -169,16 +132,17 @@ const SeccionActividades = ({ titulo, actividades, setActividades, handleActivid
       </View>
 
       {actividades.map((actividad, index) => (
-        <View key={actividad.id || actividad.key} style={styles.subCard}>
+        <View key={actividad.key} style={styles.subCard}>
+          {/* Sub-card header */}
           <View style={styles.subCardHeader}>
-          <View style={[styles.actIndexBadge, { backgroundColor: '#EDE9FE', marginRight: 10 }]}>
-            <Text style={[styles.actIndexText, { color: '#8B5CF6' }]}>{index + 1}</Text>
+            <View style={styles.actIndexBadge}>
+              <Text style={styles.actIndexText}>{index + 1}</Text>
+            </View>
+            <Text style={styles.subCardTitle}>Actividad #{index + 1}</Text>
+            <TouchableOpacity onPress={() => eliminarActividad(index)} style={styles.deleteBtn}>
+              <Ionicons name="trash-outline" size={16} color={COLORS.danger} />
+            </TouchableOpacity>
           </View>
-          <Text style={[styles.subCardTitle, { marginRight: 10 }]}>Servicio #{index + 1}</Text>
-          <TouchableOpacity onPress={() => eliminarServicio(index)} style={styles.deleteBtn}>
-            <Ionicons name="trash-outline" size={16} color={COLORS.danger} />
-          </TouchableOpacity>
-        </View>
 
           <FormField
             label="Nombre de la Actividad"
@@ -211,31 +175,20 @@ const SeccionActividades = ({ titulo, actividades, setActividades, handleActivid
           />
 
           <View style={styles.dateRow}>
-            {/* Fecha Inicio */}
             <View style={{ flex: 1, marginRight: 8 }}>
               <Text style={styles.fieldLabel}>Fecha Inicio</Text>
-              {Platform.OS === 'web' ? (
-                <WebDateInput
-                  value={formatToISODate(actividad.fechaInicio)}
-                  onChange={(e) => {
-                    const date = new Date(e.target.value + 'T00:00:00');
-                    handleActividadDateChange(index, 'fechaInicio', { type: 'set' }, date, setActividades);
-                  }}
-                />
-              ) : (
-                <TouchableOpacity
-                  onPress={() => setActividades(prev => {
-                    const s = [...prev];
-                    s[index] = { ...s[index], showDatePickerInicio: true };
-                    return s;
-                  })}
-                  style={styles.datePill}
-                >
-                  <Ionicons name="calendar-outline" size={15} color={COLORS.primary} />
-                  <Text style={styles.datePillText}>{actividad.fechaInicio.toLocaleDateString('es-ES')}</Text>
-                </TouchableOpacity>
-              )}
-              {Platform.OS !== 'web' && actividad.showDatePickerInicio && (
+              <TouchableOpacity
+                onPress={() => setActividades(prev => {
+                  const s = [...prev];
+                  s[index] = { ...s[index], showDatePickerInicio: true };
+                  return s;
+                })}
+                style={styles.datePill}
+              >
+                <Ionicons name="calendar-outline" size={15} color={COLORS.primary} />
+                <Text style={styles.datePillText}>{actividad.fechaInicio.toLocaleDateString('es-ES')}</Text>
+              </TouchableOpacity>
+              {actividad.showDatePickerInicio && (
                 <DateTimePicker
                   value={actividad.fechaInicio}
                   mode="date"
@@ -244,33 +197,20 @@ const SeccionActividades = ({ titulo, actividades, setActividades, handleActivid
                 />
               )}
             </View>
-
-            {/* Fecha Fin */}
             <View style={{ flex: 1 }}>
               <Text style={styles.fieldLabel}>Fecha Fin</Text>
-              {Platform.OS === 'web' ? (
-                <WebDateInput
-                  value={formatToISODate(actividad.fechaFin)}
-                  min={formatToISODate(actividad.fechaInicio)}
-                  onChange={(e) => {
-                    const date = new Date(e.target.value + 'T00:00:00');
-                    handleActividadDateChange(index, 'fechaFin', { type: 'set' }, date, setActividades);
-                  }}
-                />
-              ) : (
-                <TouchableOpacity
-                  onPress={() => setActividades(prev => {
-                    const s = [...prev];
-                    s[index] = { ...s[index], showDatePickerFin: true };
-                    return s;
-                  })}
-                  style={styles.datePill}
-                >
-                  <Ionicons name="calendar-outline" size={15} color={COLORS.primary} />
-                  <Text style={styles.datePillText}>{actividad.fechaFin.toLocaleDateString('es-ES')}</Text>
-                </TouchableOpacity>
-              )}
-              {Platform.OS !== 'web' && actividad.showDatePickerFin && (
+              <TouchableOpacity
+                onPress={() => setActividades(prev => {
+                  const s = [...prev];
+                  s[index] = { ...s[index], showDatePickerFin: true };
+                  return s;
+                })}
+                style={styles.datePill}
+              >
+                <Ionicons name="calendar-outline" size={15} color={COLORS.primary} />
+                <Text style={styles.datePillText}>{actividad.fechaFin.toLocaleDateString('es-ES')}</Text>
+              </TouchableOpacity>
+              {actividad.showDatePickerFin && (
                 <DateTimePicker
                   value={actividad.fechaFin}
                   mode="date"
@@ -346,10 +286,18 @@ const programacionEvento = () => {
   const [layoutsDisponibles, setLayoutsDisponibles] = useState([]);
   const [layoutSeleccionado, setLayoutSeleccionado] = useState(null);
   const [cargandoLayouts, setCargandoLayouts] = useState(false);
-  const [isMounted, setIsMounted] = useState(true);
 
   const { idevento } = params;
   const isEditing = !!idevento;
+
+  const formatToISODate = (date) => {
+    if (!(date instanceof Date) || isNaN(date.valueOf())) return new Date().toISOString().split('T')[0];
+    return date.toISOString().split('T')[0];
+  };
+  const formatToISOTime = (date) => {
+    if (!(date instanceof Date) || isNaN(date.valueOf())) return new Date().toTimeString().split(' ')[0].substring(0, 5);
+    return date.toTimeString().split(' ')[0].substring(0, 5);
+  };
 
   const handleActividadDateChange = (index, field, event, selectedDate, setActividades) => {
     const pickerFlag = field === 'fechaInicio' ? 'showDatePickerInicio' : 'showDatePickerFin';
@@ -387,30 +335,19 @@ const programacionEvento = () => {
   };
 
   const agregarAmbiente = () => setAmbientes(prev => [...prev, { key: `ambiente_${Date.now()}`, nombre: '', requisito: '', observaciones: '' }]);
-  const eliminarAmbiente = (index) => setAmbientes(prev => prev.filter((_, i) => i !== index));
+  const eliminarAmbiente = (index) => setAmbientes(ambientes.filter((_, i) => i !== index));
   const actualizarAmbiente = (index, campo, valor) => {
-    setAmbientes(prev => {
-      const nuevos = [...prev];
-      nuevos[index] = { ...nuevos[index], [campo]: valor };
-      return nuevos;
-    });
+    const nuevos = [...ambientes];
+    nuevos[index][campo] = valor;
+    setAmbientes(nuevos);
   };
 
-  const agregarServicio = () => setServiciosContratados(prev => [...prev, {
-    key: `servicio_${Date.now()}`,
-    nombreServicio: '',
-    caracteristica: '',
-    fechaInicio: new Date(),
-    observaciones: '',
-    showDatePickerInicio: false,
-  }]);
-  const eliminarServicio = (index) => setServiciosContratados(prev => prev.filter((_, i) => i !== index));
+  const agregarServicio = () => setServiciosContratados(prev => [...prev, { key: `servicio_${Date.now()}`, nombreServicio: '', caracteristica: '', fechaInicio: new Date(), observaciones: '', showDatePickerInicio: false }]);
+  const eliminarServicio = (index) => setServiciosContratados(serviciosContratados.filter((_, i) => i !== index));
   const actualizarServicio = (index, campo, valor) => {
-    setServiciosContratados(prev => {
-      const nuevos = [...prev];
-      nuevos[index] = { ...nuevos[index], [campo]: valor };
-      return nuevos;
-    });
+    const nuevos = [...serviciosContratados];
+    nuevos[index][campo] = valor;
+    setServiciosContratados(nuevos);
   };
   const handleServicioDateChange = (index, field, event, selectedDate) => {
     actualizarServicio(index, 'showDatePickerInicio', false);
@@ -435,7 +372,6 @@ const programacionEvento = () => {
   };
 
   useEffect(() => {
-    setIsMounted(true);
     const initializeAndFetch = async () => {
       const token = await getTokenAsync();
       setAuthToken(token);
@@ -494,9 +430,7 @@ const programacionEvento = () => {
               key: `servicio-${i}-${Date.now()}`,
               nombreServicio: serv.nombreServicio || '',
               caracteristica: serv.caracteristica || '',
-              fechaInicio: serv.fechaInicio
-                ? new Date(serv.fechaInicio.includes('T') ? serv.fechaInicio : serv.fechaInicio + 'T00:00:00')
-                : new Date(),
+              fechaInicio: serv.fechaInicio ? new Date(serv.fechaInicio.includes('T') ? serv.fechaInicio : serv.fechaInicio + 'T00:00:00') : new Date(),
               observaciones: serv.observaciones || '',
               showDatePickerInicio: false,
             })));
@@ -509,7 +443,7 @@ const programacionEvento = () => {
               observaciones: amb.observaciones || '',
             })));
           }
-          if (evento.idlayout && layoutsDisponibles.length > 0) {
+          if (evento.idlayout) {
             const layoutEncontrado = layoutsDisponibles.find(l => l.idlayout === evento.idlayout);
             setLayoutSeleccionado(layoutEncontrado || null);
           }
@@ -524,7 +458,6 @@ const programacionEvento = () => {
       }
     };
     initializeAndFetch();
-    return () => { setIsMounted(false); };
   }, [idevento]);
 
   if (isEditing && idevento && isLoadingEventos) {
@@ -537,7 +470,6 @@ const programacionEvento = () => {
   }
 
   const handleCrearEvento = async () => {
-    if (!isMounted) return;
     if (!validateForm()) {
       Alert.alert("Formulario Incompleto", "Por favor, revisa los campos marcados en rojo.");
       return;
@@ -617,6 +549,7 @@ const programacionEvento = () => {
               <Text style={styles.sectionSubtitle}>Datos generales del evento</Text>
             </View>
           </View>
+
           <View style={styles.infoGrid}>
             <InfoItem icon="bookmark-outline" label="Nombre" value={nombreevento || 'No especificado'} accent />
             <InfoItem icon="location-outline" label="Lugar" value={lugarevento || 'No especificado'} />
@@ -677,41 +610,23 @@ const programacionEvento = () => {
                 onChangeText={(text) => actualizarServicio(index, 'nombreServicio', text)} placeholder="Ej: Catering, Sonido..." />
               <FormField label="Características" icon="list-outline" value={servicio.caracteristica}
                 onChangeText={(text) => actualizarServicio(index, 'caracteristica', text)} placeholder="Descripción del servicio" />
-
               <View style={styles.fieldWrap}>
                 <Text style={styles.fieldLabel}>Fecha de Entrega</Text>
-                {Platform.OS === 'web' ? (
-                  <WebDateInput
-                    value={formatToISODate(servicio.fechaInicio)}
-                    onChange={(e) => {
-                      const date = new Date(e.target.value + 'T00:00:00');
-                      actualizarServicio(index, 'fechaInicio', date);
-                    }}
+                <TouchableOpacity onPress={() => actualizarServicio(index, 'showDatePickerInicio', true)} style={styles.datePill}>
+                  <Ionicons name="calendar-outline" size={15} color={COLORS.primary} />
+                  <Text style={styles.datePillText}>
+                    {servicio.fechaInicio instanceof Date && !isNaN(servicio.fechaInicio)
+                      ? servicio.fechaInicio.toLocaleDateString('es-ES') : 'Seleccionar fecha'}
+                  </Text>
+                </TouchableOpacity>
+                {servicio.showDatePickerInicio && (
+                  <DateTimePicker
+                    value={servicio.fechaInicio instanceof Date && !isNaN(servicio.fechaInicio) ? servicio.fechaInicio : new Date()}
+                    mode="date" display="default"
+                    onChange={(event, date) => handleServicioDateChange(index, 'fechaInicio', event, date)}
                   />
-                ) : (
-                  <>
-                    <TouchableOpacity
-                      onPress={() => actualizarServicio(index, 'showDatePickerInicio', true)}
-                      style={styles.datePill}
-                    >
-                      <Ionicons name="calendar-outline" size={15} color={COLORS.primary} />
-                      <Text style={styles.datePillText}>
-                        {servicio.fechaInicio instanceof Date && !isNaN(servicio.fechaInicio)
-                          ? servicio.fechaInicio.toLocaleDateString('es-ES') : 'Seleccionar fecha'}
-                      </Text>
-                    </TouchableOpacity>
-                    {servicio.showDatePickerInicio && (
-                      <DateTimePicker
-                        value={servicio.fechaInicio instanceof Date && !isNaN(servicio.fechaInicio) ? servicio.fechaInicio : new Date()}
-                        mode="date"
-                        display="default"
-                        onChange={(event, date) => handleServicioDateChange(index, 'fechaInicio', event, date)}
-                      />
-                    )}
-                  </>
                 )}
               </View>
-
               <FormField label="Observaciones" icon="document-text-outline" value={servicio.observaciones}
                 onChangeText={(text) => actualizarServicio(index, 'observaciones', text)} placeholder="Notas adicionales" multiline />
             </View>
@@ -788,15 +703,15 @@ const programacionEvento = () => {
           ) : (
             <>
               <Text style={styles.scrollHint}>← Desliza para ver más →</Text>
-             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
-                <View style={{ flexDirection: 'row' }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
+                <View style={{ flexDirection: 'row', gap: 12 }}>
                   {layoutsDisponibles.map((layout) => {
                     const imageUrl = layout.imagenUrl || `${API_BASE_URL}/uploads/${layout.url_imagen}`;
                     const isSelected = layoutSeleccionado?.idlayout === layout.idlayout;
                     return (
                       <TouchableOpacity
                         key={layout.idlayout}
-                        style={[styles.layoutCard, isSelected && styles.layoutCardSelected, { marginRight: 12 }]}
+                        style={[styles.layoutCard, isSelected && styles.layoutCardSelected]}
                         onPress={() => setLayoutSeleccionado(isSelected ? null : layout)}
                         activeOpacity={0.85}
                       >
@@ -817,7 +732,7 @@ const programacionEvento = () => {
           )}
         </View>
 
-        {/* ── Submit ── */}
+        {/* ── Submit Button ── */}
         <TouchableOpacity
           style={[styles.submitBtn, isLoading && styles.submitBtnDisabled]}
           onPress={handleCrearEvento}
@@ -840,10 +755,11 @@ const programacionEvento = () => {
   );
 };
 
+// ─── InfoItem helper ──────────────────────────────────────────────────────────
 const InfoItem = ({ icon, label, value, accent, last }) => (
   <View style={[styles.infoItem, !last && styles.infoItemBorder]}>
     <View style={styles.infoItemLeft}>
-      <Ionicons name={icon} size={15} color={accent ? COLORS.primary : COLORS.textMuted} style={{ marginRight: 8 }} />
+      <Ionicons name={icon} size={15} color={accent ? COLORS.primary : COLORS.textMuted} />
       <Text style={styles.infoItemLabel}>{label}</Text>
     </View>
     <Text style={[styles.infoItemValue, accent && { color: COLORS.primary, fontWeight: '700' }]}>{value}</Text>
@@ -852,12 +768,29 @@ const InfoItem = ({ icon, label, value, accent, last }) => (
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
   scrollView: { flex: 1 },
-  scrollContent: { padding: 16, paddingTop: 20 },
-  loadingScreen: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background, gap: 12 },
-  loadingText: { fontSize: 15, color: COLORS.textSecondary, marginTop: 8 },
+  scrollContent: {
+    padding: 16,
+    paddingTop: 20,
+  },
+  loadingScreen: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 15,
+    color: COLORS.textSecondary,
+    marginTop: 8,
+  },
 
+  // ── Cards ──
   card: {
     backgroundColor: COLORS.surface,
     borderRadius: 16,
@@ -879,33 +812,110 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  subCardTitle: { flex: 1, fontSize: 14, fontWeight: '600', color: COLORS.text },
-  subCardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
+  subCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+    gap: 10,
+  },
+  subCardTitle: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+
+  // ── Section Header ──
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
     marginBottom: 18,
     paddingLeft: 12,
     borderLeftWidth: 3,
     borderRadius: 2,
   },
-  sectionIconWrap: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
- 
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text },
-  sectionSubtitle: { fontSize: 12, color: COLORS.textMuted, marginTop: 1 },
+  sectionIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  sectionSubtitle: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    marginTop: 1,
+  },
 
-  actIndexBadge: { width: 24, height: 24, borderRadius: 7, backgroundColor: COLORS.primaryLight, justifyContent: 'center', alignItems: 'center' },
-  actIndexText: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
+  // ── Activity index badge ──
+  actIndexBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 7,
+    backgroundColor: COLORS.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actIndexText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
 
-  infoGrid: { borderRadius: 10, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' },
-  infoItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 14 },
-  infoItemBorder: { borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  infoItemLeft: { flexDirection: 'row', alignItems: 'center'},
-  infoItemLabel: { fontSize: 13, color: COLORS.textSecondary, fontWeight: '500' },
-  infoItemValue: { fontSize: 14, color: COLORS.text, fontWeight: '600', maxWidth: '55%', textAlign: 'right' },
+  // ── Info Grid ──
+  infoGrid: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    overflow: 'hidden',
+  },
+  infoItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 13,
+    paddingHorizontal: 14,
+  },
+  infoItemBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  infoItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  infoItemLabel: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  infoItemValue: {
+    fontSize: 14,
+    color: COLORS.text,
+    fontWeight: '600',
+    maxWidth: '55%',
+    textAlign: 'right',
+  },
 
-  fieldWrap: { marginBottom: 14 },
-  fieldLabel: { fontSize: 12, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.4 },
+  // ── Form Fields ──
+  fieldWrap: {
+    marginBottom: 14,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -916,13 +926,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: Platform.OS === 'ios' ? 12 : 8,
   },
-  inputRowError: { borderColor: COLORS.danger, backgroundColor: COLORS.dangerLight },
-  inputIcon: { marginRight: 8 },
-  input: { flex: 1, fontSize: 15, color: COLORS.text },
-  inputMultiline: { minHeight: 72, textAlignVertical: 'top', paddingTop: 4 },
-  errorText: { fontSize: 12, color: COLORS.danger, marginTop: 4, marginLeft: 4 },
+  inputRowError: {
+    borderColor: COLORS.danger,
+    backgroundColor: COLORS.dangerLight,
+  },
+  inputIcon: {
+    marginRight: 8,
+  },
+  input: {
+    flex: 1,
+    fontSize: 15,
+    color: COLORS.text,
+  },
+  inputMultiline: {
+    minHeight: 72,
+    textAlignVertical: 'top',
+    paddingTop: 4,
+  },
+  errorText: {
+    fontSize: 12,
+    color: COLORS.danger,
+    marginTop: 4,
+    marginLeft: 4,
+  },
 
-  dateRow: { flexDirection: 'row' },
+  // ── Date pills ──
+  dateRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   datePill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -934,20 +966,36 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.primaryMid,
   },
-  datePillText: { fontSize: 14, color: COLORS.primary, fontWeight: '600' },
+  datePillText: {
+    fontSize: 14,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
 
+  // ── Buttons ──
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
     paddingVertical: 12,
     borderRadius: 10,
     borderWidth: 1.5,
     borderStyle: 'dashed',
     marginTop: 4,
   },
-  addBtnText: { fontSize: 14, fontWeight: '600' },
-  deleteBtn: { width: 32, height: 32, borderRadius: 8, backgroundColor: COLORS.dangerLight, justifyContent: 'center', alignItems: 'center' },
+  addBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  deleteBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: COLORS.dangerLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   submitBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -963,15 +1011,54 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
-  submitBtnDisabled: { backgroundColor: '#F9BDA3', shadowOpacity: 0, elevation: 0 },
-  submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
-  retryBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8, borderWidth: 1, borderColor: COLORS.primary, marginTop: 10 },
-  retryBtnText: { color: COLORS.primary, fontSize: 14, fontWeight: '600' },
+  submitBtnDisabled: {
+    backgroundColor: '#F9BDA3',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  submitBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    marginTop: 10,
+  },
+  retryBtnText: {
+    color: COLORS.primary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
 
-  emptyState: { alignItems: 'center', paddingVertical: 28, gap: 8 },
-  emptyStateText: { fontSize: 14, color: COLORS.textMuted, fontStyle: 'italic' },
-  scrollHint: { fontSize: 11, color: COLORS.textMuted, textAlign: 'center', marginBottom: 10, fontStyle: 'italic' },
+  // ── Empty state ──
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 28,
+    gap: 8,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: COLORS.textMuted,
+    fontStyle: 'italic',
+  },
+  scrollHint: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    marginBottom: 10,
+    fontStyle: 'italic',
+  },
 
+  // ── Layouts ──
   layoutCard: {
     width: 200,
     backgroundColor: COLORS.surface,
@@ -986,11 +1073,34 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  layoutCardSelected: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryLight },
-  layoutImg: { width: '100%', height: 140, borderRadius: 8, backgroundColor: COLORS.background },
-  layoutName: { marginTop: 8, fontSize: 13, fontWeight: '600', color: COLORS.text, textAlign: 'center' },
-  layoutSelectedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
-  layoutSelectedText: { fontSize: 12, color: COLORS.primary, fontWeight: '600' },
+  layoutCardSelected: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primaryLight,
+  },
+  layoutImg: {
+    width: '100%',
+    height: 140,
+    borderRadius: 8,
+    backgroundColor: COLORS.background,
+  },
+  layoutName: {
+    marginTop: 8,
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.text,
+    textAlign: 'center',
+  },
+  layoutSelectedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
+  },
+  layoutSelectedText: {
+    fontSize: 12,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
 });
 
 export default programacionEvento;
