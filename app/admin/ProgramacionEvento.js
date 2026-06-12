@@ -1,15 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, createElement } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet,
   Platform, ActivityIndicator, Alert, KeyboardAvoidingView, Image
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import { Calendar, LocaleConfig } from 'react-native-calendars';
+import { LocaleConfig } from 'react-native-calendars';
 import dayjs from 'dayjs';
 import * as SecureStore from 'expo-secure-store';
 
@@ -42,6 +40,31 @@ const getTokenAsync = async () => {
   }
 };
 
+// ─── WebDateInput: usa createElement para evitar conflictos de reconciliación DOM ──
+const WebDateInput = ({ value, onChange, min }) =>
+  createElement('input', {
+    type: 'date',
+    value: value || '',
+    min: min || undefined,
+    onChange,
+    style: {
+      width: '100%',
+      boxSizing: 'border-box',
+      paddingTop: 10,
+      paddingBottom: 10,
+      paddingLeft: 12,
+      paddingRight: 12,
+      borderRadius: 8,
+      border: '1px solid #FDE8D8',
+      backgroundColor: '#FFF3EC',
+      color: '#E95A0C',
+      fontWeight: '600',
+      fontSize: 14,
+      outline: 'none',
+      cursor: 'pointer',
+    },
+  });
+
 LocaleConfig.locales['es'] = {
   monthNames: ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'],
   monthNamesShort: ['Ene.','Feb.','Mar.','Abr.','May.','Jun.','Jul.','Ago.','Sep.','Oct.','Nov.','Dic.'],
@@ -51,7 +74,7 @@ LocaleConfig.locales['es'] = {
 };
 LocaleConfig.defaultLocale = 'es';
 
-// ✅ MOVER ESTAS FUNCIONES FUERA DE LOS COMPONENTES
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 const formatToISODate = (date) => {
   if (!(date instanceof Date) || isNaN(date.valueOf())) return new Date().toISOString().split('T')[0];
   return date.toISOString().split('T')[0];
@@ -182,17 +205,16 @@ const SeccionActividades = ({ titulo, actividades, setActividades, handleActivid
           />
 
           <View style={styles.dateRow}>
+            {/* Fecha Inicio */}
             <View style={{ flex: 1, marginRight: 8 }}>
               <Text style={styles.fieldLabel}>Fecha Inicio</Text>
               {Platform.OS === 'web' ? (
-                <input
-                  type="date"
+                <WebDateInput
                   value={formatToISODate(actividad.fechaInicio)}
                   onChange={(e) => {
                     const date = new Date(e.target.value + 'T00:00:00');
                     handleActividadDateChange(index, 'fechaInicio', { type: 'set' }, date, setActividades);
                   }}
-                  style={styles.webDateInput}
                 />
               ) : (
                 <TouchableOpacity
@@ -216,18 +238,18 @@ const SeccionActividades = ({ titulo, actividades, setActividades, handleActivid
                 />
               )}
             </View>
+
+            {/* Fecha Fin */}
             <View style={{ flex: 1 }}>
               <Text style={styles.fieldLabel}>Fecha Fin</Text>
               {Platform.OS === 'web' ? (
-                <input
-                  type="date"
+                <WebDateInput
                   value={formatToISODate(actividad.fechaFin)}
                   min={formatToISODate(actividad.fechaInicio)}
                   onChange={(e) => {
                     const date = new Date(e.target.value + 'T00:00:00');
                     handleActividadDateChange(index, 'fechaFin', { type: 'set' }, date, setActividades);
                   }}
-                  style={styles.webDateInput}
                 />
               ) : (
                 <TouchableOpacity
@@ -361,17 +383,28 @@ const programacionEvento = () => {
   const agregarAmbiente = () => setAmbientes(prev => [...prev, { key: `ambiente_${Date.now()}`, nombre: '', requisito: '', observaciones: '' }]);
   const eliminarAmbiente = (index) => setAmbientes(prev => prev.filter((_, i) => i !== index));
   const actualizarAmbiente = (index, campo, valor) => {
-    const nuevos = [...ambientes];
-    nuevos[index][campo] = valor;
-    setAmbientes(nuevos);
+    setAmbientes(prev => {
+      const nuevos = [...prev];
+      nuevos[index] = { ...nuevos[index], [campo]: valor };
+      return nuevos;
+    });
   };
 
-  const agregarServicio = () => setServiciosContratados(prev => [...prev, { key: `servicio_${Date.now()}`, nombreServicio: '', caracteristica: '', fechaInicio: new Date(), observaciones: '', showDatePickerInicio: false }]);
+  const agregarServicio = () => setServiciosContratados(prev => [...prev, {
+    key: `servicio_${Date.now()}`,
+    nombreServicio: '',
+    caracteristica: '',
+    fechaInicio: new Date(),
+    observaciones: '',
+    showDatePickerInicio: false,
+  }]);
   const eliminarServicio = (index) => setServiciosContratados(prev => prev.filter((_, i) => i !== index));
   const actualizarServicio = (index, campo, valor) => {
-    const nuevos = [...serviciosContratados];
-    nuevos[index][campo] = valor;
-    setServiciosContratados(nuevos);
+    setServiciosContratados(prev => {
+      const nuevos = [...prev];
+      nuevos[index] = { ...nuevos[index], [campo]: valor };
+      return nuevos;
+    });
   };
   const handleServicioDateChange = (index, field, event, selectedDate) => {
     actualizarServicio(index, 'showDatePickerInicio', false);
@@ -455,7 +488,9 @@ const programacionEvento = () => {
               key: `servicio-${i}-${Date.now()}`,
               nombreServicio: serv.nombreServicio || '',
               caracteristica: serv.caracteristica || '',
-              fechaInicio: serv.fechaInicio ? new Date(serv.fechaInicio.includes('T') ? serv.fechaInicio : serv.fechaInicio + 'T00:00:00') : new Date(),
+              fechaInicio: serv.fechaInicio
+                ? new Date(serv.fechaInicio.includes('T') ? serv.fechaInicio : serv.fechaInicio + 'T00:00:00')
+                : new Date(),
               observaciones: serv.observaciones || '',
               showDatePickerInicio: false,
             })));
@@ -483,10 +518,7 @@ const programacionEvento = () => {
       }
     };
     initializeAndFetch();
-
-    return () => {
-      setIsMounted(false);
-    };
+    return () => { setIsMounted(false); };
   }, [idevento]);
 
   if (isEditing && idevento && isLoadingEventos) {
@@ -579,7 +611,6 @@ const programacionEvento = () => {
               <Text style={styles.sectionSubtitle}>Datos generales del evento</Text>
             </View>
           </View>
-
           <View style={styles.infoGrid}>
             <InfoItem icon="bookmark-outline" label="Nombre" value={nombreevento || 'No especificado'} accent />
             <InfoItem icon="location-outline" label="Lugar" value={lugarevento || 'No especificado'} />
@@ -640,24 +671,21 @@ const programacionEvento = () => {
                 onChangeText={(text) => actualizarServicio(index, 'nombreServicio', text)} placeholder="Ej: Catering, Sonido..." />
               <FormField label="Características" icon="list-outline" value={servicio.caracteristica}
                 onChangeText={(text) => actualizarServicio(index, 'caracteristica', text)} placeholder="Descripción del servicio" />
-              
-              {/* ✅ CORREGIDO: Usar input nativo para web */}
+
               <View style={styles.fieldWrap}>
                 <Text style={styles.fieldLabel}>Fecha de Entrega</Text>
                 {Platform.OS === 'web' ? (
-                  <input
-                    type="date"
+                  <WebDateInput
                     value={formatToISODate(servicio.fechaInicio)}
                     onChange={(e) => {
                       const date = new Date(e.target.value + 'T00:00:00');
                       actualizarServicio(index, 'fechaInicio', date);
                     }}
-                    style={styles.webDateInput}
                   />
                 ) : (
                   <>
-                    <TouchableOpacity 
-                      onPress={() => actualizarServicio(index, 'showDatePickerInicio', true)} 
+                    <TouchableOpacity
+                      onPress={() => actualizarServicio(index, 'showDatePickerInicio', true)}
                       style={styles.datePill}
                     >
                       <Ionicons name="calendar-outline" size={15} color={COLORS.primary} />
@@ -669,7 +697,7 @@ const programacionEvento = () => {
                     {servicio.showDatePickerInicio && (
                       <DateTimePicker
                         value={servicio.fechaInicio instanceof Date && !isNaN(servicio.fechaInicio) ? servicio.fechaInicio : new Date()}
-                        mode="date" 
+                        mode="date"
                         display="default"
                         onChange={(event, date) => handleServicioDateChange(index, 'fechaInicio', event, date)}
                       />
@@ -783,7 +811,7 @@ const programacionEvento = () => {
           )}
         </View>
 
-        {/* ── Submit Button ── */}
+        {/* ── Submit ── */}
         <TouchableOpacity
           style={[styles.submitBtn, isLoading && styles.submitBtnDisabled]}
           onPress={handleCrearEvento}
@@ -806,7 +834,7 @@ const programacionEvento = () => {
   );
 };
 
-// ─── InfoItem helper ──────────────────────────────────────────────────────────
+// ─── InfoItem ─────────────────────────────────────────────────────────────────
 const InfoItem = ({ icon, label, value, accent, last }) => (
   <View style={[styles.infoItem, !last && styles.infoItemBorder]}>
     <View style={styles.infoItemLeft}>
@@ -819,29 +847,12 @@ const InfoItem = ({ icon, label, value, accent, last }) => (
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
   scrollView: { flex: 1 },
-  scrollContent: {
-    padding: 16,
-    paddingTop: 20,
-  },
-  loadingScreen: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.background,
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 15,
-    color: COLORS.textSecondary,
-    marginTop: 8,
-  },
+  scrollContent: { padding: 16, paddingTop: 20 },
+  loadingScreen: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background, gap: 12 },
+  loadingText: { fontSize: 15, color: COLORS.textSecondary, marginTop: 8 },
 
-  // ── Cards ──
   card: {
     backgroundColor: COLORS.surface,
     borderRadius: 16,
@@ -863,20 +874,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  subCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 14,
-    gap: 10,
-  },
-  subCardTitle: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
+  subCardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 14, gap: 10 },
+  subCardTitle: { flex: 1, fontSize: 14, fontWeight: '600', color: COLORS.text },
 
-  // ── Section Header ──
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -886,87 +886,22 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3,
     borderRadius: 2,
   },
-  sectionIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  sectionSubtitle: {
-    fontSize: 12,
-    color: COLORS.textMuted,
-    marginTop: 1,
-  },
+  sectionIconWrap: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text },
+  sectionSubtitle: { fontSize: 12, color: COLORS.textMuted, marginTop: 1 },
 
-  // ── Activity index badge ──
-  actIndexBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 7,
-    backgroundColor: COLORS.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  actIndexText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.primary,
-  },
+  actIndexBadge: { width: 24, height: 24, borderRadius: 7, backgroundColor: COLORS.primaryLight, justifyContent: 'center', alignItems: 'center' },
+  actIndexText: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
 
-  // ── Info Grid ──
-  infoGrid: {
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    overflow: 'hidden',
-  },
-  infoItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 13,
-    paddingHorizontal: 14,
-  },
-  infoItemBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  infoItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  infoItemLabel: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    fontWeight: '500',
-  },
-  infoItemValue: {
-    fontSize: 14,
-    color: COLORS.text,
-    fontWeight: '600',
-    maxWidth: '55%',
-    textAlign: 'right',
-  },
+  infoGrid: { borderRadius: 10, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' },
+  infoItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 14 },
+  infoItemBorder: { borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  infoItemLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  infoItemLabel: { fontSize: 13, color: COLORS.textSecondary, fontWeight: '500' },
+  infoItemValue: { fontSize: 14, color: COLORS.text, fontWeight: '600', maxWidth: '55%', textAlign: 'right' },
 
-  // ── Form Fields ──
-  fieldWrap: {
-    marginBottom: 14,
-  },
-  fieldLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-    marginBottom: 6,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
+  fieldWrap: { marginBottom: 14 },
+  fieldLabel: { fontSize: 12, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.4 },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -977,35 +912,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: Platform.OS === 'ios' ? 12 : 8,
   },
-  inputRowError: {
-    borderColor: COLORS.danger,
-    backgroundColor: COLORS.dangerLight,
-  },
-  inputIcon: {
-    marginRight: 8,
-  },
-  input: {
-    flex: 1,
-    fontSize: 15,
-    color: COLORS.text,
-  },
-  inputMultiline: {
-    minHeight: 72,
-    textAlignVertical: 'top',
-    paddingTop: 4,
-  },
-  errorText: {
-    fontSize: 12,
-    color: COLORS.danger,
-    marginTop: 4,
-    marginLeft: 4,
-  },
+  inputRowError: { borderColor: COLORS.danger, backgroundColor: COLORS.dangerLight },
+  inputIcon: { marginRight: 8 },
+  input: { flex: 1, fontSize: 15, color: COLORS.text },
+  inputMultiline: { minHeight: 72, textAlignVertical: 'top', paddingTop: 4 },
+  errorText: { fontSize: 12, color: COLORS.danger, marginTop: 4, marginLeft: 4 },
 
-  // ── Date pills ──
-  dateRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
+  dateRow: { flexDirection: 'row', gap: 8 },
   datePill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1017,28 +930,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.primaryMid,
   },
-  datePillText: {
-    fontSize: 14,
-    color: COLORS.primary,
-    fontWeight: '600',
-  },
+  datePillText: { fontSize: 14, color: COLORS.primary, fontWeight: '600' },
 
-  // ── Web Date Input ──
-  webDateInput: {
-    width: '100%',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.primaryMid,
-    backgroundColor: COLORS.primaryLight,
-    color: COLORS.primary,
-    fontWeight: '600',
-    fontSize: 14,
-    outlineStyle: 'none',
-  },
-
-  // ── Buttons ──
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1050,18 +943,8 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     marginTop: 4,
   },
-  addBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  deleteBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: COLORS.dangerLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  addBtnText: { fontSize: 14, fontWeight: '600' },
+  deleteBtn: { width: 32, height: 32, borderRadius: 8, backgroundColor: COLORS.dangerLight, justifyContent: 'center', alignItems: 'center' },
   submitBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1077,54 +960,15 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
-  submitBtnDisabled: {
-    backgroundColor: '#F9BDA3',
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  submitBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  retryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    marginTop: 10,
-  },
-  retryBtnText: {
-    color: COLORS.primary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  submitBtnDisabled: { backgroundColor: '#F9BDA3', shadowOpacity: 0, elevation: 0 },
+  submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
+  retryBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8, borderWidth: 1, borderColor: COLORS.primary, marginTop: 10 },
+  retryBtnText: { color: COLORS.primary, fontSize: 14, fontWeight: '600' },
 
-  // ── Empty state ──
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 28,
-    gap: 8,
-  },
-  emptyStateText: {
-    fontSize: 14,
-    color: COLORS.textMuted,
-    fontStyle: 'italic',
-  },
-  scrollHint: {
-    fontSize: 11,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-    marginBottom: 10,
-    fontStyle: 'italic',
-  },
+  emptyState: { alignItems: 'center', paddingVertical: 28, gap: 8 },
+  emptyStateText: { fontSize: 14, color: COLORS.textMuted, fontStyle: 'italic' },
+  scrollHint: { fontSize: 11, color: COLORS.textMuted, textAlign: 'center', marginBottom: 10, fontStyle: 'italic' },
 
-  // ── Layouts ──
   layoutCard: {
     width: 200,
     backgroundColor: COLORS.surface,
@@ -1139,34 +983,11 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  layoutCardSelected: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primaryLight,
-  },
-  layoutImg: {
-    width: '100%',
-    height: 140,
-    borderRadius: 8,
-    backgroundColor: COLORS.background,
-  },
-  layoutName: {
-    marginTop: 8,
-    fontSize: 13,
-    fontWeight: '600',
-    color: COLORS.text,
-    textAlign: 'center',
-  },
-  layoutSelectedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 6,
-  },
-  layoutSelectedText: {
-    fontSize: 12,
-    color: COLORS.primary,
-    fontWeight: '600',
-  },
+  layoutCardSelected: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryLight },
+  layoutImg: { width: '100%', height: 140, borderRadius: 8, backgroundColor: COLORS.background },
+  layoutName: { marginTop: 8, fontSize: 13, fontWeight: '600', color: COLORS.text, textAlign: 'center' },
+  layoutSelectedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
+  layoutSelectedText: { fontSize: 12, color: COLORS.primary, fontWeight: '600' },
 });
 
 export default programacionEvento;
