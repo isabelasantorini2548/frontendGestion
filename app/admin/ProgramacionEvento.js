@@ -13,40 +13,83 @@ import { Calendar, LocaleConfig } from 'react-native-calendars';
 import dayjs from 'dayjs';
 import * as SecureStore from 'expo-secure-store';
 
-// --- Configuración de API y Tokens ---
 const API_BASE_URL = 'https://backendgestion-production.up.railway.app';
 const TOKEN_KEY = 'adminAuthToken';
 
-// ✅ Funciones globales de formateo (fuera de componentes)
+// ═══════════════════════════════════════════════════════════════════════════
+// ✅ FUNCIONES DE FECHA CORREGIDAS (Zona Horaria Local)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Parsea una fecha respetando la zona horaria LOCAL del usuario.
+ * Evita el problema donde "2024-01-15" se convierte en "2024-01-14" en UTC-X.
+ */
+const parseDateLocal = (dateInput) => {
+  if (!dateInput) return new Date();
+  if (dateInput instanceof Date) {
+    return isNaN(dateInput.getTime()) ? new Date() : dateInput;
+  }
+  
+  const dateStr = String(dateInput).trim();
+  
+  // Si es solo fecha (YYYY-MM-DD), crear en hora LOCAL
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day, 12, 0, 0);
+  }
+  
+  // Si tiene hora completa
+  const parsed = new Date(dateStr);
+  return isNaN(parsed.getTime()) ? new Date() : parsed;
+};
+
+/**
+ * Formatea una fecha a YYYY-MM-DD usando hora LOCAL (no UTC)
+ */
 const formatToISODate = (date) => {
-  if (!date) return new Date().toISOString().split('T')[0];
-  if (!(date instanceof Date) || isNaN(date.valueOf())) {
-    const parsed = new Date(date);
-    if (isNaN(parsed.getTime())) return new Date().toISOString().split('T')[0];
-    return parsed.toISOString().split('T')[0];
+  let d = date;
+  if (!(date instanceof Date)) {
+    d = parseDateLocal(date);
   }
-  return date.toISOString().split('T')[0];
+  
+  if (!d || isNaN(d.getTime())) {
+    d = new Date();
+  }
+  
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
+/**
+ * Formatea una fecha a HH:MM usando hora LOCAL
+ */
 const formatToISOTime = (date) => {
-  if (!(date instanceof Date) || isNaN(date.valueOf())) {
-    return new Date().toTimeString().split(' ')[0].substring(0, 5);
+  let d = date;
+  if (!(date instanceof Date)) {
+    d = parseDateLocal(date);
   }
-  return date.toTimeString().split(' ')[0].substring(0, 5);
+  if (!d || isNaN(d.getTime())) {
+    d = new Date();
+  }
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
+/**
+ * Convierte una fecha a string YYYY-MM-DD para enviar al backend
+ */
 const parseDateSafe = (date) => {
-  if (!date) return new Date().toISOString().split('T')[0];
+  if (!date) return formatToISODate(new Date());
   if (date instanceof Date) {
-    if (isNaN(date.getTime())) return new Date().toISOString().split('T')[0];
-    return date.toISOString().split('T')[0];
+    if (isNaN(date.getTime())) return formatToISODate(new Date());
+    return formatToISODate(date);
   }
-  const parsed = new Date(date);
-  if (isNaN(parsed.getTime())) return new Date().toISOString().split('T')[0];
-  return parsed.toISOString().split('T')[0];
+  const parsed = parseDateLocal(date);
+  return formatToISODate(parsed);
 };
 
-// ✅ Formatters para el payload
+// Formatters para el payload
 const formatActivityForSubmit = (actividad) => ({
   nombreActividad: actividad.nombreActividad?.trim() || '',
   responsable: actividad.responsable?.trim() || '',
@@ -77,7 +120,6 @@ const getTokenAsync = async () => {
   }
 };
 
-// --- Configuración de calendario ---
 LocaleConfig.locales['es'] = {
   monthNames: ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'],
   monthNamesShort: ['Ene.','Feb.','Mar.','Abr.','May.','Jun.','Jul.','Ago.','Sep.','Oct.','Nov.','Dic.'],
@@ -87,7 +129,7 @@ LocaleConfig.locales['es'] = {
 };
 LocaleConfig.defaultLocale = 'es';
 
-// ─── Componente de Actividades (corregido) ──────────────────────────────────
+// ─── Sección de Actividades ─────────────────────────────────────────────────
 const SeccionActividades = ({ titulo, actividades, setActividades, handleActividadDateChange, errors, fechaBase }) => {
   const baseDate = fechaBase instanceof Date && !isNaN(fechaBase.getTime()) ? fechaBase : new Date();
 
@@ -163,7 +205,7 @@ const SeccionActividades = ({ titulo, actividades, setActividades, handleActivid
               type="date"
               value={formatToISODate(actividad.fechaInicio)}
               onChange={(e) => {
-                const date = new Date(e.target.value + 'T00:00:00');
+                const date = parseDateLocal(e.target.value);
                 handleActividadDateChange(index, 'fechaInicio', { type: 'set' }, date, setActividades);
               }}
               style={styles.webDateInput}
@@ -181,7 +223,7 @@ const SeccionActividades = ({ titulo, actividades, setActividades, handleActivid
                 style={styles.datePickerButton}
               >
                 <Ionicons name="calendar-outline" size={20} color="#e95a0c" style={styles.inputIcon} />
-                <Text style={styles.datePickerText}>{actividad.fechaInicio.toLocaleDateString('es-ES')}</Text>
+                <Text style={styles.datePickerText}>{formatToISODate(actividad.fechaInicio).split('-').reverse().join('/')}</Text>
               </TouchableOpacity>
               {actividad.showDatePickerInicio && (
                 <DateTimePicker
@@ -201,7 +243,7 @@ const SeccionActividades = ({ titulo, actividades, setActividades, handleActivid
               value={formatToISODate(actividad.fechaFin)}
               min={formatToISODate(actividad.fechaInicio)}
               onChange={(e) => {
-                const date = new Date(e.target.value + 'T00:00:00');
+                const date = parseDateLocal(e.target.value);
                 handleActividadDateChange(index, 'fechaFin', { type: 'set' }, date, setActividades);
               }}
               style={styles.webDateInput}
@@ -219,7 +261,7 @@ const SeccionActividades = ({ titulo, actividades, setActividades, handleActivid
                 style={styles.datePickerButton}
               >
                 <Ionicons name="calendar-outline" size={20} color="#e95a0c" style={styles.inputIcon} />
-                <Text style={styles.datePickerText}>{actividad.fechaFin.toLocaleDateString('es-ES')}</Text>
+                <Text style={styles.datePickerText}>{formatToISODate(actividad.fechaFin).split('-').reverse().join('/')}</Text>
               </TouchableOpacity>
               {actividad.showDatePickerFin && (
                 <DateTimePicker
@@ -246,7 +288,7 @@ const SeccionActividades = ({ titulo, actividades, setActividades, handleActivid
 const programacionEvento = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const isMountedRef = useRef(true); // ✅ Protección contra updates en componentes desmontados
+  const isMountedRef = useRef(true);
 
   const getInitialDate = () => {
     if (params.selectedDate) {
@@ -259,7 +301,6 @@ const programacionEvento = () => {
     return new Date();
   };
 
-  // Estados
   const [authToken, setAuthToken] = useState(null);
   const [nombreevento, setNombreevento] = useState('');
   const [lugarevento, setLugarevento] = useState('');
@@ -282,15 +323,11 @@ const programacionEvento = () => {
   const { idevento } = params;
   const isEditing = !!idevento;
 
-  // ✅ Cleanup
   useEffect(() => {
     isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
+    return () => { isMountedRef.current = false; };
   }, []);
 
-  // Manejo de fechas
   const handleActividadDateChange = (index, field, event, selectedDate, setActividades) => {
     const pickerFlag = field === 'fechaInicio' ? 'showDatePickerInicio' : 'showDatePickerFin';
     setActividades(prev => {
@@ -312,7 +349,6 @@ const programacionEvento = () => {
     }
   };
 
-  // Validación
   const validateForm = () => {
     const newErrors = {};
     if (!nombreevento.trim()) newErrors.nombreevento = 'El nombre del evento es requerido.';
@@ -336,7 +372,6 @@ const programacionEvento = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Servicios
   const agregarServicio = () => setServiciosContratados(prev => [...prev, {
     key: `servicio_${Date.now()}`,
     nombreServicio: '',
@@ -360,7 +395,6 @@ const programacionEvento = () => {
     }
   };
 
-  // Ambientes
   const agregarAmbiente = () => setAmbientes(prev => [...prev, {
     key: `ambiente_${Date.now()}`,
     nombre: '',
@@ -376,7 +410,6 @@ const programacionEvento = () => {
     });
   };
 
-  // ✅ CORREGIDO: cargarLayouts ahora retorna los datos directamente
   const cargarLayouts = async (token) => {
     const authTokenToUse = token || authToken;
     if (!authTokenToUse) return [];
@@ -388,7 +421,7 @@ const programacionEvento = () => {
       });
       const data = Array.isArray(response.data) ? response.data : [];
       setLayoutsDisponibles(data);
-      return data; // ✅ Retornar los datos para uso inmediato
+      return data;
     } catch (error) {
       console.error('Error al cargar layouts:', error.response?.data || error.message);
       Alert.alert('Error', 'No se pudieron cargar los layouts disponibles.');
@@ -399,7 +432,9 @@ const programacionEvento = () => {
     }
   };
 
-  // Carga inicial
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ✅ CARGA INICIAL CON parseDateLocal
+  // ═══════════════════════════════════════════════════════════════════════════
   useEffect(() => {
     const initializeAndFetch = async () => {
       const token = await getTokenAsync();
@@ -412,7 +447,6 @@ const programacionEvento = () => {
         return;
       }
 
-      // ✅ Guardar layouts en variable local para usar inmediatamente
       const layoutsData = await cargarLayouts(token);
 
       if (isEditing && idevento) {
@@ -429,20 +463,26 @@ const programacionEvento = () => {
           setLugarevento(evento.lugarevento || '');
           setResponsable(evento.responsable_evento || '');
 
-          if (evento.fechaevento && evento.horaevento) {
-            const fechaCompleta = new Date(`${evento.fechaevento}T${evento.horaevento}`);
-            if (!isNaN(fechaCompleta.getTime())) setFechaHoraSeleccionada(fechaCompleta);
+          // ✅ CORREGIDO: Combinar fecha y hora respetando zona horaria local
+          if (evento.fechaevento) {
+            const fechaLocal = parseDateLocal(evento.fechaevento);
+            if (evento.horaevento) {
+              const [hours, minutes] = String(evento.horaevento).split(':').map(Number);
+              fechaLocal.setHours(hours || 0, minutes || 0, 0, 0);
+            }
+            setFechaHoraSeleccionada(fechaLocal);
           }
 
           setIdtipoevento(evento.idtipoevento?.toString() || '');
 
+          // ✅ CORREGIDO: Usar parseDateLocal en todas las fechas
           if (Array.isArray(evento.actividadesPrevias)) {
             setActividadesPrevias(evento.actividadesPrevias.map((act, i) => ({
               key: `act-prev-${i}-${Date.now()}-${Math.random()}`,
               nombreActividad: act.nombreActividad || '',
               responsable: act.responsable || '',
-              fechaInicio: act.fechaInicio ? new Date(act.fechaInicio) : new Date(),
-              fechaFin: act.fechaFin ? new Date(act.fechaFin) : new Date(),
+              fechaInicio: parseDateLocal(act.fechaInicio),
+              fechaFin: parseDateLocal(act.fechaFin),
               showDatePickerInicio: false,
               showDatePickerFin: false,
             })));
@@ -453,8 +493,8 @@ const programacionEvento = () => {
               key: `act-durante-${i}-${Date.now()}-${Math.random()}`,
               nombreActividad: act.nombreActividad || '',
               responsable: act.responsable || '',
-              fechaInicio: act.fechaInicio ? new Date(act.fechaInicio) : new Date(),
-              fechaFin: act.fechaFin ? new Date(act.fechaFin) : new Date(),
+              fechaInicio: parseDateLocal(act.fechaInicio),
+              fechaFin: parseDateLocal(act.fechaFin),
               showDatePickerInicio: false,
               showDatePickerFin: false,
             })));
@@ -465,8 +505,8 @@ const programacionEvento = () => {
               key: `act-post-${i}-${Date.now()}-${Math.random()}`,
               nombreActividad: act.nombreActividad || '',
               responsable: act.responsable || '',
-              fechaInicio: act.fechaInicio ? new Date(act.fechaInicio) : new Date(),
-              fechaFin: act.fechaFin ? new Date(act.fechaFin) : new Date(),
+              fechaInicio: parseDateLocal(act.fechaInicio),
+              fechaFin: parseDateLocal(act.fechaFin),
               showDatePickerInicio: false,
               showDatePickerFin: false,
             })));
@@ -477,7 +517,7 @@ const programacionEvento = () => {
               key: `servicio-${i}-${Date.now()}`,
               nombreServicio: serv.nombreServicio || '',
               caracteristica: serv.caracteristica || '',
-              fechaInicio: serv.fechaInicio ? new Date(serv.fechaInicio) : new Date(),
+              fechaInicio: parseDateLocal(serv.fechaInicio),
               observaciones: serv.observaciones || '',
               showDatePickerInicio: false,
             })));
@@ -492,7 +532,6 @@ const programacionEvento = () => {
             })));
           }
 
-          // ✅ FIX CRÍTICO: Usar layoutsData (local) en lugar del estado (que aún no está actualizado)
           if (evento.idlayout && layoutsData.length > 0) {
             const layoutEncontrado = layoutsData.find(l => l.idlayout === evento.idlayout);
             if (layoutEncontrado) {
@@ -524,11 +563,9 @@ const programacionEvento = () => {
     );
   }
 
-  // Guardar evento
   const handleCrearEvento = async () => {
     if (!isMountedRef.current) return;
 
-    // ✅ Validación UNA sola vez
     if (!validateForm()) {
       Alert.alert("Formulario Incompleto", "Por favor, revisa los campos marcados en rojo.");
       return;
@@ -550,7 +587,6 @@ const programacionEvento = () => {
         ...(isEditing && idevento && { idevento: parseInt(idevento, 10) })
       };
 
-      // ✅ CORREGIDO: Formatear servicios y ambientes antes de enviar
       const payload = {
         nombreevento: nombreevento.trim(),
         lugarevento: lugarevento.trim(),
@@ -569,9 +605,8 @@ const programacionEvento = () => {
 
       console.log('📦 Payload:', JSON.stringify(payload, null, 2));
 
-      let response;
       if (isEditing) {
-        response = await axios.put(`${API_BASE_URL}/eventos/${idevento}`, payload, {
+        await axios.put(`${API_BASE_URL}/eventos/${idevento}`, payload, {
           headers: {
             'Authorization': `Bearer ${authToken}`,
             'Content-Type': 'application/json',
@@ -579,7 +614,7 @@ const programacionEvento = () => {
         });
         Alert.alert('Éxito', 'Evento actualizado correctamente.');
       } else {
-        response = await axios.post(`${API_BASE_URL}/eventos`, payload, {
+        await axios.post(`${API_BASE_URL}/eventos`, payload, {
           headers: {
             'Authorization': `Bearer ${authToken}`,
             'Content-Type': 'application/json',
@@ -624,7 +659,7 @@ const programacionEvento = () => {
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Fecha</Text>
-            <Text style={styles.infoValue}>{formatToISODate(fechaHoraSeleccionada)}</Text>
+            <Text style={styles.infoValue}>{formatToISODate(fechaHoraSeleccionada).split('-').reverse().join('/')}</Text>
           </View>
         </View>
 
@@ -695,7 +730,7 @@ const programacionEvento = () => {
                   type="date"
                   value={formatToISODate(servicio.fechaInicio)}
                   onChange={(e) => {
-                    const date = new Date(e.target.value + 'T00:00:00');
+                    const date = parseDateLocal(e.target.value);
                     actualizarServicio(index, 'fechaInicio', date);
                   }}
                   style={styles.webDateInput}
@@ -708,14 +743,12 @@ const programacionEvento = () => {
                   >
                     <Ionicons name="calendar-outline" size={20} color="#e95a0c" style={styles.inputIcon} />
                     <Text style={styles.datePickerText}>
-                      {servicio.fechaInicio instanceof Date && !isNaN(servicio.fechaInicio)
-                        ? servicio.fechaInicio.toLocaleDateString('es-ES')
-                        : 'Seleccionar fecha'}
+                      {formatToISODate(servicio.fechaInicio).split('-').reverse().join('/')}
                     </Text>
                   </TouchableOpacity>
                   {servicio.showDatePickerInicio && (
                     <DateTimePicker
-                      value={servicio.fechaInicio instanceof Date && !isNaN(servicio.fechaInicio) ? servicio.fechaInicio : new Date()}
+                      value={servicio.fechaInicio}
                       mode="date"
                       display="default"
                       onChange={(event, date) => handleServicioDateChange(index, 'fechaInicio', event, date)}
@@ -824,7 +857,7 @@ const programacionEvento = () => {
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={styles.layoutsGrid}>
                 {layoutsDisponibles.map((layout) => {
-                  const imageUrl = layout.imagenUrl || `${API_BASE_URL.replace('/api', '')}/uploads/${layout.url_imagen}`;
+                  const imageUrl = layout.imagenUrl || `${API_BASE_URL}/uploads/${layout.url_imagen}`;
                   const isSelected = layoutSeleccionado?.idlayout === layout.idlayout;
 
                   return (
