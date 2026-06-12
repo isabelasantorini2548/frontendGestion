@@ -776,69 +776,75 @@ const generateEventPDF = async () => {
         {/* Recursos Solicitados */}
         {event.recursos && (
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Recursos Solicitados</Text>
-            
-            {/* Tecnológicos */}
-            {event.recursos.filter(r => r.recurso_tipo === 'tecnologico').length > 0 && (
-              <View style={styles.resourceCategory}>
-                <Text style={styles.resourceCategoryTitle}>Tecnológicos</Text>
-                {event.recursos
-                  .filter(r => r.recurso_tipo === 'tecnologico')
-                  .map((r, i) => (
-                    <View key={`tec-${i}`} style={styles.listItem}>
-                      <Ionicons name="hardware-chip-outline" size={16} color={COLORS.grayText} style={styles.listIcon} />
-                      <Text style={styles.listText}>
-                        {r.cantidad || 1} x {r.nombre_recurso}
-                      </Text>
-                    </View>
-                  ))
-                }
-              </View>
-            )}
-            
-            {/* Mobiliario */}
-            {event.recursos.filter(r => r.recurso_tipo === 'mobiliario').length > 0 && (
-              <View style={styles.resourceCategory}>
-                <Text style={styles.resourceCategoryTitle}>Mobiliario</Text>
-                {event.recursos
-                  .filter(r => r.recurso_tipo === 'mobiliario')
-                  .map((r, i) => (
-                    <View key={`mob-${i}`} style={styles.listItem}>
-                      <Ionicons name="home-outline" size={16} color={COLORS.grayText} style={styles.listIcon} />
-                      <Text style={styles.listText}>
-                        {r.cantidad || 1} x {r.nombre_recurso}
-                      </Text>
-                    </View>
-                  ))
-                }
-              </View>
-            )}
-            
-            {/* Vajilla */}
-            {event.recursos.filter(r => r.recurso_tipo === 'vajilla').length > 0 && (
-              <View style={styles.resourceCategory}>
-                <Text style={styles.resourceCategoryTitle}>Vajilla</Text>
-                {event.recursos
-                  .filter(r => r.recurso_tipo === 'vajilla')
-                  .map((r, i) => (
-                    <View key={`vaj-${i}`} style={styles.listItem}>
-                      <Ionicons name="restaurant-outline" size={16} color={COLORS.grayText} style={styles.listIcon} />
-                      <Text style={styles.listText}>
-                        {r.cantidad || 1} x {r.nombre_recurso}
-                      </Text>
-                    </View>
-                  ))
-                }
-              </View>
-            )}
-          </View>
-        )}
+          <Text style={styles.sectionTitle}>Recursos Solicitados</Text>
+          {event.recursos && event.recursos.length > 0 ? (
+            <>
+              {/* Tecnológicos */}
+              {event.recursos.filter(r => r.recurso_tipo === 'tecnologico').length > 0 && (
+                <View style={styles.resourceCategory}>
+                  <Text style={styles.resourceCategoryTitle}>Tecnológicos</Text>
+                  {event.recursos
+                    .filter(r => r.recurso_tipo === 'tecnologico')
+                    .map((r, i) => (
+                      <View key={`tec-${i}`} style={styles.listItem}>
+                        <Ionicons name="hardware-chip-outline" size={16} color={COLORS.grayText} style={styles.listIcon} />
+                        <Text style={styles.listText}>
+                          {r.cantidad || 1} x {r.nombre_recurso}
+                        </Text>
+                      </View>
+                    ))
+                  }
+                </View>
+              )}
+              
+              {/* Mobiliario */}
+              {event.recursos.filter(r => r.recurso_tipo === 'mobiliario').length > 0 && (
+                <View style={styles.resourceCategory}>
+                  <Text style={styles.resourceCategoryTitle}>Mobiliario</Text>
+                  {event.recursos
+                    .filter(r => r.recurso_tipo === 'mobiliario')
+                    .map((r, i) => (
+                      <View key={`mob-${i}`} style={styles.listItem}>
+                        <Ionicons name="home-outline" size={16} color={COLORS.grayText} style={styles.listIcon} />
+                        <Text style={styles.listText}>
+                          {r.cantidad || 1} x {r.nombre_recurso}
+                        </Text>
+                      </View>
+                    ))
+                  }
+                </View>
+              )}
+              
+              {/* Vajilla */}
+              {event.recursos.filter(r => r.recurso_tipo === 'vajilla').length > 0 && (
+                <View style={styles.resourceCategory}>
+                  <Text style={styles.resourceCategoryTitle}>Vajilla</Text>
+                  {event.recursos
+                    .filter(r => r.recurso_tipo === 'vajilla')
+                    .map((r, i) => (
+                      <View key={`vaj-${i}`} style={styles.listItem}>
+                        <Ionicons name="restaurant-outline" size={16} color={COLORS.grayText} style={styles.listIcon} />
+                        <Text style={styles.listText}>
+                          {r.cantidad || 1} x {r.nombre_recurso}
+                        </Text>
+                      </View>
+                    ))
+                  }
+                </View>
+              )}
+            </>
+          ) : (
+            <Text style={styles.detailText}>No hay recursos solicitados</Text>
+          )}
+        </View>
+                )}
 
         {/* Comité del Evento */}
         {event.comite && (
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Comité del Evento</Text>
-            {event.comite.map((miembro, index) => (
+          <Text style={styles.sectionTitle}>Comité del Evento</Text>
+          {event.comite && event.comite.length > 0 ? (
+            event.comite.map((miembro, index) => (
               <View key={index} style={styles.committeeMember}>
                 <Text style={styles.committeeName}>
                   {[miembro.nombre, miembro.apellidopat, miembro.apellidomat]
@@ -849,100 +855,102 @@ const generateEventPDF = async () => {
                 </Text>
                 <Text style={styles.committeeEmail}>Email: {miembro.email}</Text>
               </View>
-            ))}
-          </View>
+            ))
+          ) : (
+            <Text style={styles.detailText}>No hay miembros del comité registrados</Text>
+          )}
+        </View>
         )}
 
         {event.presupuesto && (
-  <View style={styles.sectionCard}>
-    <Text style={styles.sectionTitle}>Presupuesto del Evento</Text>
-    
-    {/* EGRESOS */}
-    {event.egresos && (
-      <View style={styles.budgetSubsection}>
-        <View style={styles.budgetHeader}>
-          <Ionicons name="arrow-down-circle" size={20} color={COLORS.logout} />
-          <Text style={styles.budgetSubtitle}>Egresos</Text>
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Presupuesto del Evento</Text>
+          {event.presupuesto ? (
+            <>
+              {/* EGRESOS */}
+              {event.egresos && event.egresos.length > 0 && (
+                <View style={styles.budgetSubsection}>
+                  <View style={styles.budgetHeader}>
+                    <Ionicons name="arrow-down-circle" size={20} color={COLORS.logout} />
+                    <Text style={styles.budgetSubtitle}>Egresos</Text>
+                  </View>
+                  
+                  <View style={styles.budgetTableHeader}>
+                    <Text style={[styles.budgetCell, styles.budgetCellDesc]}>Descripción</Text>
+                    <Text style={[styles.budgetCell, styles.budgetCellNum]}>Cant.</Text>
+                    <Text style={[styles.budgetCell, styles.budgetCellNum]}>Precio</Text>
+                    <Text style={[styles.budgetCell, styles.budgetCellNum]}>Total</Text>
+                  </View>
+                  
+                  {event.egresos.map((egreso, index) => (
+                    <View key={egreso.idegreso || index} style={styles.budgetTableRow}>
+                      <Text style={[styles.budgetCell, styles.budgetCellDesc]}>{egreso.descripcion}</Text>
+                      <Text style={[styles.budgetCell, styles.budgetCellNum]}>{egreso.cantidad}</Text>
+                      <Text style={[styles.budgetCell, styles.budgetCellNum]}>Bs {parseFloat(egreso.precio_unitario).toFixed(2)}</Text>
+                      <Text style={[styles.budgetCell, styles.budgetCellNum, styles.budgetCellTotal]}>
+                        Bs {parseFloat(egreso.total).toFixed(2)}
+                      </Text>
+                    </View>
+                  ))}
+                  
+                  <View style={styles.budgetTotalRow}>
+                    <Text style={[styles.budgetTotalLabel, { flex: 3 }]}>TOTAL EGRESOS:</Text>
+                    <Text style={styles.budgetTotalValue}>Bs {(event.presupuesto.total_egresos || 0).toFixed(2)}</Text>
+                  </View>
+                </View>
+              )}
+              
+              {/* INGRESOS */}
+              {event.ingresos && event.ingresos.length > 0 && (
+                <View style={styles.budgetSubsection}>
+                  <View style={styles.budgetHeader}>
+                    <Ionicons name="arrow-up-circle" size={20} color={COLORS.success} />
+                    <Text style={styles.budgetSubtitle}>Ingresos</Text>
+                  </View>
+                  
+                  <View style={styles.budgetTableHeader}>
+                    <Text style={[styles.budgetCell, styles.budgetCellDesc]}>Descripción</Text>
+                    <Text style={[styles.budgetCell, styles.budgetCellNum]}>Cant.</Text>
+                    <Text style={[styles.budgetCell, styles.budgetCellNum]}>Precio</Text>
+                    <Text style={[styles.budgetCell, styles.budgetCellNum]}>Total</Text>
+                  </View>
+                  
+                  {event.ingresos.map((ingreso, index) => (
+                    <View key={ingreso.idingreso || index} style={styles.budgetTableRow}>
+                      <Text style={[styles.budgetCell, styles.budgetCellDesc]}>{ingreso.descripcion}</Text>
+                      <Text style={[styles.budgetCell, styles.budgetCellNum]}>{ingreso.cantidad}</Text>
+                      <Text style={[styles.budgetCell, styles.budgetCellNum]}>Bs {parseFloat(ingreso.precio_unitario).toFixed(2)}</Text>
+                      <Text style={[styles.budgetCell, styles.budgetCellNum, styles.budgetCellTotal]}>
+                        Bs {parseFloat(ingreso.total).toFixed(2)}
+                      </Text>
+                    </View>
+                  ))}
+                  
+                  <View style={styles.budgetTotalRow}>
+                    <Text style={[styles.budgetTotalLabel, { flex: 3 }]}>TOTAL INGRESOS:</Text>
+                    <Text style={[styles.budgetTotalValue, { color: COLORS.success }]}>
+                      Bs {(event.presupuesto.total_ingresos || 0).toFixed(2)}
+                    </Text>
+                  </View>
+                </View>
+              )}
+              
+              {/* BALANCE FINAL */}
+              <View style={styles.balanceFinal}>
+                <Text style={styles.balanceFinalLabel}>BALANCE ECONÓMICO:</Text>
+                <Text style={[
+                  styles.balanceFinalValue,
+                  { color: (event.presupuesto.balance || 0) >= 0 ? COLORS.success : COLORS.logout }
+                ]}>
+                  Bs {(event.presupuesto.balance || 0).toFixed(2)}
+                </Text>
+              </View>
+            </>
+          ) : (
+            <Text style={styles.detailText}>No hay presupuesto registrado</Text>
+          )}
         </View>
-        
-        {/* Header de tabla */}
-        <View style={styles.budgetTableHeader}>
-          <Text style={[styles.budgetCell, styles.budgetCellDesc]}>Descripción</Text>
-          <Text style={[styles.budgetCell, styles.budgetCellNum]}>Cant.</Text>
-          <Text style={[styles.budgetCell, styles.budgetCellNum]}>Precio</Text>
-          <Text style={[styles.budgetCell, styles.budgetCellNum]}>Total</Text>
-        </View>
-        
-        {/* Filas de egresos */}
-        {event.egresos.map((egreso, index) => (
-          <View key={egreso.idegreso || index} style={styles.budgetTableRow}>
-            <Text style={[styles.budgetCell, styles.budgetCellDesc]}>{egreso.descripcion}</Text>
-            <Text style={[styles.budgetCell, styles.budgetCellNum]}>{egreso.cantidad}</Text>
-            <Text style={[styles.budgetCell, styles.budgetCellNum]}>Bs {parseFloat(egreso.precio_unitario).toFixed(2)}</Text>
-            <Text style={[styles.budgetCell, styles.budgetCellNum, styles.budgetCellTotal]}>
-              Bs {parseFloat(egreso.total).toFixed(2)}
-            </Text>
-          </View>
-        ))}
-        
-        {/* Total Egresos */}
-        <View style={styles.budgetTotalRow}>
-          <Text style={[styles.budgetTotalLabel, { flex: 3 }]}>TOTAL EGRESOS:</Text>
-          <Text style={styles.budgetTotalValue}>Bs {(event.presupuesto.total_egresos || 0).toFixed(2)}</Text>
-        </View>
-      </View>
-    )}
-    
-    {/* INGRESOS */}
-    {event.ingresos && (
-      <View style={styles.budgetSubsection}>
-        <View style={styles.budgetHeader}>
-          <Ionicons name="arrow-up-circle" size={20} color={COLORS.success} />
-          <Text style={styles.budgetSubtitle}>Ingresos</Text>
-        </View>
-        
-        {/* Header de tabla */}
-        <View style={styles.budgetTableHeader}>
-          <Text style={[styles.budgetCell, styles.budgetCellDesc]}>Descripción</Text>
-          <Text style={[styles.budgetCell, styles.budgetCellNum]}>Cant.</Text>
-          <Text style={[styles.budgetCell, styles.budgetCellNum]}>Precio</Text>
-          <Text style={[styles.budgetCell, styles.budgetCellNum]}>Total</Text>
-        </View>
-        
-        {/* Filas de ingresos */}
-        {event.ingresos.map((ingreso, index) => (
-          <View key={ingreso.idingreso || index} style={styles.budgetTableRow}>
-            <Text style={[styles.budgetCell, styles.budgetCellDesc]}>{ingreso.descripcion}</Text>
-            <Text style={[styles.budgetCell, styles.budgetCellNum]}>{ingreso.cantidad}</Text>
-            <Text style={[styles.budgetCell, styles.budgetCellNum]}>Bs {parseFloat(ingreso.precio_unitario).toFixed(2)}</Text>
-            <Text style={[styles.budgetCell, styles.budgetCellNum, styles.budgetCellTotal]}>
-              Bs {parseFloat(ingreso.total).toFixed(2)}
-            </Text>
-          </View>
-        ))}
-        
-        {/* Total Ingresos */}
-        <View style={styles.budgetTotalRow}>
-          <Text style={[styles.budgetTotalLabel, { flex: 3 }]}>TOTAL INGRESOS:</Text>
-          <Text style={[styles.budgetTotalValue, { color: COLORS.success }]}>
-            Bs {(event.presupuesto.total_ingresos || 0).toFixed(2)}
-          </Text>
-        </View>
-      </View>
-    )}
-    
-    {/* BALANCE FINAL */}
-    <View style={styles.balanceFinal}>
-      <Text style={styles.balanceFinalLabel}>BALANCE ECONÓMICO:</Text>
-      <Text style={[
-        styles.balanceFinalValue,
-        { color: (event.presupuesto.balance || 0) >= 0 ? COLORS.success : COLORS.logout }
-      ]}>
-        Bs {(event.presupuesto.balance || 0).toFixed(2)}
-      </Text>
-    </View>
-  </View>
-)}
+        )}
 
         {/* Estado */}
         <View style={styles.sectionCard}>
