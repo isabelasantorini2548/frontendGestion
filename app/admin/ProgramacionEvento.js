@@ -41,29 +41,35 @@ const getTokenAsync = async () => {
 };
 
 // ─── WebDateInput: usa createElement para evitar conflictos de reconciliación DOM ──
-const WebDateInput = ({ value, onChange, min }) =>
-  createElement('input', {
-    type: 'date',
-    value: value || '',
-    min: min || undefined,
-    onChange,
-    style: {
-      width: '100%',
-      boxSizing: 'border-box',
-      paddingTop: 10,
-      paddingBottom: 10,
-      paddingLeft: 12,
-      paddingRight: 12,
-      borderRadius: 8,
-      border: '1px solid #FDE8D8',
-      backgroundColor: '#FFF3EC',
-      color: '#E95A0C',
-      fontWeight: '600',
-      fontSize: 14,
-      outline: 'none',
-      cursor: 'pointer',
-    },
-  });
+const WebDateInput = ({ value, onChange, min }) => {
+  const inputRef = React.useRef(null);
+  
+  return (
+    <input
+      ref={inputRef}
+      type="date"
+      value={value || ''}
+      min={min || undefined}
+      onChange={onChange}
+      style={{
+        width: '100%',
+        boxSizing: 'border-box',
+        paddingTop: 10,
+        paddingBottom: 10,
+        paddingLeft: 12,
+        paddingRight: 12,
+        borderRadius: 8,
+        border: '1px solid #FDE8D8',
+        backgroundColor: '#FFF3EC',
+        color: '#E95A0C',
+        fontWeight: '600',
+        fontSize: 14,
+        outline: 'none',
+        cursor: 'pointer',
+      }}
+    />
+  );
+};
 
 LocaleConfig.locales['es'] = {
   monthNames: ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'],
@@ -122,7 +128,7 @@ const SeccionActividades = ({ titulo, actividades, setActividades, handleActivid
 
   const agregarActividad = () => {
     setActividades(prev => [...prev, {
-      key: `act-${titulo.replace(/\s/g, '')}-${Date.now()}`,
+      id: Date.now().toString(),
       nombreActividad: '',
       responsable: '',
       fechaInicio: new Date(fechaBase),
@@ -163,7 +169,7 @@ const SeccionActividades = ({ titulo, actividades, setActividades, handleActivid
       </View>
 
       {actividades.map((actividad, index) => (
-        <View key={actividad.key} style={styles.subCard}>
+        <View key={actividad.id || actividad.key} style={styles.subCard}>
           <View style={styles.subCardHeader}>
             <View style={styles.actIndexBadge}>
               <Text style={styles.actIndexText}>{index + 1}</Text>
