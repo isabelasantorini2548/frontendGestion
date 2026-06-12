@@ -171,14 +171,14 @@ const SeccionActividades = ({ titulo, actividades, setActividades, handleActivid
       {actividades.map((actividad, index) => (
         <View key={actividad.id || actividad.key} style={styles.subCard}>
           <View style={styles.subCardHeader}>
-            <View style={styles.actIndexBadge}>
-              <Text style={styles.actIndexText}>{index + 1}</Text>
-            </View>
-            <Text style={styles.subCardTitle}>Actividad #{index + 1}</Text>
-            <TouchableOpacity onPress={() => eliminarActividad(index)} style={styles.deleteBtn}>
-              <Ionicons name="trash-outline" size={16} color={COLORS.danger} />
-            </TouchableOpacity>
+          <View style={[styles.actIndexBadge, { backgroundColor: '#EDE9FE', marginRight: 10 }]}>
+            <Text style={[styles.actIndexText, { color: '#8B5CF6' }]}>{index + 1}</Text>
           </View>
+          <Text style={[styles.subCardTitle, { marginRight: 10 }]}>Servicio #{index + 1}</Text>
+          <TouchableOpacity onPress={() => eliminarServicio(index)} style={styles.deleteBtn}>
+            <Ionicons name="trash-outline" size={16} color={COLORS.danger} />
+          </TouchableOpacity>
+        </View>
 
           <FormField
             label="Nombre de la Actividad"
@@ -788,15 +788,15 @@ const programacionEvento = () => {
           ) : (
             <>
               <Text style={styles.scrollHint}>← Desliza para ver más →</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
-                <View style={{ flexDirection: 'row', gap: 12 }}>
+             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
+                <View style={{ flexDirection: 'row' }}>
                   {layoutsDisponibles.map((layout) => {
                     const imageUrl = layout.imagenUrl || `${API_BASE_URL}/uploads/${layout.url_imagen}`;
                     const isSelected = layoutSeleccionado?.idlayout === layout.idlayout;
                     return (
                       <TouchableOpacity
                         key={layout.idlayout}
-                        style={[styles.layoutCard, isSelected && styles.layoutCardSelected]}
+                        style={[styles.layoutCard, isSelected && styles.layoutCardSelected, { marginRight: 12 }]}
                         onPress={() => setLayoutSeleccionado(isSelected ? null : layout)}
                         activeOpacity={0.85}
                       >
@@ -840,11 +840,10 @@ const programacionEvento = () => {
   );
 };
 
-// ─── InfoItem ─────────────────────────────────────────────────────────────────
 const InfoItem = ({ icon, label, value, accent, last }) => (
   <View style={[styles.infoItem, !last && styles.infoItemBorder]}>
     <View style={styles.infoItemLeft}>
-      <Ionicons name={icon} size={15} color={accent ? COLORS.primary : COLORS.textMuted} />
+      <Ionicons name={icon} size={15} color={accent ? COLORS.primary : COLORS.textMuted} style={{ marginRight: 8 }} />
       <Text style={styles.infoItemLabel}>{label}</Text>
     </View>
     <Text style={[styles.infoItemValue, accent && { color: COLORS.primary, fontWeight: '700' }]}>{value}</Text>
@@ -880,19 +879,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  subCardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 14, gap: 10 },
   subCardTitle: { flex: 1, fontSize: 14, fontWeight: '600', color: COLORS.text },
-
+  subCardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
     marginBottom: 18,
     paddingLeft: 12,
     borderLeftWidth: 3,
     borderRadius: 2,
   },
-  sectionIconWrap: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  sectionIconWrap: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+ 
   sectionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text },
   sectionSubtitle: { fontSize: 12, color: COLORS.textMuted, marginTop: 1 },
 
@@ -902,7 +900,7 @@ const styles = StyleSheet.create({
   infoGrid: { borderRadius: 10, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' },
   infoItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 14 },
   infoItemBorder: { borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  infoItemLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  infoItemLeft: { flexDirection: 'row', alignItems: 'center'},
   infoItemLabel: { fontSize: 13, color: COLORS.textSecondary, fontWeight: '500' },
   infoItemValue: { fontSize: 14, color: COLORS.text, fontWeight: '600', maxWidth: '55%', textAlign: 'right' },
 
@@ -924,7 +922,7 @@ const styles = StyleSheet.create({
   inputMultiline: { minHeight: 72, textAlignVertical: 'top', paddingTop: 4 },
   errorText: { fontSize: 12, color: COLORS.danger, marginTop: 4, marginLeft: 4 },
 
-  dateRow: { flexDirection: 'row', gap: 8 },
+  dateRow: { flexDirection: 'row' },
   datePill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -942,7 +940,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
     paddingVertical: 12,
     borderRadius: 10,
     borderWidth: 1.5,
