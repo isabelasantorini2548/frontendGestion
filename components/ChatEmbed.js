@@ -150,16 +150,16 @@ useEffect(() => {
     });
 
     socket.on('receive_message', (msg) => {
-      console.log('📨 Mensaje recibido:', msg);
-      setMessages(prev => [...prev, { ...msg, id: `m_${Date.now()}` }]);
-      setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
-    });
+    console.log('📨 Mensaje grupal recibido:', msg);
+    setMessages(prev => [...prev, { ...msg, id: `m_${Date.now()}` }]);
+    setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
+      });
 
     socket.on('private_message', (msg) => {
-      console.log('📨 Mensaje privado recibido:', msg);
-      setMessages(prev => [...prev, { ...msg, id: `p_${Date.now()}` }]);
-      setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
-    });
+    console.log('📨 Mensaje privado recibido:', msg);
+    setMessages(prev => [...prev, { ...msg, id: `p_${Date.now()}` }]);
+    setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
+     });
 
     socket.on('error', (e) => {
       console.error('❌ Error del socket:', e);
