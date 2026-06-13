@@ -271,7 +271,11 @@ const VistaEvento = ({ evento, userId, userRole, userName, onVolver }) => {
   const miembros = (evento.Comite || []).filter(m => String(m.idusuario) !== String(userId));
 
   if (chatPrivado) {
-    const roomId = ['private', ...([userId, chatPrivado.idusuario].map(String).sort())].join('_');
+    const roomId = 'private_' + [userId, chatPrivado.idusuario]
+  .map(String)
+  .map(Number)        
+  .sort((a, b) => a - b)
+  .join('_');
     return (
       <VistaChat
         eventoId={evento.idevento}
