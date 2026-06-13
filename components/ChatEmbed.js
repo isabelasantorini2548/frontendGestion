@@ -107,20 +107,25 @@ useEffect(() => {
   if (!userId) return;
 
   let socket;
+  let isMounted = true;
+
   import('socket.io-client').then(mod => {
     const io = mod.io || mod.default;
+    
     socket = io(API_BASE_URL, {
-      transports: ['polling', 'websocket'],
-      upgrade: true,
+      transports: ['websocket'],        // ← CLAVE: sin polling
       reconnection: true,
       reconnectionAttempts: 5,
-      timeout: 10000,
+      reconnectionDelay: 2000,
+      timeout: 20000,
     });
     socketRef.current = socket;
 
     socket.on('connect', () => {
       console.log('✅ Socket conectado:', socket.id);
+      if (!isMounted) return;
       setConnected(true);
+      
       if (roomId.startsWith('private_')) {
         socket.emit('join_private', { roomId, userId, userName });
       } else {
@@ -133,41 +138,45 @@ useEffect(() => {
       }
     });
 
-    socket.on('connect_error', (err) => {
-      console.error('❌ Error de conexión socket:', err.message);
-      setConnected(false);
-    });
-
-    socket.on('disconnect', (reason) => {
-      console.log('⚠️ Socket desconectado:', reason);
-      setConnected(false);
-    });
-
     socket.on('history', (h) => {
-      console.log('📜 Historial recibido:', h.length, 'mensajes');
-      setMessages(h.map((m, i) => ({ ...m, id: `h_${i}` })));
+      if (!isMounted) return;
+      console.log('📜 Historial recibido:', h.length);
+      // Solo reemplazar si hay mensajes, evita borrar al reconectar
+      if (h.length > 0) {
+        setMessages(h.map((m, i) => ({ ...m, id: `h_${i}` })));
+      }
       setTimeout(() => flatRef.current?.scrollToEnd({ animated: false }), 100);
     });
 
     socket.on('receive_message', (msg) => {
-    console.log('📨 Mensaje grupal recibido:', msg);
-    setMessages(prev => [...prev, { ...msg, id: `m_${Date.now()}` }]);
-    setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
-      });
+      if (!isMounted) return;
+      setMessages(prev => [...prev, { ...msg, id: `m_${Date.now()}_${Math.random()}` }]);
+      setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
+    });
 
     socket.on('private_message', (msg) => {
-    console.log('📨 Mensaje privado recibido:', msg);
-    setMessages(prev => [...prev, { ...msg, id: `p_${Date.now()}` }]);
-    setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
-     });
+      if (!isMounted) return;
+      setMessages(prev => [...prev, { ...msg, id: `p_${Date.now()}_${Math.random()}` }]);
+      setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('❌ Error socket:', err.message);
+      if (isMounted) setConnected(false);
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.log('⚠️ Desconectado:', reason);
+      if (isMounted) setConnected(false);
+    });
 
     socket.on('error', (e) => {
-      console.error('❌ Error del socket:', e);
       Alert.alert('Error', e.message || 'Error en el chat');
     });
   });
 
   return () => {
+    isMounted = false;
     if (socket) {
       if (roomId.startsWith('private_')) {
         socket.emit('leave_private', { roomId });
@@ -177,8 +186,7 @@ useEffect(() => {
       socket.disconnect();
     }
   };
-}, [roomId, userId, userRole, userName, eventoId]); 
-
+}, [roomId, userId, userRole, userName, eventoId]);
  const handleSend = () => {
   const texto = input.trim();
   console.log('🔵 Intentando enviar:', {
