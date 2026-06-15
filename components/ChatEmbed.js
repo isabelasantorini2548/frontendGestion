@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
   ActivityIndicator, KeyboardAvoidingView, Platform, Alert, ScrollView
@@ -6,16 +6,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 
-// ─── Usa el mismo API_BASE_URL que el resto de tu app ────────────────
 const API_BASE_URL = 'https://backendgestion-production.up.railway.app';
-const TOKEN_KEY    = 'adminAuthToken';
+const TOKEN_KEY = 'adminAuthToken';
 
 const COLORS = {
   primary: '#E95A0C', primaryLight: '#FFEDD5',
   success: '#10B981', warning: '#F59E0B',
-  accent: '#EF4444',  secondary: '#4B5563',
+  accent: '#EF4444', secondary: '#4B5563',
   surface: '#FFFFFF', background: '#F9FAFB',
-  border: '#E5E7EB',  textPrimary: '#1F2937',
+  border: '#E5E7EB', textPrimary: '#1F2937',
   textSecondary: '#6B7280', textTertiary: '#9CA3AF',
   white: '#FFFFFF',
 };
@@ -30,19 +29,72 @@ const getToken = async () => {
   return await SecureStore.getItemAsync(TOKEN_KEY);
 };
 
+let globalSocket = null;
+let globalSocketPromise = null;
+
+const getSocket = () => {
+  if (globalSocket && globalSocket.connected) {
+    return Promise.resolve(globalSocket);
+  }
+  
+  if (globalSocketPromise) {
+    return globalSocketPromise;
+  }
+
+  globalSocketPromise = import('socket.io-client').then(mod => {
+    const io = mod.io || mod.default;
+    
+    if (globalSocket) {
+      globalSocket.disconnect();
+      globalSocket = null;
+    }
+
+    globalSocket = io(API_BASE_URL, {
+      transports: ['websocket'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 2000,
+      timeout: 20000,
+      forceNew: false, 
+    });
+
+    return globalSocket;
+  }).finally(() => {
+    globalSocketPromise = null;
+  });
+
+  return globalSocketPromise;
+};
+
+const disconnectGlobalSocket = () => {
+  if (globalSocket) {
+    globalSocket.disconnect();
+    globalSocket = null;
+  }
+};
+
 const Burbuja = ({ item, myId }) => {
   if (item.system) return (
     <View style={{ alignItems: 'center', marginVertical: 6 }}>
       <Text style={{ fontSize: 11, color: '#bbb', fontStyle: 'italic' }}>{item.text}</Text>
     </View>
   );
+  
   const isMe = String(item.userId) === String(myId);
   const color = ROL_COLORS[item.role] || '#888';
+  
   return (
-    <View style={{ flexDirection: 'row', marginVertical: 3, justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
+    <View style={{ 
+      flexDirection: 'row', 
+      marginVertical: 3, 
+      justifyContent: isMe ? 'flex-end' : 'flex-start' 
+    }}>
       <View style={{ maxWidth: '75%' }}>
         {!isMe && (
-          <Text style={{ fontSize: 11, color, fontWeight: '600', marginBottom: 2, marginLeft: 4 }}>
+          <Text style={{ 
+            fontSize: 11, color, fontWeight: '600', 
+            marginBottom: 2, marginLeft: 4 
+          }}>
             {item.userName || item.userId}
           </Text>
         )}
@@ -54,14 +106,18 @@ const Burbuja = ({ item, myId }) => {
           shadowColor: '#000', shadowOpacity: 0.05,
           shadowOffset: { width: 0, height: 1 }, shadowRadius: 2, elevation: 1,
         }}>
-          <Text style={{ fontSize: 14, color: isMe ? '#fff' : COLORS.textPrimary }}>{item.message}</Text>
+          <Text style={{ 
+            fontSize: 14, 
+            color: isMe ? '#fff' : COLORS.textPrimary 
+          }}>
+            {item.message}
+          </Text>
         </View>
       </View>
     </View>
   );
 };
 
-// ─── Panel de input ───────────────────────────────────────────────────
 const InputPanel = ({ input, setInput, onSend, connected }) => (
   <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <View style={{
@@ -69,7 +125,8 @@ const InputPanel = ({ input, setInput, onSend, connected }) => (
       borderTopWidth: 1, borderColor: COLORS.border, gap: 8, alignItems: 'flex-end',
     }}>
       <TextInput
-        value={input} onChangeText={setInput}
+        value={input}
+        onChangeText={setInput}
         placeholder={connected ? 'Escribe un mensaje...' : 'Conectando...'}
         placeholderTextColor="#999"
         editable={connected}
@@ -96,146 +153,203 @@ const InputPanel = ({ input, setInput, onSend, connected }) => (
 );
 
 const VistaChat = ({ eventoId, titulo, subtitulo, roomId, userId, userRole, userName, onVolver }) => {
-  const [messages, setMessages]   = useState([]);
-  const [input, setInput]         = useState('');
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
   const [connected, setConnected] = useState(false);
-  const socketRef  = useRef(null);
-  const flatRef    = useRef(null);
-  const ioRef      = useRef(null);
+  const flatRef = useRef(null);
+  const mountedRef = useRef(true);
 
-   const roomIdRef   = useRef(roomId);
-  const userIdRef   = useRef(userId);
+  // Refs estables para los valores
+  const roomIdRef = useRef(roomId);
+  const userIdRef = useRef(userId);
   const userRoleRef = useRef(userRole);
   const userNameRef = useRef(userName);
   const eventoIdRef = useRef(eventoId);
 
-useEffect(() => {
-  const _roomId   = roomIdRef.current;
-    const _userId   = userIdRef.current;
+  useEffect(() => {
+    roomIdRef.current = roomId;
+    userIdRef.current = userId;
+    userRoleRef.current = userRole;
+    userNameRef.current = userName;
+    eventoIdRef.current = eventoId;
+  }, [roomId, userId, userRole, userName, eventoId]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    let socket;
+    let isSubscribed = false;
+
+    const initSocket = async () => {
+      try {
+        socket = await getSocket();
+        
+        if (!mountedRef.current) return;
+
+        // Conectar a la sala
+        const _roomId = roomIdRef.current;
+        const _userId = userIdRef.current;
+        const _userRole = userRoleRef.current;
+        const _userName = userNameRef.current;
+        const _eventoId = eventoIdRef.current;
+
+        if (_roomId.startsWith('private_')) {
+          socket.emit('join_private', { 
+            roomId: _roomId, 
+            userId: _userId, 
+            userName: _userName 
+          });
+        } else {
+          socket.emit('join_event', { 
+            eventoId: String(_eventoId), 
+            userId: _userId, 
+            role: _userRole, 
+            userName: _userName 
+          });
+        }
+
+        // Escuchar eventos
+        const handleHistory = (h) => {
+          if (!mountedRef.current) return;
+          console.log('📜 Historial recibido:', h.length);
+          if (h.length > 0) {
+            setMessages(h.map((m, i) => ({ ...m, id: `h_${i}` })));
+          }
+          setTimeout(() => flatRef.current?.scrollToEnd({ animated: false }), 100);
+        };
+
+        const handleReceiveMessage = (msg) => {
+          if (!mountedRef.current) return;
+          console.log('💬 Mensaje recibido:', msg);
+          setMessages(prev => {
+            // Evitar duplicados
+            const exists = prev.some(p => 
+              p.userId === msg.userId && 
+              p.message === msg.message && 
+              Math.abs(new Date(p.timestamp) - new Date(msg.timestamp)) < 1000
+            );
+            if (exists) return prev;
+            return [...prev, { ...msg, id: `m_${Date.now()}_${Math.random()}` }];
+          });
+          setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
+        };
+
+        const handlePrivateMessage = (msg) => {
+          if (!mountedRef.current) return;
+          console.log(' Mensaje privado recibido:', msg);
+          setMessages(prev => {
+            const exists = prev.some(p => 
+              p.userId === msg.userId && 
+              p.message === msg.message
+            );
+            if (exists) return prev;
+            return [...prev, { ...msg, id: `p_${Date.now()}_${Math.random()}` }];
+          });
+          setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
+        };
+
+        const handleConnect = () => {
+          if (!mountedRef.current) return;
+          console.log('✅ Socket conectado:', socket.id);
+          setConnected(true);
+        };
+
+        const handleDisconnect = (reason) => {
+          if (!mountedRef.current) return;
+          console.log('⚠️ Desconectado:', reason);
+          setConnected(false);
+        };
+
+        const handleError = (e) => {
+          console.error('❌ Error socket:', e);
+        };
+
+        socket.on('connect', handleConnect);
+        socket.on('history', handleHistory);
+        socket.on('receive_message', handleReceiveMessage);
+        socket.on('private_message', handlePrivateMessage);
+        socket.on('disconnect', handleDisconnect);
+        socket.on('error', handleError);
+
+        isSubscribed = true;
+
+        if (socket.connected) {
+          setConnected(true);
+        }
+
+      } catch (error) {
+        console.error('❌ Error inicializando socket:', error);
+        if (mountedRef.current) {
+          Alert.alert('Error', 'No se pudo conectar al chat');
+        }
+      }
+    };
+
+    initSocket();
+
+    return () => {
+      mountedRef.current = false;
+      
+      if (socket && isSubscribed) {
+        const _roomId = roomIdRef.current;
+        const _eventoId = eventoIdRef.current;
+        
+        // Salir de la sala
+        if (_roomId.startsWith('private_')) {
+          socket.emit('leave_private', { roomId: _roomId });
+        } else {
+          socket.emit('leave_event', { eventoId: String(_eventoId) });
+        }
+
+        // Remover listeners
+        socket.off('connect');
+        socket.off('history');
+        socket.off('receive_message');
+        socket.off('private_message');
+        socket.off('disconnect');
+        socket.off('error');
+      }
+    };
+  }, [roomId, eventoId]); 
+
+  const handleSend = useCallback(() => {
+    const texto = input.trim();
+    if (!texto) return;
+
+    const socket = globalSocket;
+    if (!socket || !socket.connected) {
+      Alert.alert('Error', 'No hay conexión con el servidor de chat');
+      return;
+    }
+
+    const _roomId = roomIdRef.current;
+    const _userId = userIdRef.current;
     const _userRole = userRoleRef.current;
     const _userName = userNameRef.current;
     const _eventoId = eventoIdRef.current;
-  if (!_userId) return;
 
-  let socket;
-  let isMounted = true;
+    console.log('📤 Enviando mensaje:', { texto, roomId: _roomId });
 
-  import('socket.io-client').then(mod => {
-    const io = mod.io || mod.default;
-    
-    socket = io(API_BASE_URL, {
-      transports: ['websocket'],        // ← CLAVE: sin polling
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 2000,
-      timeout: 20000,
-    });
-    socketRef.current = socket;
-
-    socket.on('connect', () => {
-      console.log('✅ Socket conectado:', socket.id);
-      if (!isMounted) return;
-      setConnected(true);
-      
-      if (roomId.startsWith('private_')) {
-        socket.emit('join_private', { roomId, userId, userName });
-      } else {
-        socket.emit('join_event', { 
-          eventoId: String(eventoId), 
-          userId, 
-          role: userRole, 
-          userName 
-        });
-      }
-    });
-
-    socket.on('history', (h) => {
-      if (!isMounted) return;
-      console.log('📜 Historial recibido:', h.length);
-      // Solo reemplazar si hay mensajes, evita borrar al reconectar
-      if (h.length > 0) {
-        setMessages(h.map((m, i) => ({ ...m, id: `h_${i}` })));
-      }
-      setTimeout(() => flatRef.current?.scrollToEnd({ animated: false }), 100);
-    });
-
-    socket.on('receive_message', (msg) => {
-      if (!isMounted) return;
-      setMessages(prev => [...prev, { ...msg, id: `m_${Date.now()}_${Math.random()}` }]);
-      setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
-    });
-
-    socket.on('private_message', (msg) => {
-      if (!isMounted) return;
-      setMessages(prev => [...prev, { ...msg, id: `p_${Date.now()}_${Math.random()}` }]);
-      setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
-    });
-
-    socket.on('connect_error', (err) => {
-      console.error('❌ Error socket:', err.message);
-      if (isMounted) setConnected(false);
-    });
-
-    socket.on('disconnect', (reason) => {
-      console.log('⚠️ Desconectado:', reason);
-      if (isMounted) setConnected(false);
-    });
-
-    socket.on('error', (e) => {
-      Alert.alert('Error', e.message || 'Error en el chat');
-    });
-  });
-
-  return () => {
-    isMounted = false;
-    if (socket) {
-      if (roomId.startsWith('private_')) {
-        socket.emit('leave_private', { roomId });
-      } else {
-        socket.emit('leave_event', { eventoId: String(eventoId) });
-      }
-      socket.disconnect();
+    if (_roomId.startsWith('private_')) {
+      socket.emit('send_private', {
+        roomId: _roomId,
+        userId: _userId,
+        userName: _userName,
+        role: _userRole,
+        message: texto
+      });
+    } else {
+      socket.emit('send_message', {
+        eventoId: String(_eventoId),
+        userId: _userId,
+        role: _userRole,
+        userName: _userName,
+        message: texto
+      });
     }
-  };
-}, []);
- const handleSend = () => {
-  const texto = input.trim();
-  console.log(' Intentando enviar:', {
-    texto,
-    connected: socketRef.current?.connected,
-    roomId,
-    userId,
-    socketId: socketRef.current?.id
-  });
 
-  if (!texto) {
-    console.log(' Mensaje vacío');
-    return;
-  }
-  if (!socketRef.current?.connected) {
-    console.log(' Socket no conectado');
-    Alert.alert('Error', 'No hay conexión con el servidor de chat');
-    return;
-  }
+    setInput('');
+  }, [input]);
 
-  if (roomId.startsWith('private_')) {
-    console.log('FRONTEND Enviando mensaje privado...');
-    socketRef.current.emit('send_private', { 
-      roomId, userId, userName, role: userRole, message: texto 
-    });
-  } else {
-    console.log('FRONTEND Enviando mensaje grupal...', { eventoId, userId });
-    socketRef.current.emit('send_message', { 
-      eventoId: String(eventoId), 
-      userId, 
-      role: userRole, 
-      userName, 
-      message: texto 
-    });
-  }
-  setInput('');
-  console.log('✅ [FRONTEND] Mensaje enviado al socket');
-};
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.background }}>
       {/* Header */}
@@ -252,7 +366,10 @@ useEffect(() => {
             {titulo}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
-            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: connected ? '#34C759' : '#FF3B30' }} />
+            <View style={{ 
+              width: 6, height: 6, borderRadius: 3, 
+              backgroundColor: connected ? '#34C759' : '#FF3B30' 
+            }} />
             <Text style={{ fontSize: 10, color: COLORS.textTertiary }}>
               {subtitulo} · {connected ? 'En línea' : 'Conectando...'}
             </Text>
@@ -281,25 +398,28 @@ useEffect(() => {
     </View>
   );
 };
-const VistaEvento = ({ evento, userId, userRole, userName, onVolver }) => {
-  const [tab, setTab]         = useState('grupal'); // 'grupal' | 'miembros'
-  const [chatPrivado, setChatPrivado] = useState(null); // miembro seleccionado
 
+const VistaEvento = ({ evento, userId, userRole, userName, onVolver }) => {
+  const [tab, setTab] = useState('grupal');
+  const [chatPrivado, setChatPrivado] = useState(null);
+  
   const miembros = (evento.Comite || []).filter(m => String(m.idusuario) !== String(userId));
 
   if (chatPrivado) {
-    const roomId = 'private_' + [userId, chatPrivado.idusuario]
-  .map(String)
-  .map(Number)        
-  .sort((a, b) => a - b)
-  .join('_');
+    // Calcular roomId de forma consistente
+    const ids = [parseInt(userId), parseInt(chatPrivado.idusuario)]
+      .sort((a, b) => a - b);
+    const roomId = `private_${ids[0]}_${ids[1]}`;
+    
     return (
       <VistaChat
         eventoId={evento.idevento}
         titulo={chatPrivado.nombre || chatPrivado.usuario?.nombre || `Usuario ${chatPrivado.idusuario}`}
         subtitulo="Chat privado"
         roomId={roomId}
-        userId={userId} userRole={userRole} userName={userName}
+        userId={userId}
+        userRole={userRole}
+        userName={userName}
         onVolver={() => setChatPrivado(null)}
       />
     );
@@ -321,11 +441,10 @@ const VistaEvento = ({ evento, userId, userRole, userName, onVolver }) => {
         </Text>
       </View>
 
-      {/* Tabs */}
       <View style={{ flexDirection: 'row', backgroundColor: COLORS.white, borderBottomWidth: 1, borderColor: COLORS.border }}>
         {[
-          { id: 'grupal',   label: 'Chat Grupal',  icon: 'chatbubbles-outline' },
-          { id: 'miembros', label: 'Miembros',      icon: 'people-outline' },
+          { id: 'grupal', label: 'Chat Grupal', icon: 'chatbubbles-outline' },
+          { id: 'miembros', label: 'Miembros', icon: 'people-outline' },
         ].map(t => (
           <TouchableOpacity
             key={t.id}
@@ -345,17 +464,16 @@ const VistaEvento = ({ evento, userId, userRole, userName, onVolver }) => {
         ))}
       </View>
 
-      {/* Contenido según tab */}
       {tab === 'grupal' ? (
         <VistaChat
           eventoId={evento.idevento}
           titulo={`#${evento.nombreevento}`}
           subtitulo={`${(evento.Comite || []).length} miembros`}
           roomId={String(evento.idevento)}
-          userId={userId} userRole={userRole} userName={userName}
+          userId={userId}
+          userRole={userRole}
+          userName={userName}
           onVolver={onVolver}
-          // Ocultamos el header interno porque ya tenemos el de arriba
-          _sinHeader
         />
       ) : (
         <ScrollView contentContainerStyle={{ padding: 16 }}>
@@ -384,7 +502,6 @@ const VistaEvento = ({ evento, userId, userRole, userName, onVolver }) => {
                     shadowOffset: { width: 0, height: 1 }, shadowRadius: 3, elevation: 1,
                   }}
                 >
-                  {/* Avatar */}
                   <View style={{
                     width: 44, height: 44, borderRadius: 22,
                     backgroundColor: colorRol + '20',
@@ -394,7 +511,6 @@ const VistaEvento = ({ evento, userId, userRole, userName, onVolver }) => {
                     <Text style={{ fontSize: 18, fontWeight: '700', color: colorRol }}>{initial}</Text>
                   </View>
 
-                  {/* Info */}
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 14, fontWeight: '700', color: COLORS.textPrimary }}>
                       {nombre} {apellido}
@@ -405,7 +521,6 @@ const VistaEvento = ({ evento, userId, userRole, userName, onVolver }) => {
                     </View>
                   </View>
 
-                  {/* Botón mensaje */}
                   <View style={{
                     flexDirection: 'row', alignItems: 'center', gap: 4,
                     backgroundColor: COLORS.primaryLight, borderRadius: 20,
@@ -424,12 +539,10 @@ const VistaEvento = ({ evento, userId, userRole, userName, onVolver }) => {
   );
 };
 
-// ─── Componente principal exportable ─────────────────────────────────
-// ─── Componente principal exportable ─────────────────────────────────
 const ChatEmbed = ({ userId, userRole, userName }) => {
-  const [vista, setVista]               = useState('eventos');
-  const [eventos, setEventos]           = useState([]);
-  const [loadingEventos, setLoading]    = useState(true);
+  const [vista, setVista] = useState('eventos');
+  const [eventos, setEventos] = useState([]);
+  const [loadingEventos, setLoading] = useState(true);
   const [eventoActual, setEventoActual] = useState(null);
 
   useEffect(() => {
@@ -437,14 +550,12 @@ const ChatEmbed = ({ userId, userRole, userName }) => {
       try {
         const token = await getToken();
         
-        // 1. Obtener eventos como comité
         const resComite = await fetch(`${API_BASE_URL}/dashboard/my-committee-events`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const dataComite = await resComite.json();
         const eventosComite = dataComite.events || [];
 
-        // 2. Obtener eventos creados por el usuario
         const resCreados = await fetch(`${API_BASE_URL}/eventos`, {
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -453,7 +564,6 @@ const ChatEmbed = ({ userId, userRole, userName }) => {
           ? dataCreados.filter(e => e.estado === 'aprobado' && String(e.idacademico) === String(userId))
           : [];
 
-        // 3. Cargar detalles completos de cada evento (incluyendo comité)
         const eventosCompletos = await Promise.all(
           [...eventosComite, ...eventosCreados].map(async (evento) => {
             try {
@@ -469,7 +579,6 @@ const ChatEmbed = ({ userId, userRole, userName }) => {
           })
         );
 
-        // Eliminar duplicados
         const idsVistos = new Set();
         const eventosUnicos = eventosCompletos.filter(e => {
           if (idsVistos.has(e.idevento)) return false;
@@ -478,14 +587,6 @@ const ChatEmbed = ({ userId, userRole, userName }) => {
         });
 
         console.log('📋 Eventos cargados:', eventosUnicos.length);
-        eventosUnicos.forEach(e => {
-          console.log(`Evento ${e.idevento}:`, {
-            nombre: e.nombreevento,
-            miembrosComite: e.Comite?.length || 0,
-            comite: e.Comite
-          });
-        });
-
         setEventos(eventosUnicos);
       } catch (e) {
         console.error('❌ Error cargando eventos:', e);
@@ -495,13 +596,22 @@ const ChatEmbed = ({ userId, userRole, userName }) => {
       }
     };
     cargar();
+  }, [userId]);
+
+  // Limpiar socket al desmontar
+  useEffect(() => {
+    return () => {
+      disconnectGlobalSocket();
+    };
   }, []);
 
   if (vista === 'evento' && eventoActual) {
     return (
       <VistaEvento
         evento={eventoActual}
-        userId={userId} userRole={userRole} userName={userName}
+        userId={userId}
+        userRole={userRole}
+        userName={userName}
         onVolver={() => { setVista('eventos'); setEventoActual(null); }}
       />
     );
