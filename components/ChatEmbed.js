@@ -288,136 +288,144 @@ ListEmptyComponent={
 };
 
 const VistaEvento = ({ evento, userId, userRole, userName, onVolver }) => {
-const [tab, setTab]         = useState('grupal');
-const [chatPrivado, setChatPrivado] = useState(null);
+  const [tab, setTab]         = useState('grupal');
+  const [chatPrivado, setChatPrivado] = useState(null);
 
-const miembros = (evento.Comite || []).filter(m => String(m.idusuario) !== String(userId));
+  const creadorId = String(evento.idacademico);
+  const miembrosComite = (evento.Comite || []).filter(m => String(m.idusuario) !== String(userId));
+  
+  const miembros = String(userId) !== creadorId 
+    ? [...miembrosComite, { idusuario: creadorId, nombre: 'Creador del evento', rol_comite: 'creador' }]
+    : miembrosComite;
 
-if (chatPrivado) {
-const ids = [parseInt(userId), parseInt(chatPrivado.idusuario)].sort((a, b) => a - b);
-const roomId = `private_${ids[0]}_${ids[1]}`;
+  if (chatPrivado) {
+    const roomId = 'private_' + [userId, chatPrivado.idusuario]
+      .map(String)
+      .map(Number)
+      .sort((a, b) => a - b)
+      .join('_');
+    
+    return (
+      <VistaChat
+        eventoId={evento.idevento}
+        titulo={chatPrivado.nombre || chatPrivado.usuario?.nombre || `Usuario ${chatPrivado.idusuario}`}
+        subtitulo="Chat privado"
+        roomId={roomId}
+        userId={userId} userRole={userRole} userName={userName}
+        onVolver={() => setChatPrivado(null)}
+      />
+    );
+  }
 
-return (
-<VistaChat
-eventoId={evento.idevento}
-titulo={chatPrivado.nombre || chatPrivado.usuario?.nombre || `Usuario ${chatPrivado.idusuario}`}
-subtitulo="Chat privado"
-roomId={roomId}
-userId={userId} userRole={userRole} userName={userName}
-onVolver={() => setChatPrivado(null)}
-/>
-);
-}
+  return (
+    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+      <View style={{
+        flexDirection: 'row', alignItems: 'center', gap: 10,
+        paddingHorizontal: 12, paddingVertical: 10,
+        backgroundColor: COLORS.white, borderBottomWidth: 1, borderColor: COLORS.border,
+      }}>
+        <TouchableOpacity onPress={onVolver}>
+          <Ionicons name="arrow-back" size={20} color={COLORS.primary} />
+        </TouchableOpacity>
+        <Text style={{ flex: 1, fontSize: 13, fontWeight: '700', color: COLORS.textPrimary }} numberOfLines={1}>
+          {evento.nombreevento || 'Evento'}
+        </Text>
+      </View>
 
-return (
-<View style={{ flex: 1, backgroundColor: COLORS.background }}>
-<View style={{
-flexDirection: 'row', alignItems: 'center', gap: 10,
-paddingHorizontal: 12, paddingVertical: 10,
-backgroundColor: COLORS.white, borderBottomWidth: 1, borderColor: COLORS.border,
-}}>
-<TouchableOpacity onPress={onVolver}>
-<Ionicons name="arrow-back" size={20} color={COLORS.primary} />
-</TouchableOpacity>
-<Text style={{ flex: 1, fontSize: 13, fontWeight: '700', color: COLORS.textPrimary }} numberOfLines={1}>
-{evento.nombreevento || 'Evento'}
-</Text>
-</View>
+      <View style={{ flexDirection: 'row', backgroundColor: COLORS.white, borderBottomWidth: 1, borderColor: COLORS.border }}>
+        {[
+          { id: 'grupal',   label: 'Chat Grupal',  icon: 'chatbubbles-outline' },
+          { id: 'miembros', label: 'Miembros',      icon: 'people-outline' },
+        ].map(t => (
+          <TouchableOpacity
+            key={t.id}
+            onPress={() => setTab(t.id)}
+            style={{
+              flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+              gap: 6, paddingVertical: 12,
+              borderBottomWidth: tab === t.id ? 2 : 0,
+              borderBottomColor: COLORS.primary,
+            }}
+          >
+            <Ionicons name={t.icon} size={16} color={tab === t.id ? COLORS.primary : COLORS.textTertiary} />
+            <Text style={{ fontSize: 13, fontWeight: '600', color: tab === t.id ? COLORS.primary : COLORS.textTertiary }}>
+              {t.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
-<View style={{ flexDirection: 'row', backgroundColor: COLORS.white, borderBottomWidth: 1, borderColor: COLORS.border }}>
-{[
-{ id: 'grupal',   label: 'Chat Grupal',  icon: 'chatbubbles-outline' },
-{ id: 'miembros', label: 'Miembros',      icon: 'people-outline' },
-].map(t => (
-<TouchableOpacity
-key={t.id}
-onPress={() => setTab(t.id)}
-style={{
-flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-gap: 6, paddingVertical: 12,
-borderBottomWidth: tab === t.id ? 2 : 0,
-borderBottomColor: COLORS.primary,
-}}
->
-<Ionicons name={t.icon} size={16} color={tab === t.id ? COLORS.primary : COLORS.textTertiary} />
-<Text style={{ fontSize: 13, fontWeight: '600', color: tab === t.id ? COLORS.primary : COLORS.textTertiary }}>
-{t.label}
-</Text>
-</TouchableOpacity>
-))}
-</View>
+      {tab === 'grupal' ? (
+        <VistaChat
+          eventoId={evento.idevento}
+          titulo={`#${evento.nombreevento}`}
+          subtitulo={`${(evento.Comite || []).length} miembros`}
+          roomId={String(evento.idevento)}
+          userId={userId} userRole={userRole} userName={userName}
+          onVolver={onVolver}
+        />
+      ) : (
+        <ScrollView contentContainerStyle={{ padding: 16 }}>
+          {miembros.length === 0 ? (
+            <View style={{ alignItems: 'center', paddingTop: 40 }}>
+              <Ionicons name="people-outline" size={40} color="#ddd" />
+              <Text style={{ color: '#ccc', fontSize: 13, marginTop: 8 }}>No hay otros miembros</Text>
+            </View>
+          ) : (
+            miembros.map((m) => {
+              const nombre = m.nombre || m.usuario?.nombre || `Usuario ${m.idusuario}`;
+              const apellido = m.apellidopat || m.usuario?.apellidopat || '';
+              const rol = m.rol_comite || m.role || 'miembro';
+              const initial = nombre.charAt(0).toUpperCase();
+              const colorRol = ROL_COLORS[rol] || COLORS.secondary;
 
-{tab === 'grupal' ? (
-<VistaChat
-eventoId={evento.idevento}
-titulo={`#${evento.nombreevento}`}
-subtitulo={`${(evento.Comite || []).length} miembros`}
-roomId={String(evento.idevento)}
-userId={userId} userRole={userRole} userName={userName}
-onVolver={onVolver}
-/>
-) : (
-<ScrollView contentContainerStyle={{ padding: 16 }}>
-{miembros.length === 0 ? (
-<View style={{ alignItems: 'center', paddingTop: 40 }}>
-<Ionicons name="people-outline" size={40} color="#ddd" />
-<Text style={{ color: '#ccc', fontSize: 13, marginTop: 8 }}>No hay otros miembros</Text>
-</View>
-) : (
-miembros.map((m) => {
-const nombre = m.nombre || m.usuario?.nombre || `Usuario ${m.idusuario}`;
-const apellido = m.apellidopat || m.usuario?.apellidopat || '';
-const rol = m.rol_comite || m.role || 'miembro';
-const initial = nombre.charAt(0).toUpperCase();
-const colorRol = ROL_COLORS[rol] || COLORS.secondary;
+              return (
+                <TouchableOpacity
+                  key={m.idusuario}
+                  onPress={() => setChatPrivado(m)}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', gap: 12,
+                    backgroundColor: COLORS.white, borderRadius: 12,
+                    padding: 14, marginBottom: 8,
+                    shadowColor: '#000', shadowOpacity: 0.04,
+                    shadowOffset: { width: 0, height: 1 }, shadowRadius: 3, elevation: 1,
+                  }}
+                >
+                  <View style={{
+                    width: 44, height: 44, borderRadius: 22,
+                    backgroundColor: colorRol + '20',
+                    justifyContent: 'center', alignItems: 'center',
+                    borderWidth: 2, borderColor: colorRol + '40',
+                  }}>
+                    <Text style={{ fontSize: 18, fontWeight: '700', color: colorRol }}>{initial}</Text>
+                  </View>
 
-return (
-<TouchableOpacity
-key={m.idusuario}
-onPress={() => setChatPrivado(m)}
-style={{
-flexDirection: 'row', alignItems: 'center', gap: 12,
-backgroundColor: COLORS.white, borderRadius: 12,
-padding: 14, marginBottom: 8,
-shadowColor: '#000', shadowOpacity: 0.04,
-shadowOffset: { width: 0, height: 1 }, shadowRadius: 3, elevation: 1,
-}}
->
-<View style={{
-width: 44, height: 44, borderRadius: 22,
-backgroundColor: colorRol + '20',
-justifyContent: 'center', alignItems: 'center',
-borderWidth: 2, borderColor: colorRol + '40',
-}}>
-<Text style={{ fontSize: 18, fontWeight: '700', color: colorRol }}>{initial}</Text>
-</View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: COLORS.textPrimary }}>
+                      {nombre} {apellido}
+                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colorRol }} />
+                      <Text style={{ fontSize: 11, color: COLORS.textTertiary, textTransform: 'capitalize' }}>{rol}</Text>
+                    </View>
+                  </View>
 
-<View style={{ flex: 1 }}>
-<Text style={{ fontSize: 14, fontWeight: '700', color: COLORS.textPrimary }}>
-{nombre} {apellido}
-</Text>
-<View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-<View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colorRol }} />
-<Text style={{ fontSize: 11, color: COLORS.textTertiary, textTransform: 'capitalize' }}>{rol}</Text>
-</View>
-</View>
-
-<View style={{
-flexDirection: 'row', alignItems: 'center', gap: 4,
-backgroundColor: COLORS.primaryLight, borderRadius: 20,
-paddingHorizontal: 12, paddingVertical: 6,
-}}>
-<Ionicons name="chatbubble-outline" size={14} color={COLORS.primary} />
-<Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.primary }}>Mensaje</Text>
-</View>
-</TouchableOpacity>
-);
-})
-)}
-</ScrollView>
-)}
-</View>
-);
+                  <View style={{
+                    flexDirection: 'row', alignItems: 'center', gap: 4,
+                    backgroundColor: COLORS.primaryLight, borderRadius: 20,
+                    paddingHorizontal: 12, paddingVertical: 6,
+                  }}>
+                    <Ionicons name="chatbubble-outline" size={14} color={COLORS.primary} />
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.primary }}>Mensaje</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })
+          )}
+        </ScrollView>
+      )}
+    </View>
+  );
 };
 
 const ChatEmbed = ({ userId, userRole, userName }) => {
