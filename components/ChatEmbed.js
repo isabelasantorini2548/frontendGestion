@@ -270,8 +270,7 @@ useEffect(() => {
     </View>
   );
 };
-
-// ─── Vista de un evento: chat grupal + lista de miembros ──────────────
+console.log(evento.idevento);
 const VistaEvento = ({ evento, userId, userRole, userName, onVolver }) => {
   const [tab, setTab]         = useState('grupal'); // 'grupal' | 'miembros'
   const [chatPrivado, setChatPrivado] = useState(null); // miembro seleccionado
