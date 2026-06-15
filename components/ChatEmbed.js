@@ -103,8 +103,19 @@ const VistaChat = ({ eventoId, titulo, subtitulo, roomId, userId, userRole, user
   const flatRef    = useRef(null);
   const ioRef      = useRef(null);
 
+   const roomIdRef   = useRef(roomId);
+  const userIdRef   = useRef(userId);
+  const userRoleRef = useRef(userRole);
+  const userNameRef = useRef(userName);
+  const eventoIdRef = useRef(eventoId);
+
 useEffect(() => {
-  if (!userId) return;
+  const _roomId   = roomIdRef.current;
+    const _userId   = userIdRef.current;
+    const _userRole = userRoleRef.current;
+    const _userName = userNameRef.current;
+    const _eventoId = eventoIdRef.current;
+  if (!_userId) return;
 
   let socket;
   let isMounted = true;
@@ -186,10 +197,10 @@ useEffect(() => {
       socket.disconnect();
     }
   };
-}, [roomId, userId, userRole, userName, eventoId]);
+}, []);
  const handleSend = () => {
   const texto = input.trim();
-  console.log('🔵 Intentando enviar:', {
+  console.log(' Intentando enviar:', {
     texto,
     connected: socketRef.current?.connected,
     roomId,
@@ -198,22 +209,22 @@ useEffect(() => {
   });
 
   if (!texto) {
-    console.log('⚠️ Mensaje vacío');
+    console.log(' Mensaje vacío');
     return;
   }
   if (!socketRef.current?.connected) {
-    console.log('⚠️ Socket no conectado');
+    console.log(' Socket no conectado');
     Alert.alert('Error', 'No hay conexión con el servidor de chat');
     return;
   }
 
   if (roomId.startsWith('private_')) {
-    console.log('📤 [FRONTEND] Enviando mensaje privado...');
+    console.log('FRONTEND Enviando mensaje privado...');
     socketRef.current.emit('send_private', { 
       roomId, userId, userName, role: userRole, message: texto 
     });
   } else {
-    console.log('📤 [FRONTEND] Enviando mensaje grupal...', { eventoId, userId });
+    console.log('FRONTEND Enviando mensaje grupal...', { eventoId, userId });
     socketRef.current.emit('send_message', { 
       eventoId: String(eventoId), 
       userId, 
@@ -496,7 +507,6 @@ const ChatEmbed = ({ userId, userRole, userName }) => {
     );
   }
 
-  // ─── Lista de eventos ───────────────────────────────────────────────
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.background }}>
       <View style={{ padding: 14, backgroundColor: COLORS.white, borderBottomWidth: 1, borderColor: COLORS.border }}>

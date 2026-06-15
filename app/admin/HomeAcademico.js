@@ -1068,12 +1068,7 @@ const handleActionPress = (action) => {
         markAsRead={markNotificationAsRead}
       />
 
-      <MinimalBottomDock
-        onLogout={handleLogout}
-        onActionPress={handleActionPress}
-        isExpanded={isBannerExpanded}
-        onToggleExpanded={() => setIsBannerExpanded(!isBannerExpanded)}
-      />
+     
       {!isBannerExpanded && (
         <TouchableOpacity
           style={{
