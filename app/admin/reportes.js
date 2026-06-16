@@ -257,7 +257,7 @@ const generarPDF = async (mesFormato) => {
     const [year, monthNum] = mesFormato.split('-');
     const mesNombre = MONTH_NAMES_FULL[parseInt(monthNum) - 1];
 
-    // ✅ NUEVO: Obtener eventos específicos del mes seleccionado
+// ✅ NUEVO: Obtener eventos específicos del mes seleccionado
 let eventosDelMes = [];
 try {
   const res = await axios.get(`${API_BASE_URL}/eventos`, {
@@ -283,24 +283,34 @@ try {
     
     const fechaEvento = new Date(ev.fechaevento);
     const fechaCreacion = ev.created_at ? new Date(ev.created_at) : fechaEvento;
-        const diffMs = fechaEvento.getTime() - fechaCreacion.getTime();
+    
+    // ✅ FILTRO 1: Excluir eventos del año pasado (año diferente al del reporte)
+    const añoEvento = fechaEvento.getFullYear();
+    if (añoEvento !== yearNum) {
+      console.log(`❌ Excluido (año ${añoEvento} ≠ ${yearNum}): ${ev.nombreevento}`);
+      return false;
+    }
+    
+    // ✅ FILTRO 2: Excluir eventos con más de 1 mes entre creación y fecha del evento
+    const diffMs = fechaEvento.getTime() - fechaCreacion.getTime();
     const diffDias = diffMs / (1000 * 60 * 60 * 24);
     const unMesEnDias = 30;
     
     if (diffDias > unMesEnDias) {
-      console.log(`Excluido (>${unMesEnDias} días): ${ev.nombreevento} - ${diffDias.toFixed(0)} días`);
+      console.log(`❌ Excluido (>${unMesEnDias} días): ${ev.nombreevento} - ${diffDias.toFixed(0)} días`);
       return false;
     }
     
+    // ✅ FILTRO 3: Excluir eventos con fecha muy lejana (más de 1 mes después del mes del reporte)
     if (fechaEvento > fechaLimite) {
-      console.log(` Excluido (fecha lejana): ${ev.nombreevento}`);
+      console.log(`❌ Excluido (fecha lejana): ${ev.nombreevento}`);
       return false;
     }
     
     return true;
   });
   
-  console.log(` Eventos filtrados: ${eventosDelMes.length} de ${todosEventos.length}`);
+  console.log(`✅ Eventos filtrados: ${eventosDelMes.length} de ${todosEventos.length}`);
 } catch (err) {
   console.error('Error al obtener eventos del mes:', err);
   eventosDelMes = [];
