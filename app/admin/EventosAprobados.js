@@ -264,7 +264,7 @@ const EventosAprobadosPorFacultad = () => {
 
   const handleEventPress = (event) => {
     router.push({
-      pathname: '/admin/EventDetailScreen',
+      pathname: '/admin/EventDetailUpdateScreen',
       params: { eventId: event.id }
     });
   };
