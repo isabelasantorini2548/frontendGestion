@@ -759,6 +759,7 @@ console.log('objetivos_pdi del backend:', eventData.objetivos_pdi);
             </TouchableOpacity>
           )}
 
+          {event.status === 'pendiente' && (
           <TouchableOpacity
             style={styles.editButton}
             onPress={() => router.push(`/admin/EventDetailScreen?eventId=${event.id}`)}
@@ -766,6 +767,7 @@ console.log('objetivos_pdi del backend:', eventData.objetivos_pdi);
             <Ionicons name="create-outline" size={20} color={COLORS.white} />
             <Text style={styles.editButtonText}>Editar Evento</Text>
           </TouchableOpacity>
+          )}
           <View style={styles.actionButtonsContainer}>
   {/* ✅ Botón chat comité */}
   {event.comite && event.comite.length > 0 && (
