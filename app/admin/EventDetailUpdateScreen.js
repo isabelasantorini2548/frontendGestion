@@ -749,16 +749,6 @@ console.log('objetivos_pdi del backend:', eventData.objetivos_pdi);
        
 
         <View style={styles.actionButtonsContainer}>
-          {event.status === 'aprobado' && event.idfase === 1 && (
-            <TouchableOpacity
-              style={styles.nextStepButton}
-              onPress={() => router.push(`/admin/ProgramacionEvento?idevento=${event.id}`)}
-            >
-              <Ionicons name="calendar-outline" size={20} color={COLORS.white} />
-              <Text style={styles.nextStepButtonText}>Ir a Programación del Evento</Text>
-            </TouchableOpacity>
-          )}
-
           {event.status === 'pendiente' && (
           <TouchableOpacity
             style={styles.editButton}
