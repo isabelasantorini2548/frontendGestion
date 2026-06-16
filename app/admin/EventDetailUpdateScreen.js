@@ -771,7 +771,7 @@ console.log('objetivos_pdi del backend:', eventData.objetivos_pdi);
                   <View style={styles.actionButtonsContainer}>
           
           {/* 1. IR A PROGRAMACIÓN (SOLO para académicos, oculto para admin) */}
-          {user?.role !== 'admin' && event.status === 'aprobado' && event.idfase === 1 && (
+          {user?.role == 'admin' && event.status === 'aprobado' && event.idfase === 1 && (
             <TouchableOpacity
               style={styles.nextStepButton}
               onPress={() => router.push(`/admin/ProgramacionEvento?idevento=${event.id}`)}
@@ -811,8 +811,6 @@ console.log('objetivos_pdi del backend:', eventData.objetivos_pdi);
               <Text style={styles.editButtonText}>Editar Evento</Text>
             </TouchableOpacity>
           )}
-
-          
         </View>
         </View>
       </ScrollView>
