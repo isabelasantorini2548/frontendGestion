@@ -770,18 +770,9 @@ useEffect(() => {
     description: 'Gestión de eventos ya aprobados',
     badgeColor: COLORS.black
   },
+  
   {
     id: '5',
-    title: 'Reportes Avanzados',
-    iconName: 'document-text-outline',
-    route: '/admin/reportes',
-    color: COLORS.secondary,
-    description: 'Generación de reportes detallados',
-    badge: 'Nuevo',
-    badgeColor: COLORS.accent,
-  },
-  {
-    id: '6',
     title: 'Eventos Cancelados',
     iconName: 'document-text-outline',
     route: '/admin/EventosCancelados',
@@ -791,7 +782,7 @@ useEffect(() => {
     badgeColor: COLORS.accent,
   },
   {
-    id: '7',
+    id: '6',
     title: 'Eventos Rechazados',
     iconName: 'document-text-outline',
     route: '/admin/EventosRechazados',
@@ -801,7 +792,7 @@ useEffect(() => {
     badgeColor: COLORS.accent,
   },
   {
-    id: '8',
+    id: '7',
     title: 'Eventos Vencidos',
     iconName: 'document-text-outline',
     route: '/admin/EventosVencidos',
