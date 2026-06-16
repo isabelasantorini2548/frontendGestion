@@ -258,17 +258,53 @@ const generarPDF = async (mesFormato) => {
     const mesNombre = MONTH_NAMES_FULL[parseInt(monthNum) - 1];
 
     // ✅ NUEVO: Obtener eventos específicos del mes seleccionado
-    let eventosDelMes = [];
-    try {
-      const res = await axios.get(`${API_BASE_URL}/eventos`, {
-        headers: { Authorization: `Bearer ${token}` },
-        params: { mes: mesFormato } // Filtrar por mes
-      });
-      eventosDelMes = Array.isArray(res.data) ? res.data : [];
-    } catch (err) {
-      console.error('Error al obtener eventos del mes:', err);
-      eventosDelMes = [];
+let eventosDelMes = [];
+try {
+  const res = await axios.get(`${API_BASE_URL}/eventos`, {
+    headers: { Authorization: `Bearer ${token}` },
+    params: { mes: mesFormato } // Filtrar por mes
+  });
+  const todosEventos = Array.isArray(res.data) ? res.data : [];
+  
+  // ✅ FILTRO: Calcular fecha límite (mes del reporte + 1 mes)
+  const [yearStr, monthStr] = mesFormato.split('-');
+  const yearNum = parseInt(yearStr);
+  const monthNum2 = parseInt(monthStr);
+  
+  // Crear fecha límite: último día del mes del reporte + 1 mes adicional
+  const fechaLimite = new Date(yearNum, monthNum2, 0); // último día del mes
+  fechaLimite.setMonth(fechaLimite.getMonth() + 1); // +1 mes
+  
+  // Fecha actual para comparación
+  const hoy = new Date();
+  
+  eventosDelMes = todosEventos.filter(ev => {
+    if (!ev.fechaevento) return false;
+    
+    const fechaEvento = new Date(ev.fechaevento);
+    const fechaCreacion = ev.created_at ? new Date(ev.created_at) : fechaEvento;
+        const diffMs = fechaEvento.getTime() - fechaCreacion.getTime();
+    const diffDias = diffMs / (1000 * 60 * 60 * 24);
+    const unMesEnDias = 30;
+    
+    if (diffDias > unMesEnDias) {
+      console.log(`Excluido (>${unMesEnDias} días): ${ev.nombreevento} - ${diffDias.toFixed(0)} días`);
+      return false;
     }
+    
+    if (fechaEvento > fechaLimite) {
+      console.log(` Excluido (fecha lejana): ${ev.nombreevento}`);
+      return false;
+    }
+    
+    return true;
+  });
+  
+  console.log(` Eventos filtrados: ${eventosDelMes.length} de ${todosEventos.length}`);
+} catch (err) {
+  console.error('Error al obtener eventos del mes:', err);
+  eventosDelMes = [];
+}
 
     const aprobado       = reporte.aprobado  || 0;
     const pendiente      = reporte.pendiente || 0;
