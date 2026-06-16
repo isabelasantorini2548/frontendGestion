@@ -769,8 +769,7 @@ console.log('objetivos_pdi del backend:', eventData.objetivos_pdi);
           </TouchableOpacity>
           )}
           <View style={styles.actionButtonsContainer}>
-  {/* ✅ Botón chat comité */}
-  {event.comite && event.comite.length > 0 && (
+  {/*event.comite && event.comite.length > 0 && (
     <TouchableOpacity
       style={[styles.editButton, { backgroundColor: '#007AFF', marginBottom: 10 }]}
       onPress={() => router.push({
@@ -789,7 +788,7 @@ console.log('objetivos_pdi del backend:', eventData.objetivos_pdi);
         Chat del Comité ({event.comite.length} miembros)
       </Text>
     </TouchableOpacity>
-  )}
+  )*/}
     
   </View>
         </View>
