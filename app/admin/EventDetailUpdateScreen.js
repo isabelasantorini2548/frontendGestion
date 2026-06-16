@@ -812,16 +812,7 @@ console.log('objetivos_pdi del backend:', eventData.objetivos_pdi);
             </TouchableOpacity>
           )}
 
-          {/* 4. VOLVER AL LISTADO (Para admin cuando el evento ya está aprobado - Puro modo vista) */}
-          {user?.role === 'admin' && event.status !== 'pendiente' && (
-            <TouchableOpacity
-              style={[styles.editButton, { backgroundColor: COLORS.secondary }]}
-              onPress={() => router.back()}
-            >
-              
-            </TouchableOpacity>
-          )}
-
+          
         </View>
         </View>
       </ScrollView>
