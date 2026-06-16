@@ -257,6 +257,19 @@ const generarPDF = async (mesFormato) => {
     const [year, monthNum] = mesFormato.split('-');
     const mesNombre = MONTH_NAMES_FULL[parseInt(monthNum) - 1];
 
+    // ✅ NUEVO: Obtener eventos específicos del mes seleccionado
+    let eventosDelMes = [];
+    try {
+      const res = await axios.get(`${API_BASE_URL}/eventos`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { mes: mesFormato } // Filtrar por mes
+      });
+      eventosDelMes = Array.isArray(res.data) ? res.data : [];
+    } catch (err) {
+      console.error('Error al obtener eventos del mes:', err);
+      eventosDelMes = [];
+    }
+
     const aprobado       = reporte.aprobado  || 0;
     const pendiente      = reporte.pendiente || 0;
     const rechazado      = reporte.rechazado || 0;
@@ -285,7 +298,8 @@ const generarPDF = async (mesFormato) => {
       `;
     }).join('');
 
-    const eventosRows = eventosRecientes.slice(0, 5).map(ev => {
+    // ✅ USAR eventosDelMes en lugar de eventosRecientes
+    const eventosRows = eventosDelMes.slice(0, 10).map(ev => {
       const estadoColors = {
         aprobado: { bg: '#d1fae5', text: '#059669' },
         pendiente: { bg: '#fef3c7', text: '#d97706' },
@@ -434,9 +448,9 @@ const generarPDF = async (mesFormato) => {
         </table>
       </div>
 
-      ${eventosRecientes.length > 0 ? `
+      ${eventosDelMes.length > 0 ? `
       <div class="section">
-        <div class="section-title">Eventos Recientes (Top 5)</div>
+        <div class="section-title">Eventos del Período (${eventosDelMes.length} eventos)</div>
         <table>
           <thead>
             <tr>
