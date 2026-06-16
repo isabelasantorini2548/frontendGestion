@@ -53,7 +53,6 @@ const CARD_MARGIN = 12;
 const MIN_CARD_WIDTH_ACTIONS = 140;
 const MAX_COLUMNS_ACTIONS = 4;
 
-// ─── Line Chart ───────────────────────────────────────────────────────────────
 const CustomLineChart = ({ data, width, height, color = COLORS.primary }) => {
   if (!data?.labels?.length) return null;
   const labels = data.labels;
@@ -111,7 +110,6 @@ const CustomLineChart = ({ data, width, height, color = COLORS.primary }) => {
   );
 };
 
-// ─── Bar Chart ────────────────────────────────────────────────────────────────
 const CustomBarChart = ({ data, width, height, color = COLORS.primary }) => {
   if (!data?.labels?.length) return null;
   const labels = data.labels;
@@ -160,7 +158,6 @@ const CustomBarChart = ({ data, width, height, color = COLORS.primary }) => {
   );
 };
 
-// ─── Dashboard Card ───────────────────────────────────────────────────────────
 const DashboardCard = ({ title, value, icon, color, trend, description }) => {
   const safeColor = color || COLORS.primary;
   const trendColor = trend > 0 ? COLORS.success : COLORS.warning;
