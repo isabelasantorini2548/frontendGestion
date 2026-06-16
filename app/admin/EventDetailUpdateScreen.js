@@ -761,7 +761,7 @@ console.log('objetivos_pdi del backend:', eventData.objetivos_pdi);
 
           <TouchableOpacity
             style={styles.editButton}
-            onPress={() => router.push(`/admin/EventDetailUpdateScreen?eventId=${event.id}`)}
+            onPress={() => router.push(`/admin/EventDetailScreen?eventId=${event.id}`)}
           >
             <Ionicons name="create-outline" size={20} color={COLORS.white} />
             <Text style={styles.editButtonText}>Editar Evento</Text>
