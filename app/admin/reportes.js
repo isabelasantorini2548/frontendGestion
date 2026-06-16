@@ -181,26 +181,48 @@ const ReportesAvanzadosScreen = () => {
     }
   }, []);
 
-  // ── Carga eventos recientes ────────────────────────────────────────────────
-  const cargarEventos = useCallback(async () => {
-    setLoadingEvents(true);
-    try {
-      const token = await getTokenAsync();
-      if (!token) return;
-      const params = filtroEstado !== 'todos' ? { estado: filtroEstado } : {};
-      const res = await axios.get(`${API_BASE_URL}/eventos`, {
-        headers: { Authorization: `Bearer ${token}` },
-        params,
-      });
-      const lista = Array.isArray(res.data) ? res.data : [];
-      setEventosRecientes(lista.slice(0, 10));
-    } catch (err) {
-      console.error(err);
-      setEventosRecientes([]);
-    } finally {
-      setLoadingEvents(false);
-    }
-  }, [filtroEstado]);
+const cargarEventos = useCallback(async () => {
+  setLoadingEvents(true);
+  try {
+    const token = await getTokenAsync();
+    if (!token) return;
+    const params = filtroEstado !== 'todos' ? { estado: filtroEstado } : {};
+    const res = await axios.get(`${API_BASE_URL}/eventos`, {
+      headers: { Authorization: `Bearer ${token}` },
+      params,
+    });
+    const lista = Array.isArray(res.data) ? res.data : [];
+    
+    const añoActual = new Date().getFullYear();
+    const eventosFiltrados = lista.filter(ev => {
+      if (!ev.fechaevento) return false;
+      
+      const fechaEvento = new Date(ev.fechaevento);
+      const fechaCreacion = ev.created_at ? new Date(ev.created_at) : fechaEvento;
+      
+      const añoEvento = fechaEvento.getFullYear();
+      if (añoEvento !== añoActual) {
+        return false;
+      }
+      
+      const diffMs = fechaEvento.getTime() - fechaCreacion.getTime();
+      const diffDias = diffMs / (1000 * 60 * 60 * 24);
+      if (diffDias > 30) {
+        return false;
+      }
+      
+      return true;
+    });
+    
+    console.log(`✅ Eventos recientes: ${eventosFiltrados.length} de ${lista.length} (solo ${añoActual})`);
+    setEventosRecientes(eventosFiltrados.slice(0, 10));
+  } catch (err) {
+    console.error(err);
+    setEventosRecientes([]);
+  } finally {
+    setLoadingEvents(false);
+  }
+}, [filtroEstado]);
 
   useEffect(() => { cargarDatos(); },   [cargarDatos]);
   useEffect(() => { cargarEventos(); }, [cargarEventos]);
