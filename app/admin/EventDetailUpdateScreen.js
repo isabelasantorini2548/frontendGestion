@@ -768,29 +768,62 @@ console.log('objetivos_pdi del backend:', eventData.objetivos_pdi);
             <Text style={styles.editButtonText}>Editar Evento</Text>
           </TouchableOpacity>
           )}
-          <View style={styles.actionButtonsContainer}>
-  {/*event.comite && event.comite.length > 0 && (
-    <TouchableOpacity
-      style={[styles.editButton, { backgroundColor: '#007AFF', marginBottom: 10 }]}
-      onPress={() => router.push({
-        pathname: '/evento-chat',
-        params: {
-          eventoId:     String(event.id),
-          userId:       user?.id ? String(user.id) : 'academico',
-          userRole:     user?.role || 'academico',
-          userName:     user?.nombre || 'Académico',
-          eventoNombre: event.title
-        }
-      })}
-    >
-      <Ionicons name="chatbubbles-outline" size={20} color={COLORS.white} />
-      <Text style={styles.editButtonText}>
-        Chat del Comité ({event.comite.length} miembros)
-      </Text>
-    </TouchableOpacity>
-  )*/}
-    
-  </View>
+                  <View style={styles.actionButtonsContainer}>
+          
+          {/* 1. IR A PROGRAMACIÓN (SOLO para académicos, oculto para admin) */}
+          {user?.role !== 'admin' && event.status === 'aprobado' && event.idfase === 1 && (
+            <TouchableOpacity
+              style={styles.nextStepButton}
+              onPress={() => router.push(`/admin/ProgramacionEvento?idevento=${event.id}`)}
+            >
+              <Ionicons name="calendar-outline" size={20} color={COLORS.white} />
+              <Text style={styles.nextStepButtonText}>Ir a Programación del Evento</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* 2. APROBAR / RECHAZAR (SOLO para administradores si el evento está pendiente) */}
+          {user?.role === 'admin' && event.status === 'pendiente' && (
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
+              <TouchableOpacity
+                style={[styles.editButton, { backgroundColor: COLORS.success, flex: 1, marginRight: 8 }]}
+                onPress={handleApproveEvent}
+              >
+                <Ionicons name="checkmark-circle-outline" size={20} color={COLORS.white} />
+                <Text style={styles.editButtonText}>Aprobar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.editButton, { backgroundColor: COLORS.logout, flex: 1, marginLeft: 8 }]}
+                onPress={handleRejectEvent}
+              >
+                <Ionicons name="close-circle-outline" size={20} color={COLORS.white} />
+                <Text style={styles.editButtonText}>Rechazar</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* 3. EDITAR EVENTO (SOLO para académicos si el evento está pendiente) */}
+          {event.status === 'pendiente' && user?.role !== 'admin' && (
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={() => router.push(`/admin/EventDetailScreen?eventId=${event.id}`)}
+            >
+              <Ionicons name="create-outline" size={20} color={COLORS.white} />
+              <Text style={styles.editButtonText}>Editar Evento</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* 4. VOLVER AL LISTADO (Para admin cuando el evento ya está aprobado - Puro modo vista) */}
+          {user?.role === 'admin' && event.status !== 'pendiente' && (
+            <TouchableOpacity
+              style={[styles.editButton, { backgroundColor: COLORS.secondary }]}
+              onPress={() => router.back()}
+            >
+              <Ionicons name="arrow-back-outline" size={20} color={COLORS.white} />
+              <Text style={styles.editButtonText}>Volver al Listado</Text>
+            </TouchableOpacity>
+          )}
+
+        </View>
         </View>
       </ScrollView>
     </View>
