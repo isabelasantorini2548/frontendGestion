@@ -818,8 +818,7 @@ console.log('objetivos_pdi del backend:', eventData.objetivos_pdi);
               style={[styles.editButton, { backgroundColor: COLORS.secondary }]}
               onPress={() => router.back()}
             >
-              <Ionicons name="arrow-back-outline" size={20} color={COLORS.white} />
-              <Text style={styles.editButtonText}>Volver al Listado</Text>
+              
             </TouchableOpacity>
           )}
 
