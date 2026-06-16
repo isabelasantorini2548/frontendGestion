@@ -365,7 +365,6 @@ const Daf = () => {
 
   const adminActions = [
     { id: '1', title: 'Gestión de Usuarios',  iconName: 'people-outline',           route: '/admin/UsuariosDaf',      color: COLORS.secondary, description: 'Administración de cuentas de usuario' },
-    { id: '2', title: 'Análisis de Datos',     iconName: 'analytics-outline',        route: '/admin/Estadistica',      color: COLORS.info,      description: 'Informes y métricas del sistema' },
     { id: '3', title: 'Reportes Avanzados',    iconName: 'document-text-outline',    route: '/admin/reportes',         color: COLORS.secondary, description: 'Generación de reportes detallados', badge: 'Nuevo', badgeColor: COLORS.accent },
     { id: '4', title: 'Creación de Recursos',  iconName: 'construct-outline',        route: '/admin/Inventario',         color: COLORS.warning,   description: 'Gestión de recursos del sistema',   badge: 'Nuevo', badgeColor: COLORS.accent },
     { id: '5', title: 'Subida de Layouts',     iconName: 'images-outline',           route: '/admin/Layouts',          color: COLORS.info,      description: 'Administración de plantillas',       badge: 'Nuevo', badgeColor: COLORS.accent },
