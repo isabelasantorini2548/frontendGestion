@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   StyleSheet, View, Text, FlatList, TouchableOpacity, StatusBar,
-  Alert, ActivityIndicator, RefreshControl, Platform, Dimensions,
+  Alert, ActivityIndicator, RefreshControl, Platform, Dimensions,TextInput
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -228,7 +228,6 @@ const PendingEventCard = ({ event, onView, onApprove, onReject, onMarkExpired, o
   );
 };
 
-// ── Componente Principal ───────────────────────────────────────────────────
 const EventosPendientes = () => {
   const router = useRouter();
   const [events, setEvents] = useState([]);
@@ -236,22 +235,24 @@ const EventosPendientes = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [userprofile, setUserprofile] = useState({ facultad: null, nombre: '', email: '' });
 
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [eventToReject, setEventToReject] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const fetchPendingEvents = useCallback(async () => {
     try {
       const token = await getTokenAsync();
       if (!token) { Alert.alert('Sesión Expirada', 'Inicia sesión de nuevo.'); router.replace('/LoginAdmin'); return; }
 
-      // Perfil
       const responseP = await axios.get(`${API_BASE_URL}/profile`, {
         headers: { 'Authorization': `Bearer ${token}` }, timeout: 15000 });
       setUserprofile({ facultad: responseP.data.facultad, nombre: responseP.data.nombre, email: responseP.data.email });
 
-      // Eventos pendientes
       const response = await axios.get(`${API_BASE_URL}/eventos/pendientes`, {
         headers: { 'Authorization': `Bearer ${token}` }, timeout: 15000 });
       
       const allPending = Array.isArray(response.data) ? response.data : [];
-      // Opcional: ordenar por urgencia (más cercanos primero)
       const sorted = allPending.sort((a,b) => {
         const da = getDaysRemaining(a.fechaevento || a.date) ?? 999;
         const db = getDaysRemaining(b.fechaevento || b.date) ?? 999;
@@ -274,88 +275,136 @@ const EventosPendientes = () => {
 
   const handleView = (event) => router.push({ pathname:'/admin/EventDetailScreen', params:{ eventId: event.idevento || event.id }});
 
-const handleAction = async (event, action) => {
-  const config = {
-    aprobar: { title:'Aprobar', text:'aprobar', success:'✓ Evento Aprobado', endpoint:'approve' },
-    rechazar: { title:'Rechazar', text:'rechazar', success:'✓ Evento Rechazado', endpoint:'reject' },
-    vencer: { title:'Archivar', text:'archivar', success:'✓ Evento Archivado', endpoint:'expire' },
-    cancelar: { title:'Cancelar', text:'cancelar', success:'✓ Evento Cancelado', endpoint:'cancel' }
-  }[action];
-  
-  if (!config) return;
-  
-  
- try {
-    const token = await getTokenAsync();
-    if (!token) {
-      router.replace('/LoginAdmin');
+const openRejectModal = (event) => {
+    setEventToReject(event);
+    setRejectReason('');
+    setShowRejectModal(true);
+  };
+
+  const closeRejectModal = () => {
+    setShowRejectModal(false);
+    setEventToReject(null);
+    setRejectReason('');
+  };
+
+  const handleRejectSubmit = async () => {
+    if (!rejectReason.trim()) {
+      Alert.alert('Campo requerido', 'Por favor ingresa el motivo del rechazo');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const token = await getTokenAsync();
+      if (!token) {
+        router.replace('/LoginAdmin');
+        return;
+      }
+      
+      const eventId = eventToReject.idevento || eventToReject.id;
+      
+      await axios.put(
+        `${API_BASE_URL}/eventos/${eventId}/reject`,
+        { razon_rechazo: rejectReason.trim() },
+        { headers: { 'Authorization': `Bearer ${token}` }}
+      );
+      
+      setEvents(prev => {
+        const newEvents = prev.filter(e => (e.idevento || e.id) !== eventId);
+        return newEvents;
+      });
+      
+      closeRejectModal();
+      
+      if (Platform.OS === 'web') {
+        window.alert('✓ Evento Rechazado');
+      } else {
+        Alert.alert('✓ Evento Rechazado');
+      }
+    } catch (err) {
+      console.error('Error al rechazar evento:', err);
+      const msg = Platform.OS === 'web' 
+        ? `Error ${err.response?.status}: ${err.response?.data?.message || err.message}`
+        : 'No se pudo rechazar el evento';
+      
+      if (Platform.OS === 'web') {
+        window.alert(msg);
+      } else {
+        Alert.alert('Error', msg);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAction = async (event, action) => {
+    const config = {
+      aprobar: { title:'Aprobar', text:'aprobar', success:'✓ Evento Aprobado', endpoint:'approve' },
+      rechazar: { title:'Rechazar', text:'rechazar', success:'✓ Evento Rechazado', endpoint:'reject' },
+      vencer: { title:'Archivar', text:'archivar', success:'✓ Evento Archivado', endpoint:'expire' },
+      cancelar: { title:'Cancelar', text:'cancelar', success:'✓ Evento Cancelado', endpoint:'cancel' }
+    }[action];
+    
+    if (!config) return;
+    if (action === 'rechazar') {
+      openRejectModal(event);
       return;
     }
     
-    const eventId = event.idevento || event.id;
-    const endpoint = config.endpoint === 'vencer' ? 'estado' : config.endpoint;
-    const payload = config.endpoint === 'vencer' 
-      ? { estado: 'vencido' } 
-      : config.endpoint === 'cancelar' 
-      ? { estado: 'cancelado' } 
-      : {};
-    
-    // 🔍 DEBUG: Ver URL exacta
-    const url = `${API_BASE_URL}/eventos/${eventId}/${endpoint}`;
-    console.log('📡 Request:', {
-      method: 'PUT',
-      url: url,
-      payload: payload,
-      eventId: eventId,
-      endpoint: endpoint
-    });
-    
-    await axios.put(
-      url,
-      payload,
-      { headers: { 'Authorization': `Bearer ${token}` }}
-    );
-    
+    try {
+      const token = await getTokenAsync();
+      if (!token) {
+        router.replace('/LoginAdmin');
+        return;
+      }
+      
+      const eventId = event.idevento || event.id;
+      const endpoint = config.endpoint === 'vencer' ? 'estado' : config.endpoint;
+      const payload = config.endpoint === 'vencer' 
+        ? { estado: 'vencido' } 
+        : config.endpoint === 'cancelar' 
+        ? { estado: 'cancelado' } 
+        : {};
+      
+      await axios.put(
+        `${API_BASE_URL}/eventos/${eventId}/${endpoint}`,
+        payload,
+        { headers: { 'Authorization': `Bearer ${token}` }}
+      );
+      
       setEvents(prev => {
         const eventId = event.idevento || event.id;
         const newEvents = prev.filter(e => (e.idevento || e.id) !== eventId);
-        console.log('✅ Evento removido. Nuevos eventos:', newEvents.length);
         return newEvents;
       });
-    
-    if (action === 'aprobar') {
-      if (Platform.OS === 'web') {
-        if (window.confirm(`${config.success}\n\n¿Ir a eventos aprobados?`)) {
-          router.replace('/admin/EventosAprobados');
+      
+      if (action === 'aprobar') {
+        if (Platform.OS === 'web') {
+          if (window.confirm(`${config.success}\n\n¿Ir a eventos aprobados?`)) {
+            router.replace('/admin/EventosAprobados');
+          }
+        } else {
+          Alert.alert(config.success, '', [
+            { text: 'Ver aprobados', onPress: () => router.replace('/admin/EventosAprobados') }
+          ]);
         }
-      } else {
-        Alert.alert(config.success, '', [
-          { text: 'Ver aprobados', onPress: () => router.replace('/admin/EventosAprobados') }
-        ]);
+      } else if (Platform.OS === 'web') {
+        window.alert(config.success);
       }
-    } else if (Platform.OS === 'web') {
-      window.alert(config.success);
+    } catch (err) {
+      console.error('Error:', err);
+      const msg = Platform.OS === 'web' 
+        ? `Error ${err.response?.status}: ${err.response?.data?.message || err.message}`
+        : `No se pudo ${config.text} el evento`;
+      
+      if (Platform.OS === 'web') {
+        window.alert(msg);
+      } else {
+        Alert.alert('Error', msg);
+      }
     }
-  } catch (err) {
-    console.error('❌ Error completo:', {
-      message: err.message,
-      status: err.response?.status,
-      data: err.response?.data,
-      url: err.config?.url,
-      method: err.config?.method
-    });
-    
-    const msg = Platform.OS === 'web' 
-      ? `Error ${err.response?.status}: ${err.response?.data?.message || err.message}\n\nURL: ${err.config?.url}`
-      : `No se pudo ${config.text} el evento`;
-    
-    if (Platform.OS === 'web') {
-      window.alert(msg);
-    } else {
-      Alert.alert('Error', msg);
-    }
-  }
-};
+  };
+
 
   // Stats para banner
   const stats = useMemo(() => {
@@ -375,7 +424,6 @@ return (
   <View style={styles.container}>
     <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
     
-    {/* Header */}
     <View style={styles.header}>
       <TouchableOpacity style={styles.backButton} onPress={()=>router.back()}>
         <Ionicons name="arrow-back" size={24} color={COLORS.white} />
@@ -403,7 +451,6 @@ return (
       </TouchableOpacity>
     </View>
 
-    {/* Banner resumen */}
     {stats.total > 0 && (
       <View style={styles.summaryBanner}>
         <View style={styles.summaryIconContainer}>
@@ -426,7 +473,6 @@ return (
       </View>
     )}
 
-    {/* Lista */}
     <FlatList
       data={events}
       renderItem={({item, index}) => {
@@ -436,7 +482,7 @@ return (
             event={item}
             onView={handleView}
             onApprove={(e)=>handleAction(e,'aprobar')}
-            onReject={(e)=>handleAction(e,'rechazar')}
+            onReject={(e)=>openRejectModal}
             onMarkExpired={(e)=>handleAction(e,'vencer')}
             onMarkCancelled={(e)=>handleAction(e,'cancelar')}
           />
@@ -444,9 +490,7 @@ return (
       }}
       keyExtractor={(item) => {
         const id = item.idevento || item.id;
-        const key = `pending-${id}`;
-        console.log('KeyExtractor:', key);
-        return key;
+        return `pending-${id}`;
       }}
       style={styles.eventsList}
       contentContainerStyle={styles.eventsListContent}
@@ -470,11 +514,68 @@ return (
       }
       removeClippedSubviews={Platform.OS === 'android'}
     />
+    {showRejectModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Ionicons name="close-circle" size={48} color={COLORS.danger} />
+              <Text style={styles.modalTitle}>Rechazar Evento</Text>
+              <Text style={styles.modalEventName} numberOfLines={2}>
+                {eventToReject?.nombreevento || eventToReject?.title || 'Sin título'}
+              </Text>
+            </View>
+            
+            <View style={styles.modalBody}>
+              <Text style={styles.modalLabel}>
+                Motivo del rechazo <Text style={styles.required}>*</Text>
+              </Text>
+              <TextInput
+                style={styles.reasonInput}
+                placeholder="Ingresa el motivo del rechazo..."
+                placeholderTextColor={COLORS.grayMedium}
+                value={rejectReason}
+                onChangeText={setRejectReason}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+                autoFocus
+              />
+              <Text style={styles.modalHint}>
+                {rejectReason.length} caracteres
+              </Text>
+            </View>
+            
+            <View style={styles.modalFooter}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.cancelButton]} 
+                onPress={closeRejectModal}
+                disabled={isSubmitting}
+              >
+                <Text style={[styles.modalButtonText, {color: COLORS.grayText}]}>Cancelar</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.confirmButton, isSubmitting && styles.buttonDisabled]} 
+                onPress={handleRejectSubmit}
+                disabled={isSubmitting || !rejectReason.trim()}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color={COLORS.white} />
+                ) : (
+                  <>
+                    <Ionicons name="close" size={18} color={COLORS.white} />
+                    <Text style={[styles.modalButtonText, {color: COLORS.white}]}>Rechazar</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
   </View>
 );
 };
 
-// ── Styles ─────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container:{flex:1,backgroundColor:COLORS.background},
   loadingContainer:{flex:1,justifyContent:'center',alignItems:'center',backgroundColor:COLORS.background},
@@ -488,18 +589,15 @@ const styles = StyleSheet.create({
   headerSubtitle:{fontSize:13,color:'rgba(255,255,255,0.8)',marginTop:2},
   refreshButton:{padding:8,marginLeft:8},
   
-  // Summary Banner
   summaryBanner:{backgroundColor:COLORS.white,flexDirection:'row',alignItems:'center',marginHorizontal:16,marginTop:16,padding:16,borderRadius:16,borderLeftWidth:4,borderLeftColor:COLORS.pendingOrange,...Platform.select({ios:{shadowColor:COLORS.cardShadow,shadowOffset:{width:0,height:2},shadowOpacity:0.08,shadowRadius:8},android:{elevation:2}})},
   summaryIconContainer:{width:48,height:48,borderRadius:24,backgroundColor:COLORS.pendingLight,justifyContent:'center',alignItems:'center',marginRight:12},
   summaryTextContainer:{flex:1},
   summaryTitle:{fontSize:16,fontWeight:'700',color:COLORS.darkText,marginBottom:2},
   summarySubtitle:{fontSize:13,color:COLORS.grayText},
   
-  // List
   eventsList:{flex:1},
   eventsListContent:{padding:16},
   
-  // Card
   eventCard:{backgroundColor:COLORS.surface,borderRadius:16,padding:16,marginBottom:16,...Platform.select({ios:{shadowColor:COLORS.cardShadow,shadowOffset:{width:0,height:2},shadowOpacity:0.08,shadowRadius:8},android:{elevation:2}})},
   eventCardExpired:{borderLeftWidth:4,borderLeftColor:COLORS.danger,backgroundColor:COLORS.danger+'08'},
   eventHeader:{flexDirection:'row',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12},
@@ -511,23 +609,19 @@ const styles = StyleSheet.create({
   pendingBadge:{flexDirection:'row',alignItems:'center',paddingHorizontal:10,paddingVertical:4,borderRadius:12,gap:4},
   pendingText:{fontSize:11,fontWeight:'600',color:COLORS.white},
   
-  // Alert
   expiredAlert:{flexDirection:'row',alignItems:'center',padding:10,borderRadius:8,marginBottom:12,borderLeftWidth:3,gap:6},
   expiredAlertText:{fontSize:12,fontWeight:'600',flex:1},
   
-  // Description & Info
   eventDescription:{fontSize:14,color:COLORS.grayText,lineHeight:20,marginBottom:12},
   infoGrid:{flexDirection:'row',justifyContent:'space-between',marginBottom:10,gap:12},
   infoRow:{flexDirection:'row',alignItems:'center',flex:1,gap:6},
   infoText:{fontSize:13,color:COLORS.grayText,fontWeight:'500',flex:1},
   
-  // Footer
   footerContainer:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',paddingTop:12,marginBottom:12,borderTopWidth:1,borderTopColor:COLORS.border},
   academicoInfo:{flexDirection:'row',alignItems:'center',gap:6},
   academicoName:{fontSize:12,color:COLORS.grayText,fontWeight:'500'},
   submittedDate:{fontSize:11,color:COLORS.grayMedium},
   
-  // Actions
   actionButtonsContainer:{flexDirection:'row',gap:8,paddingTop:12,borderTopWidth:1,borderTopColor:COLORS.border},
   actionButton:{flex:1,flexDirection:'row',alignItems:'center',justifyContent:'center',paddingVertical:10,borderRadius:10,gap:6},
   viewButton:{backgroundColor:COLORS.background,borderWidth:1,borderColor:COLORS.blue},
@@ -540,6 +634,117 @@ const styles = StyleSheet.create({
   emptyIconContainer:{width:120,height:120,borderRadius:60,backgroundColor:COLORS.background,justifyContent:'center',alignItems:'center',marginBottom:20},
   emptyTitle:{fontSize:22,fontWeight:'bold',color:COLORS.darkText,marginBottom:8},
   emptyText:{fontSize:15,color:COLORS.grayText,textAlign:'center',lineHeight:22},
+   modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: COLORS.white,
+    borderRadius: 20,
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '80%',
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: COLORS.cardShadow,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 10,
+      },
+    }),
+  },
+  modalHeader: {
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: '#FFEBEE',
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.danger,
+    marginTop: 8,
+  },
+  modalEventName: {
+    fontSize: 14,
+    color: COLORS.grayText,
+    textAlign: 'center',
+    marginTop: 8,
+    paddingHorizontal: 16,
+  },
+  modalBody: {
+    padding: 20,
+  },
+  modalLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.darkText,
+    marginBottom: 8,
+  },
+  required: {
+    color: COLORS.danger,
+  },
+  reasonInput: {
+    backgroundColor: COLORS.background,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 14,
+    color: COLORS.darkText,
+    minHeight: 100,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    textAlignVertical: 'top',
+  },
+  modalHint: {
+    fontSize: 12,
+    color: COLORS.grayMedium,
+    marginTop: 6,
+    textAlign: 'right',
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 8,
+  },
+  cancelButton: {
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  confirmButton: {
+    backgroundColor: COLORS.danger,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  modalButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
 });
 
 EventosPendientes.options = { headerShown: false };
