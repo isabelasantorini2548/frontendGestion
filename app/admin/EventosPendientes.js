@@ -273,7 +273,7 @@ const EventosPendientes = () => {
 
   const onRefresh = useCallback(() => { setRefreshing(true); fetchPendingEvents(); }, [fetchPendingEvents]);
 
-  const handleView = (event) => router.push({ pathname:'/admin/EventDetailScreen', params:{ eventId: event.idevento || event.id }});
+  const handleView = (event) => router.push({ pathname:'/admin/EventDetailUpdateScreen', params:{ eventId: event.idevento || event.id }});
 
 const openRejectModal = (event) => {
     setEventToReject(event);
