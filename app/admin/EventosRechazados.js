@@ -46,39 +46,49 @@ const getTokenAsync = async () => {
   }
 };
 
+
 const formatDate = (dateString) => {
   if (!dateString) return 'Sin fecha';
   try {
     let date;
 
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-      // Formato: YYYY-MM-DD
-      const [year, month, day] = dateString.split('-').map(Number);
-      date = new Date(year, month - 1, day);
-
-    } else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateString)) {
-      // Formato: DD/MM/YYYY o D/M/YYYY  ← este es tu caso (22/3/2026)
-      const [day, month, year] = dateString.split('/').map(Number);
-      date = new Date(year, month - 1, day);
-
+    if (typeof dateString === 'string') {
+      
+      if (/^\d{4}-\d{2}-\d{2}T/.test(dateString)) {
+        const datePart = dateString.substring(0, 10);
+        const [year, month, day] = datePart.split('-').map(Number);
+        date = new Date(year, month - 1, day);
+      }
+      else if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        const [year, month, day] = dateString.split('-').map(Number);
+        date = new Date(year, month - 1, day);
+      }
+      else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateString)) {
+        const [day, month, year] = dateString.split('/').map(Number);
+        date = new Date(year, month - 1, day);
+      }
+      else {
+        date = new Date(dateString);
+      }
     } else {
       date = new Date(dateString);
     }
 
     if (isNaN(date.getTime())) {
-      console.warn('Fecha inválida recibida:', dateString);
+      console.warn('⚠️ Fecha inválida recibida:', dateString);
       return 'Sin fecha';
     }
 
     return date.toLocaleDateString('es-ES', {
-      year: 'numeric', month: 'short', day: 'numeric',
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
     });
   } catch (error) {
     console.error('Error formateando fecha:', error);
     return 'Sin fecha';
   }
 };
-
 const RejectedEventCard = ({ event, onPress }) => {
   return (
     <TouchableOpacity 
