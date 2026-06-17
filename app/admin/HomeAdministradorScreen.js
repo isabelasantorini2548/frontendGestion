@@ -729,7 +729,6 @@ const HomeAdministradorScreen = () => {
         { title: 'Aprobados',          value: (data.estadoCounts?.aprobado  || 0).toString(), icon: 'checkmark-done-outline', color: COLORS.success, trend: null, description: 'Eventos aprobados' },
         { title: 'Tasa Aprobación',    value: `${data.tasaAprobacion || 0}%`,             icon: 'analytics-outline',     color: COLORS.info,      trend: null, description: 'Aprobados / totales' },
         { title: 'Tiempo Prom.',       value: `${tiempoPromedio}h`,                       icon: 'time-outline',          color: COLORS.warning,   trend: null, description: 'Horas promedio aprob.' },
-        { title: 'Cancelados',         value: cancelledEventsCount,                       icon: 'close-outline',         color: COLORS.danger,    trend: null, description: 'Eventos cancelados' },
         { title: 'Vencidos',           value: expiredEventsCount,                         icon: 'timer-outline',         color: COLORS.info,      trend: null, description: 'Eventos vencidos' },
         { title: 'Rechazados',         value: rejectedEventsCount,                        icon: 'close-circle-outline',  color: COLORS.accent,    trend: null, description: 'Eventos rechazados' },
       ]);
@@ -802,7 +801,6 @@ const HomeAdministradorScreen = () => {
     { id: '3', title: 'Eventos Aprobados',    iconName: 'checkmark-circle-outline', route: '/admin/EventosAprobados',  color: COLORS.success,   description: 'Gestión de eventos ya aprobados',   badge: `${approvedEventsCount} aprobados` },
     { id: '4', title: 'Reportes Avanzados',   iconName: 'document-text-outline',    route: '/admin/reportes',          color: COLORS.secondary, description: 'Generación de reportes detallados', badge: 'Nuevo' },
     { id: '5', title: 'Eventos Rechazados',   iconName: 'close-circle-outline',    route: '/admin/EventosRechazados', color: COLORS.accent,    description: 'Revisión de eventos rechazados', badge: `${rejectedEventsCount} rechazados` },
-    { id: '6', title: 'Eventos Cancelados',   iconName: 'close-circle-outline',    route: '/admin/EventosCancelados', color: COLORS.accent,    description: 'Revisión de eventos cancelados', badge: `${cancelledEventsCount} cancelados` },
     { id: '7', title: 'Eventos Vencidos',   iconName: 'close-circle-outline',    route: '/admin/EventosVencidos', color: COLORS.accent,    description: 'Revisión de eventos vencidos', badge: `${expiredEventsCount} vencidos` },
   ];
 
