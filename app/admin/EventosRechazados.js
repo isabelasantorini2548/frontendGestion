@@ -89,19 +89,14 @@ const formatDate = (dateString) => {
     return 'Sin fecha';
   }
 };
-const RejectedEventCard = ({ event, onPress }) => {
-   console.log('📅 Evento:', event.nombreevento);
+const RejectedEventCard = ({ event }) => {
+  console.log('📅 Evento:', event.nombreevento);
   console.log('  - fechaevento:', event.fechaevento);
   console.log('  - fecha_rechazo:', event.fecha_rechazo);
   console.log('  - created_at:', event.created_at);
-  console.log('  - Fecha formateada:', formatDate(event.fechaevento));
   
   return (
-    <TouchableOpacity 
-      style={styles.eventCard} 
-      onPress={() => onPress(event)}
-      activeOpacity={0.85}
-    >
+    <View style={styles.eventCard}>
       <View style={styles.eventHeader}>
         <View style={[styles.statusBadge, { backgroundColor: COLORS.accent + '18' }]}>
           <Ionicons name="close-circle" size={14} color={COLORS.accent} />
@@ -147,9 +142,8 @@ const RejectedEventCard = ({ event, onPress }) => {
             {event.academico?.nombre || 'Académico'}
           </Text>
         </View>
-        <Ionicons name="chevron-forward" size={18} color={COLORS.textTertiary} />
       </View>
-    </TouchableOpacity>
+    </View>
   );
 };
 
@@ -163,55 +157,56 @@ const EventosRechazados = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   const fetchRejectedEvents = useCallback(async () => {
-    console.log('📅 Primer evento completo:', JSON.stringify(response.data[0], null, 2));
-    try {
-      const token = await getTokenAsync();
-      if (!token) {
-        Alert.alert('Sesión expirada', 'Por favor, inicia sesión nuevamente.');
-        router.replace('/');
-        return;
-      }
-
-      console.log('🔍 Solicitando eventos rechazados...');
-      const response = await axios.get(`${API_BASE_URL}/eventos/rechazados`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        timeout: 10000,
-      });
-      
-      console.log('✅ Eventos rechazados recibidos:', response.data.length);
-      if (response.data.length > 0) {
-        console.log('📅 Primer evento:', response.data[0]);
-      }
-      
-      setEvents(Array.isArray(response.data) ? response.data : []);
-    } catch (error) {
-      console.error('❌ Error fetching rejected events:', error);
-      
-      let message = 'No se pudieron cargar los eventos rechazados.';
-      
-      if (error.response?.status === 401) {
-        message = 'Sesión expirada. Inicia sesión nuevamente.';
-        router.replace('/');
-      } else if (error.response?.status === 403) {
-        message = 'No tienes permisos para ver esta sección.';
-      } else if (error.response?.status === 404) {
-        message = 'Endpoint no encontrado.';
-      } else if (error.code === 'ECONNABORTED') {
-        message = 'Tiempo de espera agotado.';
-      }
-      
-      Alert.alert('Error', message, [
-        { text: 'Reintentar', onPress: fetchRejectedEvents },
-        { text: 'Cancelar', style: 'cancel' },
-      ]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+  try {
+    const token = await getTokenAsync();
+    if (!token) {
+      Alert.alert('Sesión expirada', 'Por favor, inicia sesión nuevamente.');
+      router.replace('/');
+      return;
     }
-  }, [router]);
+
+    console.log('🔍 Solicitando eventos rechazados...');
+    const response = await axios.get(`${API_BASE_URL}/eventos/rechazados`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      timeout: 10000,
+    });
+    
+    console.log('✅ Eventos rechazados recibidos:', response.data.length);
+    
+    // 🔍 DEBUG: Ver el primer evento completo
+    if (response.data.length > 0) {
+      console.log('📅 Primer evento completo:', JSON.stringify(response.data[0], null, 2));
+    }
+    
+    setEvents(Array.isArray(response.data) ? response.data : []);
+  } catch (error) {
+    console.error('❌ Error fetching rejected events:', error);
+    
+    let message = 'No se pudieron cargar los eventos rechazados.';
+    
+    if (error.response?.status === 401) {
+      message = 'Sesión expirada. Inicia sesión nuevamente.';
+      router.replace('/');
+    } else if (error.response?.status === 403) {
+      message = 'No tienes permisos para ver esta sección.';
+    } else if (error.response?.status === 404) {
+      message = 'Endpoint no encontrado.';
+    } else if (error.code === 'ECONNABORTED') {
+      message = 'Tiempo de espera agotado.';
+    }
+    
+    Alert.alert('Error', message, [
+      { text: 'Reintentar', onPress: fetchRejectedEvents },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
+  } finally {
+    setLoading(false);
+    setRefreshing(false);
+  }
+}, [router]);
 
   useEffect(() => {
     fetchRejectedEvents();
@@ -344,34 +339,34 @@ const EventosRechazados = () => {
         </View>
       </ScrollView>
 
-      <FlatList
-        data={filteredEvents}
-        keyExtractor={(item) => `event-${item.idevento || item.id}`}
-        renderItem={({ item }) => <RejectedEventCard event={item} onPress={handleEventPress} />}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[COLORS.primary]}
-            tintColor={COLORS.primary}
-          />
-        }
-        ListEmptyComponent={searchQuery ? (
-          <View style={styles.emptySearch}>
-            <Ionicons name="search-outline" size={48} color={COLORS.textTertiary} />
-            <Text style={styles.emptySearchTitle}>Sin resultados</Text>
-            <Text style={styles.emptySearchText}>
-              No se encontraron eventos que coincidan con "{searchQuery}"
-            </Text>
-            <TouchableOpacity style={styles.clearSearchButton} onPress={() => setSearchQuery('')}>
-              <Text style={styles.clearSearchText}>Limpiar búsqueda</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
-        ListFooterComponent={<View style={{ height: 20 }} />}
-      />
+     <FlatList
+  data={filteredEvents}
+  keyExtractor={(item) => `event-${item.idevento || item.id}`}
+  renderItem={({ item }) => <RejectedEventCard event={item} />}
+  contentContainerStyle={styles.listContent}
+  showsVerticalScrollIndicator={false}
+  refreshControl={
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+      colors={[COLORS.primary]}
+      tintColor={COLORS.primary}
+    />
+  }
+  ListEmptyComponent={searchQuery ? (
+    <View style={styles.emptySearch}>
+      <Ionicons name="search-outline" size={48} color={COLORS.textTertiary} />
+      <Text style={styles.emptySearchTitle}>Sin resultados</Text>
+      <Text style={styles.emptySearchText}>
+        No se encontraron eventos que coincidan con "{searchQuery}"
+      </Text>
+      <TouchableOpacity style={styles.clearSearchButton} onPress={() => setSearchQuery('')}>
+        <Text style={styles.clearSearchText}>Limpiar búsqueda</Text>
+      </TouchableOpacity>
+    </View>
+  ) : null}
+  ListFooterComponent={<View style={{ height: 20 }} />}
+/>
     </View>
   );
 };
