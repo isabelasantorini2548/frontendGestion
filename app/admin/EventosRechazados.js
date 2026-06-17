@@ -90,6 +90,12 @@ const formatDate = (dateString) => {
   }
 };
 const RejectedEventCard = ({ event, onPress }) => {
+   console.log('📅 Evento:', event.nombreevento);
+  console.log('  - fechaevento:', event.fechaevento);
+  console.log('  - fecha_rechazo:', event.fecha_rechazo);
+  console.log('  - created_at:', event.created_at);
+  console.log('  - Fecha formateada:', formatDate(event.fechaevento));
+  
   return (
     <TouchableOpacity 
       style={styles.eventCard} 
@@ -157,6 +163,7 @@ const EventosRechazados = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   const fetchRejectedEvents = useCallback(async () => {
+    console.log('📅 Primer evento completo:', JSON.stringify(response.data[0], null, 2));
     try {
       const token = await getTokenAsync();
       if (!token) {
