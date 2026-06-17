@@ -482,7 +482,7 @@ return (
             event={item}
             onView={handleView}
             onApprove={(e)=>handleAction(e,'aprobar')}
-            onReject={(e)=>openRejectModal}
+            onReject={openRejectModal}
             onMarkExpired={(e)=>handleAction(e,'vencer')}
             onMarkCancelled={(e)=>handleAction(e,'cancelar')}
           />
