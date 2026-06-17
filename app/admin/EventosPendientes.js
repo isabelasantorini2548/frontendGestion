@@ -212,10 +212,7 @@ const PendingEventCard = ({ event, onView, onApprove, onReject, onMarkExpired, o
               <Ionicons name="close" size={18} color={COLORS.danger} />
               <Text style={[styles.actionButtonText, { color: COLORS.danger }]}>Rechazar</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.actionButton, styles.rejectButton]} onPress={() => onMarkCancelled(event)}>
-              <Ionicons name="close-circle-outline" size={18} color={COLORS.info} />
-              <Text style={[styles.actionButtonText, { color: COLORS.info }]}>Cancelar</Text>
-            </TouchableOpacity>
+            
           </>
         )}
         
