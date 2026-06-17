@@ -1,4 +1,4 @@
-// EventosAprobadosPorFacultad.js - Vista Mejorada
+// EventosAprobadosPorFacultad.js - Versión Corregida
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
@@ -11,7 +11,8 @@ import {
   Platform,
   Alert,
   SectionList,
-  Dimensions
+  Dimensions,
+  ScrollView
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,19 +21,7 @@ import * as SecureStore from 'expo-secure-store';
 
 const { width } = Dimensions.get('window');
 
-// Configuración de API
-let determinedApiBaseUrl;
-/*if (Platform.OS === 'android') {
-  determinedApiBaseUrl = 'http://192.168.0.167:3001/api';
-} else if (Platform.OS === 'ios') {
-  determinedApiBaseUrl = 'http://192.168.0.167:3001/api';
-} else {
-  determinedApiBaseUrl = 'http://localhost:3001/api';
-}*/
-//const API_BASE_URL =  'https://evento.cidtec-uc.com';
 const API_BASE_URL = 'https://backendgestion-production.up.railway.app';
-//const API_BASE_URL =  'https://unifrontend.onrender.com';
-
 const TOKEN_KEY = 'adminAuthToken';
 
 const COLORS = {
@@ -55,42 +44,24 @@ const COLORS = {
   border: '#E8E8E8',
 };
 
-// Funciones de token
 const getTokenAsync = async () => {
   if (Platform.OS === 'web') {
-    try {
-      return localStorage.getItem(TOKEN_KEY);
-    } catch (e) {
-      return null;
-    }
+    try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
   } else {
-    try {
-      return await SecureStore.getItemAsync(TOKEN_KEY);
-    } catch (e) {
-      return null;
-    }
+    try { return await SecureStore.getItemAsync(TOKEN_KEY); } catch { return null; }
   }
 };
 
 const deleteTokenAsync = async () => {
   if (Platform.OS === 'web') {
-    try {
-      localStorage.removeItem(TOKEN_KEY);
-    } catch (e) {
-      console.error("Error al eliminar token:", e);
-    }
+    try { localStorage.removeItem(TOKEN_KEY); } catch { }
   } else {
-    try {
-      await SecureStore.deleteItemAsync(TOKEN_KEY);
-    } catch (e) {
-      console.error("Error al eliminar token:", e);
-    }
+    try { await SecureStore.deleteItemAsync(TOKEN_KEY); } catch { }
   }
 };
 
 const parseEventDate = (dateStr) => {
   if (!dateStr) return new Date(0);
-  
   if (dateStr instanceof Date) return dateStr;
   
   if (typeof dateStr === 'string' && dateStr.includes('-')) {
@@ -108,13 +79,10 @@ const parseEventDate = (dateStr) => {
     }
   }
   
-  // Fallback
   const fallback = new Date(dateStr);
   return isNaN(fallback.getTime()) ? new Date(0) : fallback;
 };
 
-
-// Función para formatear fecha de envío
 const formatSubmittedDate = (date) => {
   const now = new Date();
   const submittedDate = new Date(date);
@@ -127,26 +95,19 @@ const formatSubmittedDate = (date) => {
 
 const isEventPast = (dateStr) => {
   if (!dateStr) return true;
-  
   const eventDate = parseEventDate(dateStr);
   const today = new Date();
-  
-  // Normalizar a inicio del día para comparar solo fechas
   eventDate.setHours(0, 0, 0, 0);
   today.setHours(0, 0, 0, 0);
-  
   return eventDate < today;
 };
 
-// Función para agrupar: primero por estado, luego por facultad
 const groupEventsByStatusAndFaculty = (events) => {
-  // 1. Separar en activos y pasados
   const activos = events.filter(e => !isEventPast(e.date));
   const pasados = events.filter(e => isEventPast(e.date));
   
   const sections = [];
   
-  // 2. Agrupar activos por facultad
   if (activos.length > 0) {
     const groupedActivos = {};
     activos.forEach(event => {
@@ -155,12 +116,10 @@ const groupEventsByStatusAndFaculty = (events) => {
       groupedActivos[faculty].push(event);
     });
     
-    // Agregar sección de activos
     sections.push({
       title: '📅 Eventos Activos',
       type: 'activos',
       isPastSection: false,
-      // Aplanar para SectionList: cada facultad como sub-item visual
       data: Object.keys(groupedActivos).sort().flatMap(faculty => 
         groupedActivos[faculty].map(event => ({ ...event, _facultyGroup: faculty }))
       ),
@@ -172,7 +131,6 @@ const groupEventsByStatusAndFaculty = (events) => {
     });
   }
   
-  // 3. Agrupar pasados por facultad
   if (pasados.length > 0) {
     const groupedPasados = {};
     pasados.forEach(event => {
@@ -181,7 +139,6 @@ const groupEventsByStatusAndFaculty = (events) => {
       groupedPasados[faculty].push(event);
     });
     
-    // Agregar sección de pasados
     sections.push({
       title: '🕰️ Eventos Finalizados',
       type: 'pasados',
@@ -200,7 +157,6 @@ const groupEventsByStatusAndFaculty = (events) => {
   return sections;
 };
 
-// Colores dinámicos por facultad
 const getFacultyColor = (facultyName) => {
   const colors = [
     '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', '#2196F3',
@@ -270,152 +226,139 @@ const EventosAprobadosPorFacultad = () => {
   };
 
   const renderEventItem = ({ item }) => {
-  if (!item || typeof item !== 'object' || typeof item.id === 'undefined') {
-    return null;
-  }
+    if (!item || typeof item !== 'object' || typeof item.id === 'undefined') {
+      return null;
+    }
 
-  const isPast = isEventPast(item.date);
-  const facultyColor = getFacultyColor(item._facultyGroup || item.faculty || 'Sin facultad');
-  
-  return (
-    <TouchableOpacity
-      style={[styles.eventCard, isPast && styles.eventCardPast]}
-      onPress={() => !isPast && handleEventPress(item)}
-      activeOpacity={0.8}
-      disabled={isPast}
-    >
-      {/* Barra lateral: color dinámico o gris si pasó */}
-      <View style={[
-        styles.facultyBar,
-        { backgroundColor: isPast ? COLORS.grayMedium : facultyColor }
-      ]} />
-      
-      <View style={styles.cardContent}>
-        {/* Header */}
-        <View style={styles.eventHeader}>
-          <View style={styles.titleRow}>
-            <Text 
-              style={[styles.eventTitle, isPast && styles.eventTitlePast]} 
-              numberOfLines={1}
-            >
-              {item.title}
-            </Text>
-            <View style={styles.idBadge}>
-              <Text style={styles.idText}>#{item.id}</Text>
-            </View>
-          </View>
-          
-          {/* Chip: SOLO uno, basado en isPast */}
-          {isPast ? (
-            <View style={styles.pastChip}>
-              <Ionicons name="checkmark-circle" size={14} color={COLORS.white} />
-              <Text style={styles.pastText}>Finalizado</Text>
-            </View>
-          ) : (
-            <View style={styles.upcomingChip}>
-              <Ionicons name="calendar" size={14} color={COLORS.white} />
-              <Text style={styles.upcomingText}>Próximo</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Info principal con colores condicionales */}
-        <View style={styles.mainInfo}>
-          <View style={styles.infoRow}>
-            <Ionicons name="calendar-outline" size={16} color={isPast ? COLORS.grayMedium : COLORS.grayText} />
-            <Text style={[styles.infoText, isPast && styles.infoTextPast]}>{item.date}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Ionicons name="time-outline" size={16} color={isPast ? COLORS.grayMedium : COLORS.grayText} />
-            <Text style={[styles.infoText, isPast && styles.infoTextPast]}>{item.time}</Text>
-          </View>
-        </View>
-
-        <View style={styles.mainInfo}>
-          <View style={styles.infoRow}>
-            <Ionicons name="location-outline" size={16} color={isPast ? COLORS.grayMedium : COLORS.grayText} />
-            <Text style={[styles.infoText, isPast && styles.infoTextPast]} numberOfLines={1}>{item.location}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Ionicons name="person-outline" size={16} color={isPast ? COLORS.grayMedium : COLORS.grayText} />
-            <Text style={[styles.infoText, isPast && styles.infoTextPast]} numberOfLines={1}>{item.organizer}</Text>
-          </View>
-        </View>
-
-        {/* Fase y submit */}
-        <View style={styles.phaseContainer}>
-          <View style={styles.phaseBadge}>
-            <Ionicons name="flag" size={12} color={isPast ? COLORS.grayMedium : COLORS.primary} />
-            <Text style={[styles.phaseText, isPast && styles.infoTextPast]}>Fase {item.idfase || 1}</Text>
-          </View>
-          <View style={styles.submissionInfo}>
-            <Text style={[styles.submittedBy, isPast && styles.infoTextPast]}>{item.submittedBy}</Text>
-            <Text style={[styles.submittedDate, isPast && styles.infoTextPast]}>
-              {formatSubmittedDate(item.submittedDate)}
-            </Text>
-          </View>
-        </View>
-
-        {/* Footer con texto e icono condicional */}
-        <TouchableOpacity 
-          style={styles.viewDetailsButton}
-          onPress={() => !isPast && handleEventPress(item)}
-          disabled={isPast}
-        >
-          <Text style={[styles.viewDetailsText, isPast && styles.infoTextPast]}>
-            {isPast ? 'Ver historial' : 'Ver detalles'}
-          </Text>
-          <Ionicons 
-            name={isPast ? "archive-outline" : "chevron-forward"} 
-            size={18} 
-            color={isPast ? COLORS.grayMedium : COLORS.primary} 
-          />
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
-  );
-};
-
- const renderSectionHeader = ({ section }) => {
-  // Secciones principales (Activos / Finalizados)
-  if (section.type === 'activos' || section.type === 'pasados') {
+    const isPast = isEventPast(item.date);
+    const facultyColor = getFacultyColor(item._facultyGroup || item.faculty || 'Sin facultad');
+    
     return (
-      <View style={[
-        styles.sectionHeader,
-        section.isPastSection && styles.sectionHeaderPast
-      ]}>
+      <TouchableOpacity
+        style={[styles.eventCard, isPast && styles.eventCardPast]}
+        onPress={() => !isPast && handleEventPress(item)}
+        activeOpacity={0.8}
+        disabled={isPast}
+      >
+        <View style={[
+          styles.facultyBar,
+          { backgroundColor: isPast ? COLORS.grayMedium : facultyColor }
+        ]} />
+        
+        <View style={styles.cardContent}>
+          <View style={styles.eventHeader}>
+            <View style={styles.titleRow}>
+              <Text 
+                style={[styles.eventTitle, isPast && styles.eventTitlePast]} 
+                numberOfLines={2}
+              >
+                {item.title}
+              </Text>
+              <View style={styles.idBadge}>
+                <Text style={styles.idText}>#{item.id}</Text>
+              </View>
+            </View>
+            
+            <View style={styles.badgeContainer}>
+              <View style={[styles.monthBadge, { backgroundColor: COLORS.blue }]}>
+                <Ionicons name="calendar" size={12} color={COLORS.white} />
+                <Text style={styles.monthBadgeText}>Del mes próximo</Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.infoGrid}>
+            <View style={styles.infoRow}>
+              <Ionicons name="calendar-outline" size={14} color={isPast ? COLORS.grayMedium : COLORS.grayText} />
+              <Text style={[styles.infoText, isPast && styles.infoTextPast]}>{item.date}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Ionicons name="time-outline" size={14} color={isPast ? COLORS.grayMedium : COLORS.grayText} />
+              <Text style={[styles.infoText, isPast && styles.infoTextPast]}>{item.time}</Text>
+            </View>
+          </View>
+
+          <View style={styles.infoGrid}>
+            <View style={styles.infoRow}>
+              <Ionicons name="location-outline" size={14} color={isPast ? COLORS.grayMedium : COLORS.grayText} />
+              <Text style={[styles.infoText, isPast && styles.infoTextPast]} numberOfLines={1}>{item.location}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Ionicons name="person-outline" size={14} color={isPast ? COLORS.grayMedium : COLORS.grayText} />
+              <Text style={[styles.infoText, isPast && styles.infoTextPast]} numberOfLines={1}>{item.organizer}</Text>
+            </View>
+          </View>
+
+          <View style={styles.phaseContainer}>
+            <View style={styles.phaseBadge}>
+              <Ionicons name="flag" size={12} color={isPast ? COLORS.grayMedium : COLORS.primary} />
+              <Text style={[styles.phaseText, isPast && styles.infoTextPast]}>Fase {item.idfase || 1}</Text>
+            </View>
+            <View style={styles.submissionInfo}>
+              <Text style={[styles.submittedBy, isPast && styles.infoTextPast]}>{item.submittedBy}</Text>
+              <Text style={[styles.submittedDate, isPast && styles.infoTextPast]}>
+                {formatSubmittedDate(item.submittedDate)}
+              </Text>
+            </View>
+          </View>
+
+          <TouchableOpacity 
+            style={styles.viewDetailsButton}
+            onPress={() => !isPast && handleEventPress(item)}
+            disabled={isPast}
+          >
+            <Text style={[styles.viewDetailsText, isPast && styles.infoTextPast]}>
+              {isPast ? 'Ver historial' : 'Ver detalles'}
+            </Text>
+            <Ionicons 
+              name={isPast ? "archive-outline" : "chevron-forward"} 
+              size={18} 
+              color={isPast ? COLORS.grayMedium : COLORS.primary} 
+            />
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderSectionHeader = ({ section }) => {
+    if (section.type === 'activos' || section.type === 'pasados') {
+      return (
+        <View style={[
+          styles.sectionHeader,
+          section.isPastSection && styles.sectionHeaderPast
+        ]}>
+          <View style={styles.sectionHeaderContent}>
+            <View style={[
+              styles.facultyDot, 
+              { backgroundColor: section.isPastSection ? COLORS.grayMedium : COLORS.primary }
+            ]} />
+            <Text style={[
+              styles.sectionTitle,
+              section.isPastSection && styles.sectionTitlePast
+            ]}>
+              {section.title}
+            </Text>
+            <View style={styles.countBadge}>
+              <Text style={styles.countText}>{section.data.length}</Text>
+            </View>
+          </View>
+        </View>
+      );
+    }
+    
+    return (
+      <View style={styles.sectionHeader}>
         <View style={styles.sectionHeaderContent}>
-          <View style={[
-            styles.facultyDot, 
-            { backgroundColor: section.isPastSection ? COLORS.grayMedium : COLORS.primary }
-          ]} />
-          <Text style={[
-            styles.sectionTitle,
-            section.isPastSection && styles.sectionTitlePast
-          ]}>
-            {section.title}
-          </Text>
+          <View style={[styles.facultyDot, { backgroundColor: COLORS.primary }]} />
+          <Text style={styles.sectionTitle}>{section.title}</Text>
           <View style={styles.countBadge}>
-            <Text style={styles.countText}>{section.data.length}</Text>
+            <Text style={styles.countText}>{section.count}</Text>
           </View>
         </View>
       </View>
     );
-  }
-  
-  // Fallback para compatibilidad
-  return (
-    <View style={styles.sectionHeader}>
-      <View style={styles.sectionHeaderContent}>
-        <View style={[styles.facultyDot, { backgroundColor: COLORS.primary }]} />
-        <Text style={styles.sectionTitle}>{section.title}</Text>
-        <View style={styles.countBadge}>
-          <Text style={styles.countText}>{section.count}</Text>
-        </View>
-      </View>
-    </View>
-  );
-};
+  };
 
   if (loading) {
     return (
@@ -426,9 +369,9 @@ const EventosAprobadosPorFacultad = () => {
     );
   }
 
-  const upcomingCount = events.filter(e => parseEventDate(e.date) >= new Date()).length;
   const sections = groupEventsByStatusAndFaculty(events);
-(events);
+  const finalizedCount = events.filter(e => isEventPast(e.date)).length;
+  const uniqueFaculties = new Set(events.map(e => e.faculty || 'Sin facultad')).size;
 
   return (
     <View style={styles.container}>
@@ -442,7 +385,7 @@ const EventosAprobadosPorFacultad = () => {
         <View style={styles.headerTextContainer}>
           <Text style={styles.headerTitle}>Eventos por Facultad</Text>
           <Text style={styles.headerSubtitle}>
-            {sections.length} {sections.length === 1 ? 'facultad' : 'facultades'}
+            {uniqueFaculties} {uniqueFaculties === 1 ? 'facultad' : 'facultades'}
           </Text>
         </View>
         <TouchableOpacity 
@@ -459,78 +402,70 @@ const EventosAprobadosPorFacultad = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Stats Cards */}
-      {events.length > 0 && (
-        <View style={styles.statsContainer}>
-          <View style={[styles.statCard, { backgroundColor: COLORS.primary }]}>
-            <Ionicons name="calendar" size={24} color={COLORS.white} />
-            <Text style={styles.statNumber}>{events.length}</Text>
-            <Text style={styles.statLabel}>Total Eventos</Text>
-          </View>
-          
-          <View style={[styles.statCard, { backgroundColor: COLORS.accent }]}>
-            <Ionicons name="school" size={24} color={COLORS.white} />
-            <Text style={styles.statNumber}>{sections.length}</Text>
-            <Text style={styles.statLabel}>Facultades</Text>
-          </View>
-          
-         
-        </View>
-      )}
-
-      {/* Lista de eventos */}
-      <SectionList
-        sections={sections}
-        keyExtractor={(item) => `event-${item.id}`}
-        renderItem={renderEventItem}
-        renderSectionHeader={renderSectionHeader}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        stickySectionHeadersEnabled={true}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[COLORS.primary]}
-            tintColor={COLORS.primary}
-          />
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <View style={styles.emptyIconContainer}>
-              <Ionicons name="school-outline" size={80} color={COLORS.grayMedium} />
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Stats Cards Superiores */}
+        {events.length > 0 && (
+          <View style={styles.topStatsContainer}>
+            <View style={[styles.topStatCard, { backgroundColor: COLORS.primary }]}>
+              <Ionicons name="calendar" size={24} color={COLORS.white} />
+              <Text style={styles.topStatNumber}>{events.length}</Text>
+              <Text style={styles.topStatLabel}>Eventos totales</Text>
             </View>
-            <Text style={styles.emptyTitle}>No hay eventos</Text>
-            <Text style={styles.emptyText}>
-              No se encontraron eventos aprobados organizados por facultad
-            </Text>
+            
+            <View style={[styles.topStatCard, { backgroundColor: COLORS.accent }]}>
+              <Ionicons name="school" size={24} color={COLORS.white} />
+              <Text style={styles.topStatNumber}>{uniqueFaculties}</Text>
+              <Text style={styles.topStatLabel}>Facultades</Text>
+            </View>
           </View>
-        }
-      />
-      {events.length > 0 && (
-    <View style={styles.statsContainer}>
-      <View style={[styles.statCard, { backgroundColor: COLORS.primary }]}>
-        <Ionicons name="calendar" size={24} color={COLORS.white} />
-        <Text style={styles.statNumber}>{events.length}</Text>
-        <Text style={styles.statLabel}>Total</Text>
-      </View>
-      
-      <View style={[styles.statCard, { backgroundColor: COLORS.accent }]}>
-        <Ionicons name="school" size={24} color={COLORS.white} />
-        <Text style={styles.statNumber}>{sections.length}</Text>
-        <Text style={styles.statLabel}>Facultades</Text>
-      </View>
-      
-      {/* Nueva card para eventos pasados */}
-      <View style={[styles.statCard, { backgroundColor: COLORS.grayMedium }]}>
-        <Ionicons name="checkmark-circle" size={24} color={COLORS.white} />
-        <Text style={styles.statNumber}>
-          {events.filter(e => isEventPast(e.date)).length}
-        </Text>
-        <Text style={styles.statLabel}>Finalizados</Text>
-      </View>
-    </View>
-  )}
+        )}
+
+        {/* Lista de eventos */}
+        <SectionList
+          sections={sections}
+          keyExtractor={(item) => `event-${item.id}`}
+          renderItem={renderEventItem}
+          renderSectionHeader={renderSectionHeader}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          stickySectionHeadersEnabled={true}
+          scrollEnabled={false}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <View style={styles.emptyIconContainer}>
+                <Ionicons name="school-outline" size={80} color={COLORS.grayMedium} />
+              </View>
+              <Text style={styles.emptyTitle}>No hay eventos</Text>
+              <Text style={styles.emptyText}>
+                No se encontraron eventos aprobados organizados por facultad
+              </Text>
+            </View>
+          }
+        />
+
+        {/* Stats Cards Inferiores */}
+        {events.length > 0 && (
+          <View style={styles.bottomStatsContainer}>
+            <View style={[styles.bottomStatCard, { backgroundColor: COLORS.primary }]}>
+              <Ionicons name="calendar" size={20} color={COLORS.white} />
+              <Text style={styles.bottomStatNumber}>{events.length}</Text>
+              <Text style={styles.bottomStatLabel}>Total</Text>
+            </View>
+            
+            <View style={[styles.bottomStatCard, { backgroundColor: COLORS.accent }]}>
+              <Ionicons name="school" size={20} color={COLORS.white} />
+              <Text style={styles.bottomStatNumber}>{uniqueFaculties}</Text>
+              <Text style={styles.bottomStatLabel}>Facultades</Text>
+            </View>
+            
+            <View style={[styles.bottomStatCard, { backgroundColor: COLORS.grayMedium }]}>
+              <Ionicons name="checkmark-circle" size={20} color={COLORS.white} />
+              <Text style={styles.bottomStatNumber}>{finalizedCount}</Text>
+              <Text style={styles.bottomStatLabel}>Finalizados</Text>
+            </View>
+          </View>
+        )}
+      </ScrollView>
     </View>
   );
 };
@@ -578,82 +513,6 @@ const styles = StyleSheet.create({
     padding: 8,
     marginRight: 8,
   },
-   eventCardPast: {
-    opacity: 0.7,
-    backgroundColor: '#f5f5f5',
-  },
-  eventTitlePast: {
-    color: COLORS.grayText,
-    textDecorationLine: 'line-through',  
-  },
-  pastChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.grayMedium,  
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
-  },
-  sectionHeaderPast: {
-    backgroundColor: '#f0f0f0',
-  },
-  sectionTitlePast: {
-    color: COLORS.grayText,
-  },
-  eventCardPast: {
-    opacity: 0.75,
-    backgroundColor: '#fafafa',
-  },
-  eventTitlePast: {
-    color: COLORS.grayText,
-    // textDecorationLine: 'line-through', // Opcional
-  },
-  infoTextPast: {
-    color: COLORS.grayMedium,
-  },
-  pastChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.grayMedium,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
-  },
-  pastText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: COLORS.white,
-  },
-  pastText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: COLORS.white,
-  },
-  
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: COLORS.darkText,
-  },
-  statLabelSmall: {
-    fontSize: 11,
-    color: COLORS.grayText,
-    marginTop: 2,
-  },
   headerTextContainer: {
     flex: 1,
   },
@@ -675,17 +534,17 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '180deg' }],
   },
 
-  // Stats
-  statsContainer: {
+  // Stats Superiores
+  topStatsContainer: {
     flexDirection: 'row',
     paddingHorizontal: 16,
     paddingVertical: 16,
     gap: 12,
   },
-  statCard: {
+  topStatCard: {
     flex: 1,
     borderRadius: 16,
-    padding: 16,
+    padding: 20,
     alignItems: 'center',
     justifyContent: 'center',
     ...Platform.select({
@@ -700,17 +559,59 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  statNumber: {
+  topStatNumber: {
     fontSize: 28,
     fontWeight: 'bold',
     color: COLORS.white,
     marginTop: 8,
   },
-  statLabel: {
-    fontSize: 11,
+  topStatLabel: {
+    fontSize: 12,
     color: COLORS.white,
     marginTop: 4,
     fontWeight: '600',
+    opacity: 0.9,
+  },
+
+  // Stats Inferiores
+  bottomStatsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    backgroundColor: COLORS.white,
+  },
+  bottomStatCard: {
+    flex: 1,
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: COLORS.cardShadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  bottomStatNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: COLORS.white,
+    marginTop: 4,
+  },
+  bottomStatLabel: {
+    fontSize: 10,
+    color: COLORS.white,
+    marginTop: 2,
+    fontWeight: '500',
     opacity: 0.9,
   },
 
@@ -720,6 +621,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginBottom: 8,
+  },
+  sectionHeaderPast: {
+    backgroundColor: '#f0f0f0',
   },
   sectionHeaderContent: {
     flexDirection: 'row',
@@ -751,6 +655,9 @@ const styles = StyleSheet.create({
     color: COLORS.darkText,
     flex: 1,
   },
+  sectionTitlePast: {
+    color: COLORS.grayText,
+  },
   countBadge: {
     backgroundColor: COLORS.background,
     paddingHorizontal: 10,
@@ -766,11 +673,11 @@ const styles = StyleSheet.create({
   // Event Card
   listContent: {
     paddingBottom: 20,
+    paddingHorizontal: 16,
   },
   eventCard: {
     backgroundColor: COLORS.white,
     borderRadius: 16,
-    marginHorizontal: 16,
     marginBottom: 12,
     overflow: 'hidden',
     flexDirection: 'row',
@@ -786,6 +693,10 @@ const styles = StyleSheet.create({
       },
     }),
   },
+  eventCardPast: {
+    opacity: 0.75,
+    backgroundColor: '#fafafa',
+  },
   facultyBar: {
     width: 6,
   },
@@ -798,16 +709,19 @@ const styles = StyleSheet.create({
   },
   titleRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     marginBottom: 8,
   },
   eventTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
     color: COLORS.darkText,
     flex: 1,
     marginRight: 8,
+  },
+  eventTitlePast: {
+    color: COLORS.grayText,
   },
   idBadge: {
     backgroundColor: COLORS.background,
@@ -816,31 +730,33 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   idText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: COLORS.primary,
   },
-  upcomingChip: {
+  badgeContainer: {
+    marginTop: 4,
+  },
+  monthBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.blue,
     alignSelf: 'flex-start',
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: 12,
     gap: 4,
   },
-  upcomingText: {
+  monthBadgeText: {
     fontSize: 11,
     fontWeight: '600',
     color: COLORS.white,
   },
   
   // Info
-  mainInfo: {
+  infoGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 8,
     gap: 12,
   },
   infoRow: {
@@ -850,10 +766,13 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   infoText: {
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.grayText,
     fontWeight: '500',
     flex: 1,
+  },
+  infoTextPast: {
+    color: COLORS.grayMedium,
   },
   
   // Phase
@@ -876,7 +795,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   phaseText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
     color: COLORS.primary,
   },
@@ -884,12 +803,12 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   submittedBy: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500',
     color: COLORS.grayText,
   },
   submittedDate: {
-    fontSize: 11,
+    fontSize: 10,
     color: COLORS.grayMedium,
     marginTop: 2,
   },
