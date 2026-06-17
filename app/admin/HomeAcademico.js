@@ -851,12 +851,10 @@ const handleActionPress = (action) => {
   };
 
   if (Platform.OS === 'web') {
-    // ✅ Usar confirm nativo del navegador para web
     if (window.confirm('¿Está seguro que desea cerrar la sesión actual?')) {
       await performLogout();
     }
   } else {
-    // ✅ Usar Alert para móviles (iOS/Android)
     Alert.alert(
       'Confirmar Cierre de Sesión',
       '¿Está seguro que desea cerrar la sesión actual?',
@@ -969,7 +967,6 @@ const handleActionPress = (action) => {
       onPress={() => router.push(`/admin/EventDetailComite?eventId=${item.idevento}`)}
       activeOpacity={0.8}
     >
-      {/* Estado - columna izquierda */}
       <View style={styles.tableCellStatus}>
         {item.estado && (
           <View style={[
