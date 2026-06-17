@@ -514,64 +514,64 @@ return (
       }
       removeClippedSubviews={Platform.OS === 'android'}
     />
-    {showRejectModal && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Ionicons name="close-circle" size={48} color={COLORS.danger} />
-              <Text style={styles.modalTitle}>Rechazar Evento</Text>
-              <Text style={styles.modalEventName} numberOfLines={2}>
-                {eventToReject?.nombreevento || eventToReject?.title || 'Sin título'}
-              </Text>
-            </View>
-            
-            <View style={styles.modalBody}>
-              <Text style={styles.modalLabel}>
-                Motivo del rechazo <Text style={styles.required}>*</Text>
-              </Text>
-              <TextInput
-                style={styles.reasonInput}
-                placeholder="Ingresa el motivo del rechazo..."
-                placeholderTextColor={COLORS.grayMedium}
-                value={rejectReason}
-                onChangeText={setRejectReason}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-                autoFocus
-              />
-              <Text style={styles.modalHint}>
-                {rejectReason.length} caracteres
-              </Text>
-            </View>
-            
-            <View style={styles.modalFooter}>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.cancelButton]} 
-                onPress={closeRejectModal}
-                disabled={isSubmitting}
-              >
-                <Text style={[styles.modalButtonText, {color: COLORS.grayText}]}>Cancelar</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.confirmButton, isSubmitting && styles.buttonDisabled]} 
-                onPress={handleRejectSubmit}
-                disabled={isSubmitting || !rejectReason.trim()}
-              >
-                {isSubmitting ? (
-                  <ActivityIndicator size="small" color={COLORS.white} />
-                ) : (
-                  <>
-                    <Ionicons name="close" size={18} color={COLORS.white} />
-                    <Text style={[styles.modalButtonText, {color: COLORS.white}]}>Rechazar</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      )}
+{showRejectModal && (
+  <View style={styles.modalOverlay}>
+    <View style={styles.modalContent}>
+      <View style={styles.modalHeader}>
+        <Ionicons name="close-circle" size={48} color={COLORS.danger} />
+        <Text style={styles.modalTitle}>Rechazar Evento</Text>
+        <Text style={styles.modalEventName} numberOfLines={2}>
+          {eventToReject?.nombreevento || eventToReject?.title || 'Sin título'}
+        </Text>
+      </View>
+      
+      <View style={styles.modalBody}>
+        <Text style={styles.modalLabel}>
+          Motivo del rechazo <Text style={styles.required}>*</Text>
+        </Text>
+        <TextInput
+          style={styles.reasonInput}
+          placeholder="Ingresa el motivo del rechazo..."
+          placeholderTextColor={COLORS.grayMedium}
+          value={rejectReason}
+          onChangeText={setRejectReason}
+          multiline
+          numberOfLines={4}
+          textAlignVertical="top"
+          autoFocus
+        />
+        <Text style={styles.modalHint}>
+          {rejectReason.length} caracteres
+        </Text>
+      </View>
+      
+      <View style={styles.modalFooter}>
+        <TouchableOpacity 
+          style={[styles.modalButton, styles.cancelButton]} 
+          onPress={closeRejectModal}
+          disabled={isSubmitting}
+        >
+          <Text style={[styles.modalButtonText, {color: COLORS.grayText}]}>Cancelar</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.modalButton, styles.confirmButton, isSubmitting && styles.buttonDisabled]} 
+          onPress={handleRejectSubmit}
+          disabled={isSubmitting || !rejectReason.trim()}
+        >
+          {isSubmitting ? (
+            <ActivityIndicator size="small" color={COLORS.white} />
+          ) : (
+            <>
+              <Ionicons name="close" size={18} color={COLORS.white} />
+              <Text style={[styles.modalButtonText, {color: COLORS.white}]}>Rechazar</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+    </View>
+  </View>
+)}
   </View>
 );
 };
