@@ -91,73 +91,75 @@ const UsuariosDaf = () => {
   const [showUserModal, setShowUserModal] = useState(false);
   const params = useLocalSearchParams();
 
-  const fetchUsers = async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
+ const fetchUsers = async (isRefresh = false) => {
+  if (isRefresh) setRefreshing(true);
+  else setLoading(true);
 
-    let localToken = null;
+  let localToken = null;
 
-    try {
-      localToken = await getTokenAsync();
+  try {
+    localToken = await getTokenAsync();
 
-      if (!localToken) {
-        Alert.alert(
-          'Autenticación Requerida',
-          'No se encontró el token de administrador. Por favor, inicia sesión de nuevo.',
-          [{ text: 'OK', onPress: () => router.replace('/LoginAdmin') }]
-        );
-        setUsers([]);
-        setFilteredUsers([]);
-        return;
-      }
+    if (!localToken) {
+      Alert.alert(
+        'Autenticación Requerida',
+        'No se encontró el token de administrador. Por favor, inicia sesión de nuevo.',
+        [{ text: 'OK', onPress: () => router.replace('/LoginAdmin') }]
+      );
+      setUsers([]);
+      setFilteredUsers([]);
+      return;
+    }
 
-      const response = await axios.get(`${API_BASE_URL}/users/daf`, {
-        headers: { 'Authorization': `Bearer ${localToken}` }
-        
-      });
-      console.log('=== DATOS CRUDOS DE LA API ===');
-      console.log('Total de usuarios recibidos:', response.data.length);
-      console.log('Primeros 3 usuarios:', response.data.slice(0, 3));
+    const response = await axios.get(`${API_BASE_URL}/users/daf`, {
+      headers: { 'Authorization': `Bearer ${localToken}` }
+    });
 
-      const usersData = Array.isArray(response.data) ? response.data : (response.data.data || []);
-       const dafUsers = usersData.filter(user => 
+    console.log('=== DATOS CRUDOS DE LA API ===');
+    console.log('Total de usuarios recibidos:', response.data.length);
+
+    const usersData = Array.isArray(response.data) ? response.data : (response.data.data || []);
+    
+    const dafUsers = usersData.filter(user => 
       user.role?.toLowerCase() === 'daf'
     );
     
     console.log('Usuarios DAF filtrados:', dafUsers.length);
 
-      const processedUsers = usersData.map(user => ({
-        ...user,
-        id: user.idusuario
-      }));
+    const processedUsers = dafUsers.map(user => ({
+      ...user,
+      id: user.idusuario
+    }));
 
-      setUsers(processedUsers);
-      setFilteredUsers(processedUsers);
+    setUsers(processedUsers);
+    setFilteredUsers(processedUsers);
 
-    } catch (error) {
-      console.error("Error fetching users from API:", error);
-      let errorMessage = 'No se pudieron cargar los usuarios.';
-      if (error.response) {
-        if (error.response.status === 401) {
-          errorMessage = 'No autorizado. Tu sesión podría haber expirado.';
-          await deleteTokenAsync();
-          router.replace('/LoginAdmin');
-        } else {
-          errorMessage = `Error del servidor: ${error.response.status}. ${error.response.data?.message || ''}`;
-        }
-      } else if (error.request) {
-        errorMessage = 'No se pudo conectar al servidor.';
+  } catch (error) {
+    console.error("Error fetching users from API:", error);
+    let errorMessage = 'No se pudieron cargar los usuarios.';
+    if (error.response) {
+      if (error.response.status === 401) {
+        errorMessage = 'No autorizado. Tu sesión podría haber expirado.';
+        await deleteTokenAsync();
+        router.replace('/LoginAdmin');
+      } else if (error.response.status === 403) {
+        errorMessage = 'No tienes permisos para acceder a esta sección.';
       } else {
-        errorMessage = error.message;
+        errorMessage = `Error del servidor: ${error.response.status}. ${error.response.data?.message || ''}`;
       }
-      Alert.alert('Error de Carga', errorMessage);
-      setUsers([]);
-      setFilteredUsers([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+    } else if (error.request) {
+      errorMessage = 'No se pudo conectar al servidor.';
+    } else {
+      errorMessage = error.message;
     }
-  };
+    Alert.alert('Error de Carga', errorMessage);
+    setUsers([]);
+    setFilteredUsers([]);
+  } finally {
+    setLoading(false);
+    setRefreshing(false);
+  }
+};
 
   const onRefresh = useCallback(() => {
     fetchUsers(true);
