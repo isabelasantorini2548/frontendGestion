@@ -111,7 +111,6 @@ const UsuariosDaf = () => {
         return;
       }
 
-      // Solo traemos usuarios con rol DAF
       const response = await axios.get(`${API_BASE_URL}/users?role=daf`, {
         headers: { 'Authorization': `Bearer ${localToken}` }
       });
@@ -164,7 +163,6 @@ const UsuariosDaf = () => {
     }, [params.refresh])
   );
 
-  // Solo filtramos por término de búsqueda (ya no por rol)
   useEffect(() => {
     if (!users) {
       setFilteredUsers([]);
@@ -400,7 +398,6 @@ const UsuariosDaf = () => {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Encabezado informativo */}
         <View style={styles.infoBanner}>
           <Ionicons name="people" size={22} color={COLORS.warning} />
           <Text style={styles.infoBannerText}>
