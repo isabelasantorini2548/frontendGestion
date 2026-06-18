@@ -723,12 +723,10 @@ const HomeAdministradorScreen = () => {
 
       setDashboardStats([
         { title: 'Usuarios Activos',   value: (data.activeUsers || 0).toLocaleString(), icon: 'people-outline',        color: COLORS.primary,   trend: null, description: 'Cuentas habilitadas' },
-        { title: 'Usuarios Nuevos',    value: usuariosNuevos.toLocaleString(),            icon: 'person-add-outline',    color: COLORS.info,      trend: null, description: 'Este mes' },
         { title: 'Eventos Totales',    value: (data.totalEvents || 0).toString(),         icon: 'calendar-outline',      color: COLORS.secondary, trend: null, description: 'Todos los eventos' },
         { title: 'Pendientes',         value: (data.estadoCounts?.pendiente || 0).toString(), icon: 'document-text-outline', color: COLORS.warning, trend: null, description: 'Esperando aprobación' },
         { title: 'Aprobados',          value: (data.estadoCounts?.aprobado  || 0).toString(), icon: 'checkmark-done-outline', color: COLORS.success, trend: null, description: 'Eventos aprobados' },
         { title: 'Tasa Aprobación',    value: `${data.tasaAprobacion || 0}%`,             icon: 'analytics-outline',     color: COLORS.info,      trend: null, description: 'Aprobados / totales' },
-        { title: 'Tiempo Prom.',       value: `${tiempoPromedio}h`,                       icon: 'time-outline',          color: COLORS.warning,   trend: null, description: 'Horas promedio aprob.' },
         { title: 'Vencidos',           value: expiredEventsCount,                         icon: 'timer-outline',         color: COLORS.info,      trend: null, description: 'Eventos vencidos' },
         { title: 'Rechazados',         value: rejectedEventsCount,                        icon: 'close-circle-outline',  color: COLORS.accent,    trend: null, description: 'Eventos rechazados' },
       ]);
