@@ -95,7 +95,8 @@ const EventCards = ({ data, onPrint }) => {
     return (
       <View style={styles.emptyTable}>
         <Ionicons name="calendar-outline" size={40} color={COLORS.textTertiary} />
-        <Text style={styles.emptyTableText}>No hay eventos disponibles</Text>
+        <Text style={styles.emptyTableText}>No hay eventos próximos disponibles</Text>
+        <Text style={styles.emptyTableSubText}>Todos los eventos con fecha pasada están ocultos</Text>
       </View>
     );
   }
@@ -257,6 +258,7 @@ const Daf = () => {
   const [allEvents, setAllEvents]                 = useState([]);
   const [stats, setStats]                           = useState(null);
   const [loadingReportes, setLoadingReportes]   = useState(false);
+  const [hiddenPastCount, setHiddenPastCount]     = useState(0); // 👈 NUEVO: cuántos eventos pasados se ocultaron
 
   const [dashboardStats, setDashboardStats] = useState([
     { title: 'Usuarios Activos',      value: '–', icon: 'people-outline',        color: COLORS.primary,  description: 'Cuentas habilitadas' },
@@ -280,58 +282,92 @@ const Daf = () => {
         axios.get(`${API_BASE_URL}/dashboard/stats`, { headers: { Authorization: `Bearer ${token}` }, timeout: 10000 }),
         axios.get(`${API_BASE_URL}/eventos`,          { headers: { Authorization: `Bearer ${token}` }, timeout: 10000 }),
         axios.get(`${API_BASE_URL}/notificaciones`,   { headers: { Authorization: `Bearer ${token}` }, timeout: 10000 }).catch(() => ({ data: [] })),
-        axios.get(`${API_BASE_URL}/dashboard/mensual`, { headers: { Authorization: `Bearer ${token}` }, timeout: 10000 }).catch(() => ({ data: [] })),
       ]);
 
       const data = dashRes.data;
       setStats(data);
-     const totalEvents = data.totalEvents || 0;
-        const aprobados = data.estadoCounts?.aprobado || 0;
-        const pendientes = data.estadoCounts?.pendiente || 0;
-        const rechazados = data.estadoCounts?.rechazado || 0;
-        const tasaAprobacion = totalEvents > 0 ? Math.round((aprobados / totalEvents) * 100) : 0;
-     setDashboardStats([
-      { title: 'Usuarios Activos',      value: (data.activeUsers || 0).toLocaleString(),          icon: 'people-outline',        color: COLORS.primary,  description: 'Cuentas habilitadas' },
-      { title: 'Eventos Totales',       value: totalEvents.toString(),                              icon: 'calendar-outline',      color: COLORS.info,     description: 'Todos los eventos' },
-      { title: 'Tasa Aprobación',       value: `${tasaAprobacion}%`,                                 icon: 'checkmark-done-outline', color: COLORS.success,  description: 'Porcentaje de aprobación' },
-      { title: 'Tiempo Prom.',          value: `${data.tiempoPromedioAprobacion || 0}h`,            icon: 'time-outline',          color: COLORS.warning,  description: 'Tiempo promedio aprobación' },
-      { title: 'Pendientes',            value: pendientes.toString(),                                icon: 'hourglass-outline',     color: COLORS.warning,  description: 'Sin revisar', subtitle: 'Sin revisar' },
-      { title: 'Nuevos Usuarios',       value: (data.usuariosNuevosEsteMes || 0).toString(),        icon: 'person-add-outline',    color: COLORS.purple,   description: 'Este mes', subtitle: 'Este mes' },
-    ]);
+      const totalEvents = data.totalEvents || 0;
+      const aprobados = data.estadoCounts?.aprobado || 0;
+      const pendientes = data.estadoCounts?.pendiente || 0;
+      const rechazados = data.estadoCounts?.rechazado || 0;
+      const tasaAprobacion = totalEvents > 0 ? Math.round((aprobados / totalEvents) * 100) : 0;
+      setDashboardStats([
+        { title: 'Usuarios Activos',      value: (data.activeUsers || 0).toLocaleString(),          icon: 'people-outline',        color: COLORS.primary,  description: 'Cuentas habilitadas' },
+        { title: 'Eventos Totales',       value: totalEvents.toString(),                              icon: 'calendar-outline',      color: COLORS.info,     description: 'Todos los eventos' },
+        { title: 'Tasa Aprobación',       value: `${tasaAprobacion}%`,                                 icon: 'checkmark-done-outline', color: COLORS.success,  description: 'Porcentaje de aprobación' },
+        { title: 'Tiempo Prom.',          value: `${data.tiempoPromedioAprobacion || 0}h`,            icon: 'time-outline',          color: COLORS.warning,  description: 'Tiempo promedio aprobación' },
+        { title: 'Pendientes',            value: pendientes.toString(),                                icon: 'hourglass-outline',     color: COLORS.warning,  description: 'Sin revisar', subtitle: 'Sin revisar' },
+        { title: 'Nuevos Usuarios',       value: (data.usuariosNuevosEsteMes || 0).toString(),        icon: 'person-add-outline',    color: COLORS.purple,   description: 'Este mes', subtitle: 'Este mes' },
+      ]);
 
-      const events = (Array.isArray(eventsRes.data) ? eventsRes.data : [])
-      .filter(e => e.idfase === 2)
-      .map(e => ({
-        id: e.idevento,
-        title: e.nombreevento || 'Sin título',
-        date: e.fechaevento
-          ? new Date(e.fechaevento).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
-          : 'N/A',
-        time: e.horaevento ? e.horaevento.substring(0, 5) : 'N/A',
-        state: e.estado?.toLowerCase().includes('aprobado') ? 'Aprobado' : 'Pendiente',
-        creator: e.academicoCreador
-          ? `${e.academicoCreador.nombre || ''} ${e.academicoCreador.apellidopat || ''}`.trim()
-          : 'Desconocido',
-      }));
+      // ─── 👇 FILTRO DE FECHAS PASADAS ───────────────────────────────────────
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Normalizamos al inicio del día actual
 
-    setAllEvents(events);
-    setNotifications(Array.isArray(notifsRes.data) ? notifsRes.data : []);
-    setLastUpdated(new Date());
+      const rawEvents = Array.isArray(eventsRes.data) ? eventsRes.data : [];
 
-  } catch (error) {
-    console.error('Error fetchData:', error);
-    if (error.response?.status === 401) { await deleteTokenAsync(); router.replace('/'); }
-    else Alert.alert('Error de Conexión', 'No se pudieron cargar los datos.', [
-      { text: 'Reintentar', onPress: () => fetchData() },
-      { text: 'Cancelar', style: 'cancel' },
-    ]);
-  } finally {
-    setLoadingDashboard(false);
-    setLoadingEvents(false);
-    setLoadingReportes(false);
-    setRefreshing(false);
-  }
-}, []);
+      // Primero procesamos todos los eventos en Fase 2
+      const allPhase2 = rawEvents
+        .filter(e => e.idfase === 2)
+        .map(e => {
+          // Parseamos la fecha del evento
+          const eventDate = e.fechaevento ? new Date(e.fechaevento) : null;
+          if (eventDate) eventDate.setHours(0, 0, 0, 0);
+
+          return {
+            id: e.idevento,
+            title: e.nombreevento || 'Sin título',
+            date: e.fechaevento
+              ? new Date(e.fechaevento).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
+              : 'N/A',
+            time: e.horaevento ? e.horaevento.substring(0, 5) : 'N/A',
+            state: e.estado?.toLowerCase().includes('aprobado') ? 'Aprobado' : 'Pendiente',
+            creator: e.academicoCreador
+              ? `${e.academicoCreador.nombre || ''} ${e.academicoCreador.apellidopat || ''}`.trim()
+              : 'Desconocido',
+            rawDate: eventDate, // 👈 guardamos la fecha original para comparar
+          };
+        });
+
+      // Separamos los eventos futuros (hoy o después) de los pasados
+      const upcomingEvents = allPhase2.filter(e => {
+        // Si no tiene fecha, lo mostramos igual (no lo ocultamos)
+        if (!e.rawDate) return true;
+        return e.rawDate >= today;
+      });
+
+      const pastEventsCount = allPhase2.length - upcomingEvents.length;
+      setHiddenPastCount(pastEventsCount);
+
+      // Ordenamos los eventos próximos por fecha (más cercanos primero)
+      upcomingEvents.sort((a, b) => {
+        if (!a.rawDate) return 1;
+        if (!b.rawDate) return -1;
+        return a.rawDate - b.rawDate;
+      });
+
+      // Limpiamos el rawDate antes de guardar (no lo necesitamos en el state)
+      const cleanEvents = upcomingEvents.map(({ rawDate, ...rest }) => rest);
+      setAllEvents(cleanEvents);
+      // ─── 👆 FIN DEL FILTRO ─────────────────────────────────────────────────
+
+      setNotifications(Array.isArray(notifsRes.data) ? notifsRes.data : []);
+      setLastUpdated(new Date());
+
+    } catch (error) {
+      console.error('Error fetchData:', error);
+      if (error.response?.status === 401) { await deleteTokenAsync(); router.replace('/'); }
+      else Alert.alert('Error de Conexión', 'No se pudieron cargar los datos.', [
+        { text: 'Reintentar', onPress: () => fetchData() },
+        { text: 'Cancelar', style: 'cancel' },
+      ]);
+    } finally {
+      setLoadingDashboard(false);
+      setLoadingEvents(false);
+      setLoadingReportes(false);
+      setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -403,7 +439,10 @@ const Daf = () => {
         </Section>
 
         {/* ── EVENTOS EN FASE 2 ── */}
-        <Section title="Eventos en Fase 2" subtitle="Aprobados y pendientes de revisión DAF">
+        <Section
+          title="Eventos en Fase 2"
+          subtitle="Solo se muestran eventos desde hoy en adelante"
+        >
           {loadingEvents ? (
             <View style={styles.loadingBox}>
               <ActivityIndicator size="small" color={COLORS.primary} />
@@ -411,9 +450,19 @@ const Daf = () => {
             </View>
           ) : (
             <>
+              {/* 👇 Aviso de eventos ocultos */}
+              {hiddenPastCount > 0 && (
+                <View style={styles.hiddenPastBanner}>
+                  <Ionicons name="eye-off-outline" size={14} color={COLORS.textSecondary} />
+                  <Text style={styles.hiddenPastText}>
+                    {hiddenPastCount} evento{hiddenPastCount !== 1 ? 's' : ''} con fecha pasada {hiddenPastCount !== 1 ? 'ocultos' : 'oculto'}
+                  </Text>
+                </View>
+              )}
+
               <View style={styles.tableInfo}>
                 <View style={styles.tableInfoBadge}>
-                  <Text style={styles.tableInfoText}>{allEvents.length} eventos</Text>
+                  <Text style={styles.tableInfoText}>{allEvents.length} eventos próximos</Text>
                 </View>
                 <Text style={styles.tableInfoSub}>
                   {allEvents.filter(e => e.state === 'Aprobado').length} aprobados ·{' '}
@@ -575,6 +624,14 @@ const styles = StyleSheet.create({
   tableInfoText: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
   tableInfoSub: { fontSize: 12, color: COLORS.textSecondary },
 
+  // 👇 NUEVO: Banner de eventos ocultos
+  hiddenPastBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#FEF3C7', paddingHorizontal: 12, paddingVertical: 8,
+    borderRadius: 8, marginBottom: 10, borderWidth: 1, borderColor: '#FDE68A',
+  },
+  hiddenPastText: { fontSize: 12, color: COLORS.textSecondary, flex: 1 },
+
   // Shared badge (state)
   stateBadge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
   stateBadgeText: { fontSize: 11, fontWeight: '700' },
@@ -585,6 +642,7 @@ const styles = StyleSheet.create({
   printBtnText: { color: COLORS.primary, fontSize: 11, fontWeight: '600' },
   emptyTable: { alignItems: 'center', paddingVertical: 40 },
   emptyTableText: { marginTop: 10, fontSize: 14, color: COLORS.textTertiary },
+  emptyTableSubText: { marginTop: 4, fontSize: 12, color: COLORS.textTertiary, fontStyle: 'italic' },
 
   // Action cards
   actionCard: {
