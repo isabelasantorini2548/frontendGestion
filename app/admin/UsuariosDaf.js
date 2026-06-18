@@ -343,7 +343,7 @@ const renderUserItem = ({ item, index }) => {
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => router.push(`/admin/editUser/${item.id}`)}
+          onPress={() => router.push(`../admin/editUser/${item.id}`)}
           style={[styles.actionButton, styles.editButton]}
           activeOpacity={0.7}
         >
@@ -443,7 +443,7 @@ const renderUserItem = ({ item, index }) => {
                   style={[styles.modalActionButton, styles.modalEditButton]}
                   onPress={() => {
                     setShowUserModal(false);
-                    router.push(`/admin/editUser/${selectedUser.id}`);
+                    router.push(`../admin/editUser/${selectedUser.id}`);
                   }}
                 >
                   <Ionicons name="pencil" size={16} color="#fff" />
