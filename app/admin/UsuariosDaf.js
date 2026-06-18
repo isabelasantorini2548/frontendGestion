@@ -111,7 +111,7 @@ const UsuariosDaf = () => {
         return;
       }
 
-      const response = await axios.get(`${API_BASE_URL}/users?role=daf`, {
+      const response = await axios.get(`${API_BASE_URL}/users/daf`, {
         headers: { 'Authorization': `Bearer ${localToken}` }
         
       });
@@ -125,7 +125,7 @@ const UsuariosDaf = () => {
     );
     
     console.log('Usuarios DAF filtrados:', dafUsers.length);
-    
+
       const processedUsers = usersData.map(user => ({
         ...user,
         id: user.idusuario
