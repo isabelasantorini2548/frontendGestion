@@ -113,7 +113,11 @@ const UsuariosDaf = () => {
 
       const response = await axios.get(`${API_BASE_URL}/users?role=daf`, {
         headers: { 'Authorization': `Bearer ${localToken}` }
+        
       });
+      console.log('=== DATOS CRUDOS DE LA API ===');
+      console.log('Total de usuarios recibidos:', response.data.length);
+      console.log('Primeros 3 usuarios:', response.data.slice(0, 3));
 
       const usersData = Array.isArray(response.data) ? response.data : (response.data.data || []);
       const processedUsers = usersData.map(user => ({
