@@ -111,7 +111,7 @@ const UsuariosDaf = () => {
       return;
     }
 
-    const response = await axios.get(`${API_BASE_URL}/users/daf`, {
+    const response = await axios.get(`${API_BASE_URL}/users`, {
       headers: { 'Authorization': `Bearer ${localToken}` }
     });
 
