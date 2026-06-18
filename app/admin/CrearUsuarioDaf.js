@@ -18,6 +18,7 @@ import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import DropDownPicker from 'react-native-dropdown-picker';
+import axios from 'axios';
 
 const { width } = Dimensions.get('window');
 const API_BASE_URL =  'https://backendgestion-production.up.railway.app';
