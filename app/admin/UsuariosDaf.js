@@ -120,6 +120,12 @@ const UsuariosDaf = () => {
       console.log('Primeros 3 usuarios:', response.data.slice(0, 3));
 
       const usersData = Array.isArray(response.data) ? response.data : (response.data.data || []);
+       const dafUsers = usersData.filter(user => 
+      user.role?.toLowerCase() === 'daf'
+    );
+    
+    console.log('Usuarios DAF filtrados:', dafUsers.length);
+    
       const processedUsers = usersData.map(user => ({
         ...user,
         id: user.idusuario
