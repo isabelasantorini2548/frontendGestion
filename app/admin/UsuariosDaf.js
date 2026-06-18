@@ -3,7 +3,6 @@ import {
   StyleSheet,
   View,
   Text,
-  FlatList,
   TouchableOpacity,
   Alert,
   ActivityIndicator,
@@ -23,24 +22,13 @@ import * as SecureStore from 'expo-secure-store';
 
 const { width } = Dimensions.get('window');
 
-let determinedApiBaseUrl;
-/*if (Platform.OS === 'android') {
-  determinedApiBaseUrl = 'http://192.168.0.167:3001/api';
-} else if (Platform.OS === 'ios') {
-  determinedApiBaseUrl = 'http://192.168.0.167:3001/api';
-} else {
-  determinedApiBaseUrl = 'http://localhost:3001/api';
-}*/
-//const API_BASE_URL =  'https://evento.cidtec-uc.com';
-const API_BASE_URL =  'https://backendgestion-production.up.railway.app';
-//const API_BASE_URL =  'https://unifrontend.onrender.com';
+const API_BASE_URL = 'https://backendgestion-production.up.railway.app';
 
 const getTokenAsync = async () => {
   const TOKEN_KEY = 'adminAuthToken';
   if (Platform.OS === 'web') {
-    console.warn("Usando localStorage para el token en web (no seguro para producción). SecureStore tiene limitaciones en web.");
     try {
-      return localStorage.getItem('adminAuthToken');
+      return localStorage.getItem(TOKEN_KEY);
     } catch (e) {
       console.error("Error al acceder a localStorage en web:", e);
       return null;
@@ -60,28 +48,16 @@ const deleteTokenAsync = async () => {
   if (Platform.OS === 'web') {
     try {
       localStorage.removeItem(TOKEN_KEY);
-      console.log(`Token eliminado de localStorage (web) con clave: ${TOKEN_KEY}`);
     } catch (e) {
       console.error("Error al eliminar token de localStorage en web:", e);
     }
   } else {
     try {
       await SecureStore.deleteItemAsync(TOKEN_KEY);
-      console.log(`Token eliminado de SecureStore (nativo) con clave: ${TOKEN_KEY}`);
-    } catch (e){
+    } catch (e) {
       console.error("Error al eliminar token de SecureStore en nativo:", e);
     }
   }
-};
-
-const groupUsersByRole = (users) =>{ 
-  const groups = {};
-  users.forEach(user => {
-    const role = user.role?.toLowerCase() || 'sin_rol';
-    if (!groups[role]) groups[role] = [];
-    groups[role].push(user);
-  });
-  return groups;
 };
 
 const COLORS = {
@@ -105,7 +81,6 @@ const COLORS = {
 };
 
 const UsuariosDaf = () => {
-  console.log("UsuariosDaf: Renderizando componente");
   const router = useRouter();
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
@@ -114,26 +89,18 @@ const UsuariosDaf = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
-  const [filterRole, setFilterRole] = useState('all');
   const params = useLocalSearchParams();
 
   const fetchUsers = async (isRefresh = false) => {
-    console.log("UsuariosDaf: Ejecutando fetchUsers...");
-    if (isRefresh) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
-    }
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
 
     let localToken = null;
 
     try {
-      console.log("UsuariosA: Intentando obtener token...");
       localToken = await getTokenAsync();
-      console.log("UsuariosA: Token obtenido:", localToken);
 
       if (!localToken) {
-        console.log("UsuariosA: No se encontró token, mostrando alerta y retornando.");
         Alert.alert(
           'Autenticación Requerida',
           'No se encontró el token de administrador. Por favor, inicia sesión de nuevo.',
@@ -144,11 +111,11 @@ const UsuariosDaf = () => {
         return;
       }
 
+      // Solo traemos usuarios con rol DAF
       const response = await axios.get(`${API_BASE_URL}/users?role=daf`, {
         headers: { 'Authorization': `Bearer ${localToken}` }
       });
 
-      console.log("UsuariosA: Datos recibidos de la API:", response.data);
       const usersData = Array.isArray(response.data) ? response.data : (response.data.data || []);
       const processedUsers = usersData.map(user => ({
         ...user,
@@ -159,23 +126,19 @@ const UsuariosDaf = () => {
       setFilteredUsers(processedUsers);
 
     } catch (error) {
-      console.error("UsuariosA: Error fetching users from API:", error);
+      console.error("Error fetching users from API:", error);
       let errorMessage = 'No se pudieron cargar los usuarios.';
       if (error.response) {
-        console.error("Error data:", error.response.data);
-        console.error("Error status:", error.response.status);
         if (error.response.status === 401) {
-          errorMessage = 'No autorizado. Tu sesión podría haber expirado. Por favor, inicia sesión de nuevo.';
+          errorMessage = 'No autorizado. Tu sesión podría haber expirado.';
           await deleteTokenAsync();
           router.replace('/LoginAdmin');
         } else {
           errorMessage = `Error del servidor: ${error.response.status}. ${error.response.data?.message || ''}`;
         }
       } else if (error.request) {
-        console.error("Error request:", error.request);
-        errorMessage = 'No se pudo conectar al servidor. Verifica la URL y que el backend esté corriendo.';
+        errorMessage = 'No se pudo conectar al servidor.';
       } else {
-        console.error('Error genérico:', error.message);
         errorMessage = error.message;
       }
       Alert.alert('Error de Carga', errorMessage);
@@ -184,7 +147,6 @@ const UsuariosDaf = () => {
     } finally {
       setLoading(false);
       setRefreshing(false);
-      console.log("UsuariosA: fetchUsers finalizado.");
     }
   };
 
@@ -193,21 +155,17 @@ const UsuariosDaf = () => {
   }, []);
 
   useEffect(() => {
-    console.log("UsuariosA: Montaje inicial, llamando a fetchUsers.");
     fetchUsers();
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      if (params.refresh) {
-        console.log("UsuariosA: Refresh triggered by params:", params.refresh);
-        fetchUsers();
-      }
+      if (params.refresh) fetchUsers();
     }, [params.refresh])
   );
 
+  // Solo filtramos por término de búsqueda (ya no por rol)
   useEffect(() => {
-    console.log("UsuariosA: useEffect para filtrar. Termino:", searchTerm, "Users count:", users.length);
     if (!users) {
       setFilteredUsers([]);
       return;
@@ -215,7 +173,6 @@ const UsuariosDaf = () => {
 
     let filtered = users;
 
-    // Filtro por término de búsqueda
     if (searchTerm !== '') {
       filtered = filtered.filter(user =>
         (user.username && user.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -223,13 +180,8 @@ const UsuariosDaf = () => {
       );
     }
 
-    // Filtro por rol
-    if (filterRole !== 'all') {
-      filtered = filtered.filter(user => user.role === filterRole);
-    }
-
     setFilteredUsers(filtered);
-  }, [searchTerm, users, filterRole]);
+  }, [searchTerm, users]);
 
   const handleAddUser = () => {
     router.push('/admin/CrearUsuarioDaf');
@@ -249,7 +201,6 @@ const UsuariosDaf = () => {
         {
           text: "Sí, Eliminar",
           onPress: async () => {
-            console.log(`UsuariosA: Intentando eliminar usuario con ID: ${userId}`);
             let localTokenForDelete = await getTokenAsync();
             if (!localTokenForDelete) {
               Alert.alert('Error de Autenticación', 'Token no disponible para eliminar.');
@@ -262,7 +213,7 @@ const UsuariosDaf = () => {
               Alert.alert("Usuario Eliminado", `El usuario ha sido eliminado del servidor.`);
               fetchUsers();
             } catch (error) {
-              console.error(`UsuariosA: Error deleting user ${userId}:`, error);
+              console.error(`Error deleting user ${userId}:`, error);
               Alert.alert('Error', 'No se pudo eliminar el usuario.');
             }
           },
@@ -272,117 +223,63 @@ const UsuariosDaf = () => {
     );
   };
 
-  const getRoleColor = (role) => {
-    switch (role?.toLowerCase()) {
-      case 'admin': return COLORS.accent;
-      case 'user': return COLORS.info;
-      case 'daf': return COLORS.warning;
-      case 'student': return COLORS.secondary;
-      case 'academico': return COLORS.primary;
-      default: return COLORS.textTertiary;
-    }
-  };
+  const getRoleColor = () => COLORS.warning; // Siempre DAF
+  const getRoleIcon = () => 'people-outline';
 
-  const getRoleIcon = (role) => {
-    switch (role?.toLowerCase()) {
-      case 'admin': return 'shield-checkmark-outline';
-      case 'user': return 'person-outline';
-      case 'daf': return 'people-outline';
-      case 'student': return 'school-outline';
-      case 'academico': return 'book-outline';
-      default: return 'help-circle-outline';
-    }
-  };
-
-const renderUserItem = ({ item, index }) => {
-  const areaAcademica = item.academico?.carrera?.nombrecarrera || 'Área no asignada';
-  
-  return (
-    <View style={[styles.userItemContainer, { opacity: loading ? 0.6 : 1 }]}>
-      <View style={styles.userAvatarContainer}>
-        <View style={[styles.userAvatar, { backgroundColor: getRoleColor(item.role) }]}>
-          <Text style={styles.avatarText}>
-            {(item.username || item.email || 'U').charAt(0).toUpperCase()}
-          </Text>
-        </View>
-        <View style={[styles.roleIndicator, { backgroundColor: getRoleColor(item.role) }]}>
-          <Ionicons name={getRoleIcon(item.role)} size={12} color="#fff" />
-        </View>
-      </View>
-
-      <View style={styles.userInfo}>
-        <Text style={styles.username} numberOfLines={1}>
-          {item.username || 'Sin nombre'}
-        </Text>
-        <Text style={styles.userEmail} numberOfLines={1}>
-          {item.email || 'Sin email'}
-        </Text>
-        <View style={styles.roleContainer}>
-          <Text style={[styles.userRole, { color: getRoleColor(item.role) }]}>
-            {item.role || 'Sin rol'}
-          </Text>
-        </View>
-        {/* Mostrar área solo para académicos */}
-        {item.role?.toLowerCase() === 'academico' && (
-          <View style={styles.areaContainer}>
-            <Ionicons name="school-outline" size={14} color={COLORS.primary} />
-            <Text style={styles.userArea} numberOfLines={1}>
-              {areaAcademica}
+  const renderUserItem = ({ item }) => {
+    return (
+      <View style={[styles.userItemContainer, { opacity: loading ? 0.6 : 1 }]}>
+        <View style={styles.userAvatarContainer}>
+          <View style={[styles.userAvatar, { backgroundColor: getRoleColor() }]}>
+            <Text style={styles.avatarText}>
+              {(item.username || item.email || 'U').charAt(0).toUpperCase()}
             </Text>
           </View>
-        )}
-      </View>
+          <View style={[styles.roleIndicator, { backgroundColor: getRoleColor() }]}>
+            <Ionicons name={getRoleIcon()} size={12} color="#fff" />
+          </View>
+        </View>
 
-      <View style={styles.userActions}>
-        <TouchableOpacity
-          onPress={() => handleViewUser(item)}
-          style={[styles.actionButton, styles.viewButton]}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="eye-outline" size={20} color={COLORS.info} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => router.push(`/admin/editUser/${item.id}`)}
-          style={[styles.actionButton, styles.editButton]}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="pencil-outline" size={20} color={COLORS.warning} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => handleDeleteUser(item.id)}
-          style={[styles.actionButton, styles.deleteButton]}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="trash-outline" size={20} color={COLORS.accent} />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-};
-
-  const renderFilterChips = () => {
-    const roles = ['all', 'admin', 'user', 'daf', 'student', 'academico'];
-    return (
-      <View style={styles.filterContainer}>
-        {roles.map((role) => (
-          <TouchableOpacity
-            key={role}
-            style={[
-              styles.filterChip,
-              filterRole === role && styles.filterChipActive
-            ]}
-            onPress={() => setFilterRole(role)}
-          >
-            <Text style={[
-              styles.filterChipText,
-              filterRole === role && styles.filterChipTextActive
-            ]}>
-              {role === 'all' ? 'Todos' : role.charAt(0).toUpperCase() + role.slice(1)}
+        <View style={styles.userInfo}>
+          <Text style={styles.username} numberOfLines={1}>
+            {item.username || 'Sin nombre'}
+          </Text>
+          <Text style={styles.userEmail} numberOfLines={1}>
+            {item.email || 'Sin email'}
+          </Text>
+          <View style={styles.roleContainer}>
+            <Ionicons name="people-outline" size={14} color={COLORS.warning} />
+            <Text style={[styles.userRole, { color: COLORS.warning }]}>
+              DAF
             </Text>
+          </View>
+        </View>
+
+        <View style={styles.userActions}>
+          <TouchableOpacity
+            onPress={() => handleViewUser(item)}
+            style={[styles.actionButton, styles.viewButton]}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="eye-outline" size={20} color={COLORS.info} />
           </TouchableOpacity>
-        ))}
+
+          <TouchableOpacity
+            onPress={() => router.push(`/admin/editUser/${item.id}`)}
+            style={[styles.actionButton, styles.editButton]}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="pencil-outline" size={20} color={COLORS.warning} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => handleDeleteUser(item.id)}
+            style={[styles.actionButton, styles.deleteButton]}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="trash-outline" size={20} color={COLORS.accent} />
+          </TouchableOpacity>
+        </View>
       </View>
     );
   };
@@ -400,7 +297,7 @@ const renderUserItem = ({ item, index }) => {
       >
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Detalles del Usuario</Text>
+            <Text style={styles.modalTitle}>Detalles del Usuario DAF</Text>
             <TouchableOpacity
               onPress={() => setShowUserModal(false)}
               style={styles.modalCloseButton}
@@ -412,7 +309,7 @@ const renderUserItem = ({ item, index }) => {
           {selectedUser && (
             <View style={styles.modalBody}>
               <View style={styles.modalUserAvatar}>
-                <View style={[styles.modalAvatar, { backgroundColor: getRoleColor(selectedUser.role) }]}>
+                <View style={[styles.modalAvatar, { backgroundColor: COLORS.warning }]}>
                   <Text style={styles.modalAvatarText}>
                     {(selectedUser.username || selectedUser.email || 'U').charAt(0).toUpperCase()}
                   </Text>
@@ -427,13 +324,9 @@ const renderUserItem = ({ item, index }) => {
                   {selectedUser.email || 'Sin email'}
                 </Text>
                 <View style={styles.modalRoleContainer}>
-                  <Ionicons
-                    name={getRoleIcon(selectedUser.role)}
-                    size={16}
-                    color={getRoleColor(selectedUser.role)}
-                  />
-                  <Text style={[styles.modalUserRole, { color: getRoleColor(selectedUser.role) }]}>
-                    {selectedUser.role || 'Sin rol'}
+                  <Ionicons name="people-outline" size={16} color={COLORS.warning} />
+                  <Text style={[styles.modalUserRole, { color: COLORS.warning }]}>
+                    DAF
                   </Text>
                 </View>
               </View>
@@ -473,199 +366,168 @@ const renderUserItem = ({ item, index }) => {
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Cargando usuarios...</Text>
+          <Text style={styles.loadingText}>Cargando usuarios DAF...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-return (
-  <SafeAreaView style={styles.container}>
-    <Stack.Screen
-      options={{
-        title: 'Gestionar Usuarios',
-        headerStyle: {
-          backgroundColor: COLORS.primary,
-        },
-        headerTintColor: '#fff',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-        headerRight: () => (
-          <TouchableOpacity onPress={handleAddUser} style={styles.headerButton}>
-            <Ionicons name="add-circle" size={28} color="#fff" />
-          </TouchableOpacity>
-        ),
-      }}
-    />
+  return (
+    <SafeAreaView style={styles.container}>
+      <Stack.Screen
+        options={{
+          title: 'Usuarios DAF',
+          headerStyle: { backgroundColor: COLORS.primary },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: 'bold' },
+          headerRight: () => (
+            <TouchableOpacity onPress={handleAddUser} style={styles.headerButton}>
+              <Ionicons name="add-circle" size={28} color="#fff" />
+            </TouchableOpacity>
+          ),
+        }}
+      />
 
-    <ScrollView
-      style={styles.scrollView}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          colors={[COLORS.primary]}
-          tintColor={COLORS.primary}
-        />
-      }
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.searchContainer}>
-        <View style={styles.searchInputContainer}>
-          <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Buscar por nombre o email..."
-            value={searchTerm}
-            onChangeText={setSearchTerm}
-            placeholderTextColor="#888"
+      <ScrollView
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
           />
-          {searchTerm !== '' && (
-            <TouchableOpacity onPress={() => setSearchTerm('')} style={styles.clearButton}>
-              <Ionicons name="close-circle" size={20} color="#666" />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-
-      {renderFilterChips()}
-
-      <View style={styles.statsContainer}>
-        <Text style={styles.statsText}>
-          {filteredUsers.length} {filteredUsers.length === 1 ? 'usuario' : 'usuarios'}
-          {searchTerm || filterRole !== 'all' ? ' encontrados' : ' total'}
-        </Text>
-      </View>
-
-      {!loading && filteredUsers.length === 0 ? (
-        <View style={styles.centered}>
-          <Ionicons name="people-outline" size={80} color="#ccc" />
-          <Text style={styles.noUsersText}>
-            {searchTerm || filterRole !== 'all'
-              ? 'No se encontraron usuarios con los filtros aplicados.'
-              : 'No hay usuarios para mostrar.'}
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Encabezado informativo */}
+        <View style={styles.infoBanner}>
+          <Ionicons name="people" size={22} color={COLORS.warning} />
+          <Text style={styles.infoBannerText}>
+            Listado de usuarios con rol DAF
           </Text>
-          {(searchTerm || filterRole !== 'all') && (
-            <TouchableOpacity
-              style={styles.clearFiltersButton}
-              onPress={() => {
-                setSearchTerm('');
-                setFilterRole('all');
-              }}
-            >
-              <Text style={styles.clearFiltersText}>Limpiar filtros</Text>
-            </TouchableOpacity>
-          )}
         </View>
-      ) : (
-        <View style={styles.listContentContainer}>
-         {Object.entries(groupUsersByRole(filteredUsers)).map(([role, users]) => (
-  <View key={role} style={styles.roleSection}>
-    <View style={styles.roleHeader}>
-      <Ionicons name={getRoleIcon(role)} size={20} color={getRoleColor(role)} />
-      <Text style={styles.roleTitle}>
-        {role === 'sin_rol'
-          ? 'Sin Rol'
-          : role.charAt(0).toUpperCase() + role.slice(1)} ({users.length})
-      </Text>
-    </View>
-    {users.map((user) => (
-      <View key={user.id}>
-        {renderUserItem({ item: user })}
-      </View>
-    ))}
-  </View>
-))}
+
+        <View style={styles.searchContainer}>
+          <View style={styles.searchInputContainer}>
+            <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Buscar por nombre o email..."
+              value={searchTerm}
+              onChangeText={setSearchTerm}
+              placeholderTextColor="#888"
+            />
+            {searchTerm !== '' && (
+              <TouchableOpacity onPress={() => setSearchTerm('')} style={styles.clearButton}>
+                <Ionicons name="close-circle" size={20} color="#666" />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
-      )}
-    </ScrollView>
 
-    <TouchableOpacity 
-      style={styles.fab} 
-      onPress={handleAddUser} 
-      accessibilityLabel="Añadir nuevo usuario"
-    >
-      <Ionicons name="add" size={28} color="#fff" />
-    </TouchableOpacity>
+        <View style={styles.statsContainer}>
+          <Text style={styles.statsText}>
+            {filteredUsers.length} {filteredUsers.length === 1 ? 'usuario DAF' : 'usuarios DAF'}
+            {searchTerm ? ' encontrados' : ' en total'}
+          </Text>
+        </View>
 
-    {renderUserModal()}
-  </SafeAreaView>
-);
+        {!loading && filteredUsers.length === 0 ? (
+          <View style={styles.centered}>
+            <Ionicons name="people-outline" size={80} color="#ccc" />
+            <Text style={styles.noUsersText}>
+              {searchTerm
+                ? 'No se encontraron usuarios DAF con ese criterio.'
+                : 'No hay usuarios DAF registrados.'}
+            </Text>
+            {searchTerm && (
+              <TouchableOpacity
+                style={styles.clearFiltersButton}
+                onPress={() => setSearchTerm('')}
+              >
+                <Text style={styles.clearFiltersText}>Limpiar búsqueda</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : (
+          <View style={styles.listContentContainer}>
+            {filteredUsers.map((user) => (
+              <View key={user.id}>
+                {renderUserItem({ item: user })}
+              </View>
+            ))}
+          </View>
+        )}
+      </ScrollView>
+
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={handleAddUser}
+        accessibilityLabel="Añadir nuevo usuario DAF"
+      >
+        <Ionicons name="add" size={28} color="#fff" />
+      </TouchableOpacity>
+
+      {renderUserModal()}
+    </SafeAreaView>
+  );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  scrollView: {
-  flex: 1,
-    },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  scrollView: { flex: 1 },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
   },
-  // Agrega esto dentro de StyleSheet.create
-areaContainer: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  marginTop: 4,
-},
-userArea: {
-  fontSize: 13,
-  color: COLORS.textSecondary,
-  marginLeft: 6,
-  fontStyle: 'italic',
-},
   loadingText: {
     marginTop: 10,
     fontSize: 16,
     color: COLORS.textSecondary,
   },
-  roleSection: {
-  marginBottom: 24,
-},
-roleHeader: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  marginBottom: 12,
-  paddingHorizontal: 4,
-},
-roleTitle: {
-  fontSize: 16,
-  fontWeight: '700',
-  color: COLORS.textPrimary,
-  marginLeft: 8,
-},
-  headerButton: {
-    marginRight: 15,
-    padding: 5,
-  },
+  headerButton: { marginRight: 15, padding: 5 },
   fab: {
-  position: 'absolute',
-  bottom: 20,
-  right: 20,
-  width: 56,
-  height: 56,
-  borderRadius: 28,
-  backgroundColor: COLORS.primary,
-  justifyContent: 'center',
-  alignItems: 'center',
-  ...Platform.select({
-    ios: {
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 6,
-    },
-    android: {
-      elevation: 8,
-    },
-  }),
-},
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+      },
+      android: { elevation: 8 },
+    }),
+  },
+  infoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primaryLight,
+    marginHorizontal: 15,
+    marginTop: 15,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.warning,
+  },
+  infoBannerText: {
+    fontSize: 14,
+    color: COLORS.textPrimary,
+    fontWeight: '600',
+    marginLeft: 10,
+    flex: 1,
+  },
   searchContainer: {
     paddingHorizontal: 15,
     paddingTop: 15,
@@ -679,64 +541,21 @@ roleTitle: {
     paddingHorizontal: 15,
     height: 50,
     shadowColor: COLORS.shadow,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 3,
   },
-  searchIcon: {
-    marginRight: 10,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: COLORS.textPrimary,
-  },
-  clearButton: {
-    padding: 5,
-  },
-  filterContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-  },
-  filterChip: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    marginRight: 10,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  filterChipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  filterChipText: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    fontWeight: '500',
-  },
-  filterChipTextActive: {
-    color: COLORS.white,
-  },
-  statsContainer: {
-    paddingHorizontal: 15,
-    paddingBottom: 10,
-  },
+  searchIcon: { marginRight: 10 },
+  searchInput: { flex: 1, fontSize: 16, color: COLORS.textPrimary },
+  clearButton: { padding: 5 },
+  statsContainer: { paddingHorizontal: 15, paddingBottom: 10 },
   statsText: {
     fontSize: 14,
     color: COLORS.textSecondary,
     fontStyle: 'italic',
   },
-  listContentContainer: {
-    paddingHorizontal: 15,
-    paddingBottom: 20,
-  },
+  listContentContainer: { paddingHorizontal: 15, paddingBottom: 20 },
   userItemContainer: {
     backgroundColor: COLORS.surface,
     borderRadius: 12,
@@ -745,18 +564,12 @@ roleTitle: {
     flexDirection: 'row',
     alignItems: 'center',
     shadowColor: COLORS.shadow,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 3,
   },
-  userAvatarContainer: {
-    position: 'relative',
-    marginRight: 15,
-  },
+  userAvatarContainer: { position: 'relative', marginRight: 15 },
   userAvatar: {
     width: 50,
     height: 50,
@@ -764,11 +577,7 @@ roleTitle: {
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
+  avatarText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
   roleIndicator: {
     position: 'absolute',
     bottom: -2,
@@ -781,9 +590,7 @@ roleTitle: {
     borderWidth: 2,
     borderColor: '#fff',
   },
-  userInfo: {
-    flex: 1,
-  },
+  userInfo: { flex: 1 },
   username: {
     fontSize: 16,
     fontWeight: '600',
@@ -795,37 +602,22 @@ roleTitle: {
     color: COLORS.textSecondary,
     marginBottom: 6,
   },
-  roleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  roleContainer: { flexDirection: 'row', alignItems: 'center' },
   userRole: {
     fontSize: 12,
-    fontWeight: '500',
-    textTransform: 'capitalize',
-    backgroundColor: 'rgba(233, 90, 12, 0.1)', // Suave
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
+    marginLeft: 6,
   },
-  userActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  actionButton: {
-    padding: 10,
-    borderRadius: 8,
-    marginLeft: 5,
-  },
-  viewButton: {
-    backgroundColor: 'rgba(52, 152, 219, 0.1)',
-  },
-  editButton: {
-    backgroundColor: 'rgba(243, 156, 18, 0.1)',
-  },
-  deleteButton: {
-    backgroundColor: 'rgba(231, 76, 60, 0.1)',
-  },
+  userActions: { flexDirection: 'row', alignItems: 'center' },
+  actionButton: { padding: 10, borderRadius: 8, marginLeft: 5 },
+  viewButton: { backgroundColor: 'rgba(52, 152, 219, 0.1)' },
+  editButton: { backgroundColor: 'rgba(243, 156, 18, 0.1)' },
+  deleteButton: { backgroundColor: 'rgba(231, 76, 60, 0.1)' },
   noUsersText: {
     fontSize: 16,
     color: COLORS.textTertiary,
@@ -844,7 +636,6 @@ roleTitle: {
     fontSize: 14,
     fontWeight: '600',
   },
-  // Modal styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -871,16 +662,9 @@ roleTitle: {
     fontWeight: 'bold',
     color: COLORS.textPrimary,
   },
-  modalCloseButton: {
-    padding: 5,
-  },
-  modalBody: {
-    padding: 20,
-  },
-  modalUserAvatar: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
+  modalCloseButton: { padding: 5 },
+  modalBody: { padding: 20 },
+  modalUserAvatar: { alignItems: 'center', marginBottom: 20 },
   modalAvatar: {
     width: 80,
     height: 80,
@@ -888,15 +672,8 @@ roleTitle: {
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalAvatarText: {
-    color: '#fff',
-    fontSize: 28,
-    fontWeight: 'bold',
-  },
-  modalUserInfo: {
-    alignItems: 'center',
-    marginBottom: 25,
-  },
+  modalAvatarText: { color: '#fff', fontSize: 28, fontWeight: 'bold' },
+  modalUserInfo: { alignItems: 'center', marginBottom: 25 },
   modalUserName: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -908,24 +685,18 @@ roleTitle: {
     color: COLORS.textSecondary,
     marginBottom: 10,
   },
-  modalRoleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  modalRoleContainer: { flexDirection: 'row', alignItems: 'center' },
   modalUserRole: {
     fontSize: 14,
-    fontWeight: '500',
-    textTransform: 'capitalize',
+    fontWeight: '600',
+    textTransform: 'uppercase',
     marginLeft: 5,
-    backgroundColor: 'rgba(233, 90, 12, 0.1)',
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
   },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
+  modalActions: { flexDirection: 'row', justifyContent: 'space-around' },
   modalActionButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -935,12 +706,8 @@ roleTitle: {
     minWidth: 100,
     justifyContent: 'center',
   },
-  modalEditButton: {
-    backgroundColor: COLORS.warning,
-  },
-  modalDeleteButton: {
-    backgroundColor: COLORS.accent,
-  },
+  modalEditButton: { backgroundColor: COLORS.warning },
+  modalDeleteButton: { backgroundColor: COLORS.accent },
   modalActionButtonText: {
     color: COLORS.white,
     fontSize: 14,
