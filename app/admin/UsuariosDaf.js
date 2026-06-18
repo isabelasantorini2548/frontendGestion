@@ -346,7 +346,7 @@ const UsuariosDaf = () => {
                   style={[styles.modalActionButton, styles.modalEditButton]}
                   onPress={() => {
                     setShowUserModal(false);
-                    router.push(`/admin/editUser/${selectedUser.id}`);
+                    router.push(`/admin/EditUser/${selectedUser.id}`);
                   }}
                 >
                   <Ionicons name="pencil" size={16} color="#fff" />
