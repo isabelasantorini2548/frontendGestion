@@ -65,20 +65,14 @@ const LoginScreen = () => {
       
       switch (user.role) {
         case 'admin':
+        case 'academico':
+        case 'daf':
           TOKEN_KEY = 'adminAuthToken';
           USER_DATA_KEY = 'adminUserData';
           break;
         case 'student':
           TOKEN_KEY = 'studentAuthToken';    // ← ¡Esta es la clave que busca HomeEstudiante!
           USER_DATA_KEY = 'studentUserData';  // ← ¡Esta es la clave que busca HomeEstudiante!
-          break;
-        case 'academico':
-          TOKEN_KEY = 'adminAuthToken';
-          USER_DATA_KEY = 'adminUserData';
-          break;
-        case 'daf':
-          TOKEN_KEY = 'adminAuthToken';
-          USER_DATA_KEY = 'adminUserData';
           break;
         case 'comunicacion':
           TOKEN_KEY = 'comunicacionAuthToken';
