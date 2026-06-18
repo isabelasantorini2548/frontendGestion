@@ -24,6 +24,10 @@ export default function AdminLayout() {
       <Stack.Screen 
       name="admin/ProyectoEvento" 
       options={{headerShown:false}}/>
+      <Stack.Screen
+      name="admin/editUser"
+      options={{headerShown:false}}
+      />
     </Stack>
   );
 }

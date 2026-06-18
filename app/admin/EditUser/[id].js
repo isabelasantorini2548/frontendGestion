@@ -3,595 +3,570 @@ import {
   StyleSheet,
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   Alert,
-  ScrollView,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
+  TextInput,
   SafeAreaView,
+  ScrollView,
+  Platform,
+  Switch
 } from 'react-native';
-import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
+import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as SecureStore from 'expo-secure-store';
 import axios from 'axios';
-import DropDownPicker from 'react-native-dropdown-picker';
+import * as SecureStore from 'expo-secure-store';
 
-// ✅ URL de producción (igual que en CrearUsuarioA y UsuarioA)
-const API_BASE_URL = 'https://backendgestion-production.up.railway.app'.trim();
-
-const CARRERA_A_FACULTAD = {
-  '1':'1', '2':'2', '3':'2', '4':'2', '5':'2', '6':'2', '7':'2',
-  '8':'3', '9':'3', '10':'3', '11':'3',
-  '12':'4', '13':'4', '14':'4',
-  '15':'5', '16':'5', '17':'5',
-};
-
-const NOMBRES_FACULTADES = {
-  '1': 'Facultad de Ingeniería',
-  '2': 'Facultad de Ciencias Económicas',
-  '3': 'Facultad de Ciencias de la Salud',
-  '4': 'Facultad de Diseño y Tecnología',
-  '5': 'Facultad de Ciencias Jurídicas',
-};
-
-const OPCIONES_CARRERA = [
-  { label: 'Ingeniería de Sistemas', value: '1' },
-  { label: 'Administración de Empresas', value: '2' },
-  { label: 'Administración de Hotelería y Turismo', value: '3' },
-  { label: 'Contaduría Pública', value: '4' },
-  { label: 'Ingeniería Comercial', value: '5' },
-  { label: 'Ingeniería Económica', value: '6' },
-  { label: 'Ingeniería Económica y Financiera', value: '7' },
-  { label: 'Bioquímica y Farmacia', value: '8' },
-  { label: 'Enfermería', value: '9' },
-  { label: 'Medicina', value: '10' },
-  { label: 'Odontología', value: '11' },
-  { label: 'Arquitectura', value: '12' },
-  { label: 'Diseño Gráfico y Producción Cross Media', value: '13' },
-  { label: 'Publicidad y Marketing', value: '14' },
-  { label: 'Derecho', value: '15' },
-  { label: 'Psicología', value: '16' },
-  { label: 'Periodismo', value: '17' },
-];
-
-const ROLES_CON_CARRERA = ['student', 'academico', 'docente'];
+const API_BASE_URL = 'https://backendgestion-production.up.railway.app';
 
 const getTokenAsync = async () => {
   const TOKEN_KEY = 'adminAuthToken';
   if (Platform.OS === 'web') {
-    return localStorage.getItem(TOKEN_KEY);
+    try {
+      return localStorage.getItem(TOKEN_KEY);
+    } catch (e) {
+      console.error("Error al acceder a localStorage en web:", e);
+      return null;
+    }
   } else {
     try {
       return await SecureStore.getItemAsync(TOKEN_KEY);
     } catch (e) {
-      console.error('Error al obtener token:', e);
+      console.error("Error al obtener token de SecureStore en nativo:", e);
       return null;
     }
   }
 };
 
-const Toast = ({ visible, message }) => {
-  if (!visible) return null;
-  return (
-    <View style={styles.toastContainer}>
-      <View style={styles.toastContent}>
-        <Ionicons name="checkmark-circle" size={24} color="#fff" />
-        <Text style={styles.toastText}>{message}</Text>
-      </View>
-    </View>
-  );
+const COLORS = {
+  primary: '#E95A0C',
+  primaryLight: '#FFEDD5',
+  secondary: '#4B5563',
+  accent: '#EF4444',
+  success: '#10B981',
+  warning: '#F59E0B',
+  info: '#3B82F6',
+  background: '#F9FAFB',
+  surface: '#FFFFFF',
+  textPrimary: '#1F2937',
+  textSecondary: '#6B7280',
+  textTertiary: '#9CA3AF',
+  border: '#E5E7EB',
+  divider: '#D1D5DB',
+  shadow: 'rgba(0, 0, 0, 0.05)',
+  white: '#FFFFFF',
+  black: '#000000',
+  error: '#DC2626',
 };
-
-const InputField = ({ label, required, value, onChangeText, placeholder, keyboardType, autoCapitalize, error, onFocus }) => (
-  <View style={styles.inputContainer}>
-    <Text style={styles.label}>
-      {label}{required && <Text style={styles.required}> *</Text>}
-    </Text>
-    <TextInput
-      style={[styles.input, error && styles.inputError]}
-      value={value}
-      onChangeText={onChangeText}
-      placeholder={placeholder}
-      placeholderTextColor="#999"
-      keyboardType={keyboardType || 'default'}
-      autoCapitalize={autoCapitalize || 'none'}
-      onFocus={onFocus}
-    />
-    {error && <Text style={styles.errorText}>{error}</Text>}
-  </View>
-);
 
 const EditUser = () => {
   const router = useRouter();
-  const { id: idParam } = useLocalSearchParams();
-  const id = Array.isArray(idParam) ? idParam[0] : idParam;
-
+  const { id } = useLocalSearchParams();
+  
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [user, setUser] = useState(null);
   const [formData, setFormData] = useState({
+    username: '',
     nombre: '',
     apellidopat: '',
     apellidomat: '',
     email: '',
-    contrasenia: '',
-    role: '',
+    role: 'daf',
     habilitado: true,
+    contrasenia: '',
+    idcarrera: '',
+    idfacultad: ''
   });
-
-  const [openCarrera, setOpenCarrera] = useState(false);
-  const [carreraSeleccionada, setCarreraSeleccionada] = useState(null);
-  const [facultadSeleccionada, setFacultadSeleccionada] = useState(null);
-
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [successMessage, setSuccessMessage] = useState(null);
+  
+  const [facultades, setFacultades] = useState([]);
+  const [carreras, setCarreras] = useState([]);
   const [errors, setErrors] = useState({});
-  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    if (!id) {
-      Alert.alert('Error', 'ID de usuario no válido');
-      router.replace('/admin/UsuariosA');
-      return;
-    }
     fetchUserData();
+    fetchFacultades();
+    fetchCarreras();
   }, [id]);
 
   const fetchUserData = async () => {
     try {
       const token = await getTokenAsync();
       if (!token) {
-        Alert.alert('Error', 'Sesión expirada. Por favor, inicia sesión nuevamente.');
+        Alert.alert('Error', 'No autenticado');
         router.replace('/LoginAdmin');
         return;
       }
 
-      console.log('EditUser: Cargando usuario ID:', id);
       const response = await axios.get(`${API_BASE_URL}/users/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 15000,
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      let userData = response.data;
-      if (userData?.user) userData = userData.user;
-
-      console.log('EditUser: Datos recibidos:', JSON.stringify(userData, null, 2));
-
+      const userData = response.data.user || response.data;
+      setUser(userData);
       setFormData({
+        username: userData.username || '',
         nombre: userData.nombre || '',
         apellidopat: userData.apellidopat || '',
         apellidomat: userData.apellidomat || '',
         email: userData.email || '',
+        role: userData.role || 'daf',
+        habilitado: userData.habilitado === 'true' || userData.habilitado === true,
         contrasenia: '',
-        role: userData.role || '',
-        habilitado: userData.habilitado === 1 || userData.habilitado === true,
+        idcarrera: userData.academico?.idcarrera || '',
+        idfacultad: userData.academico?.facultad_id || userData.facultad_id || ''
       });
-
-      // Cargar carrera si el rol la requiere — busca en múltiples campos posibles
-      const carreraId =
-        userData.idcarrera?.toString() ||
-        userData.carrera_id?.toString() ||
-        userData.academico?.idcarrera?.toString() ||
-        userData.estudiante?.idcarrera?.toString() ||
-        null;
-
-      if (carreraId) {
-        setCarreraSeleccionada(carreraId);
-        const fid = CARRERA_A_FACULTAD[carreraId];
-        if (fid) setFacultadSeleccionada(fid);
-      }
-
     } catch (error) {
-      console.error('EditUser: Error al cargar usuario:', error);
-      let message = 'No se pudo cargar los datos del usuario.';
-      if (error.response?.status === 404) message = 'Usuario no encontrado.';
-      else if (error.response?.status === 401) {
-        message = 'Sesión no autorizada.';
-        router.replace('/LoginAdmin');
-        return;
-      } else if (error.response?.data?.message) {
-        message = error.response.data.message;
-      }
-      Alert.alert('Error', message);
-      router.back();
+      console.error('Error fetching user:', error);
+      Alert.alert('Error', 'No se pudo cargar la información del usuario');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  // Auto-asignar facultad al cambiar carrera
-  useEffect(() => {
-    if (carreraSeleccionada) {
-      const fid = CARRERA_A_FACULTAD[carreraSeleccionada];
-      if (fid) setFacultadSeleccionada(fid);
+  const fetchFacultades = async () => {
+    try {
+      const token = await getTokenAsync();
+      const response = await axios.get(`${API_BASE_URL}/facultades`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      setFacultades(response.data);
+    } catch (error) {
+      console.error('Error fetching facultades:', error);
     }
-  }, [carreraSeleccionada]);
+  };
+
+  const fetchCarreras = async () => {
+    try {
+      const token = await getTokenAsync();
+      const response = await axios.get(`${API_BASE_URL}/carreras`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      setCarreras(response.data);
+    } catch (error) {
+      console.error('Error fetching carreras:', error);
+    }
+  };
 
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.nombre.trim()) newErrors.nombre = 'El nombre es requerido.';
-    if (!formData.apellidopat.trim()) newErrors.apellidopat = 'El apellido paterno es requerido.';
+    
+    if (!formData.username.trim()) newErrors.username = 'Usuario requerido';
+    if (!formData.nombre.trim()) newErrors.nombre = 'Nombre requerido';
+    if (!formData.apellidopat.trim()) newErrors.apellidopat = 'Apellido paterno requerido';
     if (!formData.email.trim()) {
-      newErrors.email = 'El email es requerido.';
+      newErrors.email = 'Email requerido';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Formato de email inválido.';
+      newErrors.email = 'Email inválido';
     }
-    if (formData.contrasenia && formData.contrasenia.length < 6) {
-      newErrors.contrasenia = 'La contraseña debe tener al menos 6 caracteres.';
-    }
-    if (ROLES_CON_CARRERA.includes(formData.role) && !carreraSeleccionada) {
-      newErrors.carrera = 'Debe seleccionar una carrera.';
-    }
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSave = async () => {
-    if (!validateForm()) return;
-    setIsSaving(true);
-    try {
-      const token = await getTokenAsync();
-      if (!token) throw new Error('Token no disponible');
+    if (!validateForm()) {
+      Alert.alert('Error', 'Por favor completa los campos requeridos');
+      return;
+    }
 
-      const payload = {
-        nombre: formData.nombre.trim(),
-        apellidopat: formData.apellidopat.trim(),
-        apellidomat: formData.apellidomat.trim(),
-        email: formData.email.trim().toLowerCase(),
-        habilitado: formData.habilitado ? 1 : 0,
+    try {
+      setSaving(true);
+      const token = await getTokenAsync();
+      
+      const updateData = {
+        username: formData.username,
+        nombre: formData.nombre,
+        apellidopat: formData.apellidopat,
+        apellidomat: formData.apellidomat,
+        email: formData.email,
+        role: formData.role,
+        habilitado: formData.habilitado,
+        idcarrera: formData.idcarrera || null,
+        idfacultad: formData.idfacultad || null
       };
 
-      if (formData.contrasenia.trim()) {
-        payload.contrasenia = formData.contrasenia;
+      if (formData.contrasenia && formData.contrasenia.trim() !== '') {
+        updateData.contrasenia = formData.contrasenia;
       }
 
-      if (ROLES_CON_CARRERA.includes(formData.role) && carreraSeleccionada) {
-        payload.idcarrera = parseInt(carreraSeleccionada);
-        payload.idfacultad = parseInt(CARRERA_A_FACULTAD[carreraSeleccionada]);
-      }
-
-      console.log('EditUser: Payload enviado:', JSON.stringify(payload, null, 2));
-
-      await axios.put(`${API_BASE_URL}/users/${id}`, payload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        timeout: 30000,
+      await axios.put(`${API_BASE_URL}/${id}`, updateData, {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      setSuccessMessage('¡Usuario actualizado correctamente!');
-      setTimeout(() => {
-        setSuccessMessage(null);
-        router.replace('/admin/UsuariosA');
-      }, 2000);
-
+      Alert.alert('Éxito', 'Usuario actualizado correctamente', [
+        {
+          text: 'OK',
+          onPress: () => router.back()
+        }
+      ]);
     } catch (error) {
-      console.error('EditUser: Error al guardar:', error);
-      let message = 'No se pudo actualizar el usuario.';
-      if (error.response?.data?.message) message = error.response.data.message;
-      else if (error.response?.status === 409) message = 'El email ya está en uso.';
-      else if (error.response?.status === 401) {
-        router.replace('/LoginAdmin');
-        return;
-      }
-      Alert.alert('Error', message);
+      console.error('Error updating user:', error);
+      Alert.alert('Error', error.response?.data?.message || 'No se pudo actualizar el usuario');
     } finally {
-      setIsSaving(false);
+      setSaving(false);
     }
   };
 
-  if (isLoading) {
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <Stack.Screen options={{
-          title: 'Editar Usuario',
-          headerStyle: { backgroundColor: '#E95A0C' },
-          headerTintColor: '#fff',
-          headerTitleStyle: { fontWeight: 'bold' },
-        }} />
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#E95A0C" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>Cargando usuario...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  const needsCarrera = ROLES_CON_CARRERA.includes(formData.role);
-
   return (
     <SafeAreaView style={styles.container}>
-      <Stack.Screen options={{
-        title: 'Editar Usuario',
-        headerStyle: { backgroundColor: '#E95A0C' },
-        headerTintColor: '#fff',
-        headerTitleStyle: { fontWeight: 'bold' },
-      }} />
+      <Stack.Screen
+        options={{
+          title: 'Editar Usuario',
+          headerStyle: { backgroundColor: COLORS.primary },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: 'bold' },
+        }}
+      />
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContainer}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Header */}
-          <View style={styles.headerCard}>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>
-                {(formData.nombre || formData.email || 'U').charAt(0).toUpperCase()}
-              </Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.headerTitle}>
-                {formData.nombre} {formData.apellidopat}
-              </Text>
-              <View style={styles.rolePill}>
-                <Text style={styles.rolePillText}>{formData.role || 'Sin rol'}</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Información Personal */}
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="person-outline" size={18} color="#E95A0C" />
-              <Text style={styles.sectionTitle}>Información Personal</Text>
-            </View>
-            <InputField label="Nombre(s)" required value={formData.nombre}
-              onChangeText={(t) => setFormData({ ...formData, nombre: t })}
-              placeholder="Ej: Juan Carlos" autoCapitalize="words"
-              error={errors.nombre} onFocus={() => setOpenCarrera(false)} />
-            <InputField label="Apellido Paterno" required value={formData.apellidopat}
-              onChangeText={(t) => setFormData({ ...formData, apellidopat: t })}
-              placeholder="Ej: Pérez" autoCapitalize="words"
-              error={errors.apellidopat} onFocus={() => setOpenCarrera(false)} />
-            <InputField label="Apellido Materno" value={formData.apellidomat}
-              onChangeText={(t) => setFormData({ ...formData, apellidomat: t })}
-              placeholder="Ej: López (Opcional)" autoCapitalize="words"
-              onFocus={() => setOpenCarrera(false)} />
-          </View>
-
-          {/* Contacto */}
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="mail-outline" size={18} color="#E95A0C" />
-              <Text style={styles.sectionTitle}>Contacto</Text>
-            </View>
-            <InputField label="Correo Electrónico" required value={formData.email}
-              onChangeText={(t) => setFormData({ ...formData, email: t })}
-              placeholder="ejemplo@correo.com" keyboardType="email-address"
-              error={errors.email} onFocus={() => setOpenCarrera(false)} />
-          </View>
-
-          {/* Contraseña */}
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="lock-closed-outline" size={18} color="#E95A0C" />
-              <Text style={styles.sectionTitle}>Seguridad</Text>
-            </View>
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>
-                Nueva Contraseña <Text style={styles.optional}>(Opcional)</Text>
-              </Text>
-              <View style={styles.inputWrapper}>
-                <TextInput
-                  style={[styles.input, styles.inputPadRight, errors.contrasenia && styles.inputError]}
-                  value={formData.contrasenia}
-                  onChangeText={(t) => setFormData({ ...formData, contrasenia: t })}
-                  placeholder="Déjalo vacío para no cambiarla"
-                  secureTextEntry={!showPassword}
-                  placeholderTextColor="#999"
-                  onFocus={() => setOpenCarrera(false)}
-                />
-                <TouchableOpacity style={styles.passwordToggle} onPress={() => setShowPassword(!showPassword)}>
-                  <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#666" />
-                </TouchableOpacity>
-              </View>
-              {errors.contrasenia && <Text style={styles.errorText}>{errors.contrasenia}</Text>}
-            </View>
-          </View>
-
-          {/* Carrera/Facultad */}
-          {needsCarrera && (
-            <View style={styles.sectionCard}>
-              <View style={styles.sectionHeader}>
-                <Ionicons name="school-outline" size={18} color="#E95A0C" />
-                <Text style={styles.sectionTitle}>Configuración Académica</Text>
-              </View>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <View style={styles.formContainer}>
+          {/* Información Básica */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Información Básica</Text>
+            
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Usuario *</Text>
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>Carrera <Text style={styles.required}>*</Text></Text>
-                <View style={[styles.dropdownWrapper, { marginBottom: openCarrera ? 290 : 8, zIndex: 2000 }]}>
-                  <DropDownPicker
-                    open={openCarrera}
-                    value={carreraSeleccionada}
-                    items={OPCIONES_CARRERA}
-                    setOpen={setOpenCarrera}
-                    setValue={setCarreraSeleccionada}
-                    placeholder="Selecciona la carrera"
-                    style={[styles.dropdown, errors.carrera && styles.inputError]}
-                    dropDownContainerStyle={[styles.dropdownList, { zIndex: 2000, elevation: 2000, maxHeight: 280 }]}
-                    listMode={Platform.OS === 'web' ? 'FLATLIST' : 'SCROLLVIEW'}
-                    textStyle={styles.dropdownText}
-                    placeholderStyle={styles.dropdownPlaceholder}
-                    searchable
-                    searchPlaceholder="Buscar carrera..."
-                    showArrowIcon showTickIcon itemSeparator
-                    itemSeparatorStyle={{ backgroundColor: '#f0f0f0' }}
+                <Ionicons name="person-outline" size={20} color={COLORS.textSecondary} />
+                <TextInput
+                  style={[styles.input, errors.username && styles.inputError]}
+                  value={formData.username}
+                  onChangeText={(value) => handleInputChange('username', value)}
+                  placeholder="Nombre de usuario"
+                  placeholderTextColor={COLORS.textTertiary}
+                />
+              </View>
+              {errors.username && <Text style={styles.errorText}>{errors.username}</Text>}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Nombre *</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="person" size={20} color={COLORS.textSecondary} />
+                <TextInput
+                  style={[styles.input, errors.nombre && styles.inputError]}
+                  value={formData.nombre}
+                  onChangeText={(value) => handleInputChange('nombre', value)}
+                  placeholder="Nombre"
+                  placeholderTextColor={COLORS.textTertiary}
+                />
+              </View>
+              {errors.nombre && <Text style={styles.errorText}>{errors.nombre}</Text>}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Apellido Paterno *</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="people-outline" size={20} color={COLORS.textSecondary} />
+                <TextInput
+                  style={[styles.input, errors.apellidopat && styles.inputError]}
+                  value={formData.apellidopat}
+                  onChangeText={(value) => handleInputChange('apellidopat', value)}
+                  placeholder="Apellido paterno"
+                  placeholderTextColor={COLORS.textTertiary}
+                />
+              </View>
+              {errors.apellidopat && <Text style={styles.errorText}>{errors.apellidopat}</Text>}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Apellido Materno</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="people-outline" size={20} color={COLORS.textSecondary} />
+                <TextInput
+                  style={styles.input}
+                  value={formData.apellidomat}
+                  onChangeText={(value) => handleInputChange('apellidomat', value)}
+                  placeholder="Apellido materno"
+                  placeholderTextColor={COLORS.textTertiary}
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Email *</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="mail-outline" size={20} color={COLORS.textSecondary} />
+                <TextInput
+                  style={[styles.input, errors.email && styles.inputError]}
+                  value={formData.email}
+                  onChangeText={(value) => handleInputChange('email', value)}
+                  placeholder="correo@ejemplo.com"
+                  placeholderTextColor={COLORS.textTertiary}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+              {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Contraseña</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="lock-closed-outline" size={20} color={COLORS.textSecondary} />
+                <TextInput
+                  style={styles.input}
+                  value={formData.contrasenia}
+                  onChangeText={(value) => handleInputChange('contrasenia', value)}
+                  placeholder="Dejar en blanco para mantener la actual"
+                  placeholderTextColor={COLORS.textTertiary}
+                  secureTextEntry
+                />
+              </View>
+              <Text style={styles.hintText}>Deja en blanco si no quieres cambiarla</Text>
+            </View>
+          </View>
+
+          {/* Configuración de Cuenta */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Configuración de Cuenta</Text>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Rol</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="shield-outline" size={20} color={COLORS.textSecondary} />
+                <TextInput
+                  style={[styles.input, { backgroundColor: COLORS.background }]}
+                  value={formData.role.toUpperCase()}
+                  editable={false}
+                />
+              </View>
+            </View>
+
+            <View style={styles.switchRow}>
+              <View style={styles.switchLabel}>
+                <Text style={styles.label}>Usuario Habilitado</Text>
+                <Text style={styles.hintText}>Permitir acceso al sistema</Text>
+              </View>
+              <Switch
+                value={formData.habilitado}
+                onValueChange={(value) => handleInputChange('habilitado', value)}
+                trackColor={{ false: COLORS.border, true: COLORS.primaryLight }}
+                thumbColor={formData.habilitado ? COLORS.primary : COLORS.textTertiary}
+              />
+            </View>
+          </View>
+
+          {/* Información Académica (si aplica) */}
+          {formData.role === 'academico' && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Información Académica</Text>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Facultad</Text>
+                <View style={styles.inputContainer}>
+                  <Ionicons name="business-outline" size={20} color={COLORS.textSecondary} />
+                  <TextInput
+                    style={styles.input}
+                    value={formData.idfacultad ? 
+                      facultades.find(f => f.facultad_id === parseInt(formData.idfacultad))?.nombre_facultad || '' 
+                      : 'Sin facultad'}
+                    editable={false}
+                    placeholderTextColor={COLORS.textTertiary}
                   />
                 </View>
-                {errors.carrera && <Text style={styles.errorText}>{errors.carrera}</Text>}
               </View>
-              {carreraSeleccionada && facultadSeleccionada && (
-                <View style={styles.facultadBadge}>
-                  <Ionicons name="checkmark-circle" size={16} color="#15803d" />
-                  <Text style={styles.facultadBadgeText}>{NOMBRES_FACULTADES[facultadSeleccionada]}</Text>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Carrera</Text>
+                <View style={styles.inputContainer}>
+                  <Ionicons name="school-outline" size={20} color={COLORS.textSecondary} />
+                  <TextInput
+                    style={styles.input}
+                    value={formData.idcarrera ? 
+                      carreras.find(c => c.idcarrera === parseInt(formData.idcarrera))?.nombrecarrera || '' 
+                      : 'Sin carrera'}
+                    editable={false}
+                    placeholderTextColor={COLORS.textTertiary}
+                  />
                 </View>
-              )}
-              <View style={styles.infoBox}>
-                <Text style={styles.infoText}>💡 La facultad se asigna automáticamente según la carrera</Text>
               </View>
             </View>
           )}
 
-          {/* Estado */}
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="toggle-outline" size={18} color="#E95A0C" />
-              <Text style={styles.sectionTitle}>Estado de la Cuenta</Text>
-            </View>
+          {/* Botones de Acción */}
+          <View style={styles.actions}>
             <TouchableOpacity
-              style={styles.toggleContainer}
-              onPress={() => setFormData({ ...formData, habilitado: !formData.habilitado })}
+              style={styles.cancelButton}
+              onPress={() => router.back()}
+              disabled={saving}
             >
-              <View style={[styles.toggleSwitch, formData.habilitado && styles.toggleSwitchActive]}>
-                <View style={[styles.toggleCircle, formData.habilitado && styles.toggleCircleActive]} />
-              </View>
-              <Text style={styles.toggleText}>
-                {formData.habilitado ? '✅ Habilitado' : '🚫 Deshabilitado'}
+              <Ionicons name="close" size={20} color={COLORS.textSecondary} />
+              <Text style={styles.cancelButtonText}>Cancelar</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+              onPress={handleSave}
+              disabled={saving}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color={COLORS.white} />
+              ) : (
+                <Ionicons name="save-outline" size={20} color={COLORS.white} />
+              )}
+              <Text style={styles.saveButtonText}>
+                {saving ? 'Guardando...' : 'Guardar Cambios'}
               </Text>
             </TouchableOpacity>
           </View>
-
-          {/* Botones */}
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity style={styles.cancelButton} onPress={() => router.back()} disabled={isSaving}>
-              <Text style={styles.cancelButtonText}>Cancelar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
-              onPress={handleSave} disabled={isSaving}
-            >
-              {isSaving ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <>
-                  <Ionicons name="save-outline" size={18} color="#fff" />
-                  <Text style={styles.saveButtonText}>  Guardar Cambios</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-
-      <Toast visible={!!successMessage} message={successMessage} />
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 10, fontSize: 16, color: '#6B7280' },
-  scrollContainer: { padding: 20, paddingBottom: 60 },
-
-  headerCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 16,
-    backgroundColor: '#fff', borderRadius: 16, padding: 20,
-    marginBottom: 16, borderLeftWidth: 4, borderLeftColor: '#E95A0C',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
   },
-  avatarCircle: {
-    width: 52, height: 52, borderRadius: 26,
-    backgroundColor: '#E95A0C', justifyContent: 'center', alignItems: 'center',
+  scrollView: {
+    flex: 1,
   },
-  avatarText: { color: '#fff', fontSize: 22, fontWeight: 'bold' },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: '#1F2937', marginBottom: 6 },
-  rolePill: {
-    alignSelf: 'flex-start', backgroundColor: '#FFF0E8',
-    paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20,
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  rolePillText: { color: '#E95A0C', fontWeight: '700', fontSize: 12, textTransform: 'capitalize' },
-
-  sectionCard: {
-    backgroundColor: '#fff', borderRadius: 16, padding: 20,
-    marginBottom: 14, shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06,
-    shadowRadius: 8, elevation: 3,
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: COLORS.textSecondary,
   },
-  sectionHeader: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    marginBottom: 16, paddingBottom: 12,
-    borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
+  formContainer: {
+    padding: 20,
+    paddingBottom: 40,
   },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: '#1F2937' },
-
-  inputContainer: { marginBottom: 16 },
-  label: { fontSize: 14, color: '#374151', marginBottom: 8, fontWeight: '600' },
-  required: { color: '#E74C3C' },
-  optional: { color: '#9CA3AF', fontWeight: '400' },
-  inputWrapper: { position: 'relative' },
+  section: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 3,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    marginBottom: 20,
+    paddingBottom: 10,
+    borderBottomWidth: 2,
+    borderBottomColor: COLORS.primaryLight,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+    marginBottom: 8,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    paddingHorizontal: 15,
+    height: 50,
+  },
   input: {
-    backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB',
-    borderRadius: 12, paddingHorizontal: 15, paddingVertical: 14, fontSize: 15, color: '#1F2937',
+    flex: 1,
+    fontSize: 16,
+    color: COLORS.textPrimary,
+    marginLeft: 10,
   },
-  inputPadRight: { paddingRight: 48 },
-  passwordToggle: { position: 'absolute', right: 14, top: 15 },
-  inputError: { borderColor: '#EF4444', borderWidth: 1.5 },
-  errorText: { color: '#EF4444', fontSize: 12, marginTop: 4, marginLeft: 2 },
-
-  dropdownWrapper: { marginBottom: 8 },
-  dropdown: { backgroundColor: '#F9FAFB', borderColor: '#E5E7EB', borderWidth: 1, borderRadius: 12, minHeight: 50 },
-  dropdownList: { backgroundColor: '#fff', borderColor: '#E5E7EB', borderWidth: 1, borderRadius: 12 },
-  dropdownText: { fontSize: 15, color: '#1F2937' },
-  dropdownPlaceholder: { fontSize: 15, color: '#9CA3AF' },
-
-  facultadBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#ECFDF5', padding: 12, borderRadius: 10,
-    marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#27ae60',
+  inputError: {
+    borderColor: COLORS.error,
   },
-  facultadBadgeText: { fontSize: 13, color: '#15803d', fontWeight: '500', flex: 1 },
-  infoBox: { backgroundColor: '#FFF7ED', borderRadius: 10, padding: 12, borderLeftWidth: 3, borderLeftColor: '#E95A0C' },
-  infoText: { fontSize: 13, color: '#92400e' },
-
-  toggleContainer: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB',
-    borderRadius: 12, paddingHorizontal: 15, paddingVertical: 14,
+  errorText: {
+    fontSize: 12,
+    color: COLORS.error,
+    marginTop: 5,
+    marginLeft: 5,
   },
-  toggleSwitch: {
-    width: 50, height: 28, borderRadius: 14, backgroundColor: '#D1D5DB',
-    justifyContent: 'center', paddingHorizontal: 2,
+  hintText: {
+    fontSize: 12,
+    color: COLORS.textTertiary,
+    marginTop: 5,
+    marginLeft: 5,
   },
-  toggleSwitchActive: { backgroundColor: '#10B981' },
-  toggleCircle: {
-    width: 24, height: 24, borderRadius: 12, backgroundColor: '#fff',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2, shadowRadius: 2, elevation: 2,
+  switchRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
   },
-  toggleCircleActive: { alignSelf: 'flex-end' },
-  toggleText: { marginLeft: 12, fontSize: 15, color: '#1F2937', fontWeight: '500' },
-
-  buttonContainer: { flexDirection: 'row', gap: 12, marginTop: 8, marginBottom: 30 },
+  switchLabel: {
+    flex: 1,
+  },
+  actions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 15,
+    marginTop: 10,
+  },
   cancelButton: {
-    flex: 1, paddingVertical: 15, borderRadius: 12,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: '#E95A0C',
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    paddingVertical: 15,
+    gap: 8,
   },
-  cancelButtonText: { color: '#E95A0C', fontSize: 15, fontWeight: '700' },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+  },
   saveButton: {
-    flex: 2, backgroundColor: '#E95A0C', paddingVertical: 15,
-    borderRadius: 12, alignItems: 'center', justifyContent: 'center',
-    flexDirection: 'row', shadowColor: '#E95A0C',
-    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8,
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+    borderRadius: 10,
+    paddingVertical: 15,
+    gap: 8,
   },
-  saveButtonDisabled: { backgroundColor: '#f9bda3', shadowOpacity: 0.1 },
-  saveButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-
-  toastContainer: {
-    position: 'absolute', bottom: 60, left: 0, right: 0,
-    alignItems: 'center', zIndex: 9999, paddingHorizontal: 20,
+  saveButtonDisabled: {
+    backgroundColor: COLORS.textTertiary,
   },
-  toastContent: {
-    backgroundColor: '#27ae60', flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 24, paddingVertical: 16, borderRadius: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 6, elevation: 8, minWidth: 280,
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.white,
   },
-  toastText: { color: '#fff', fontSize: 16, fontWeight: '600', marginLeft: 12, textAlign: 'center' },
 });
 
 export default EditUser;
