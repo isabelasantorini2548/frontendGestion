@@ -17,11 +17,10 @@ import {
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
-import apiClient from '../../src/api/axiosConfig'; 
 import DropDownPicker from 'react-native-dropdown-picker';
 
 const { width } = Dimensions.get('window');
-
+const API_BASE_URL =  'https://backendgestion-production.up.railway.app';
 const CrearUsuarioDaf = () => {
   const router = useRouter();
 
@@ -152,7 +151,7 @@ const handleAddUser = async () => {
     };
 
     console.log("Enviando datos:", newUserPayload);
-    const response = await apiClient.post('/auth/register', newUserPayload);
+    const response = await axios.post(`${API_BASE_URL}/auth/register`, newUserPayload);
 
     setFormData({
       username: '',
