@@ -275,7 +275,7 @@ const UsuariosDaf = () => {
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => router.push(`/admin/editUser/${item.id}`)}
+            onPress={() => router.push(`/admin/EditUser/${item.id}`)}
             style={[styles.actionButton, styles.editButton]}
             activeOpacity={0.7}
           >
