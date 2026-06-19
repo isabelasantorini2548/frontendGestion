@@ -883,6 +883,7 @@ const ProyectoEvento = () => {
   const [comiteErrorMessage, setComiteErrorMessage] = useState('');
   const [comiteSeleccionado, setComiteSeleccionado] = useState([]);
   const [horaSeleccionada, setHoraSeleccionada] = useState(new Date());
+  const [eventoExterno, setEventoExterno] = useState(false);
 
   const addRecursoTecnologico = () => setRecursosTecnologicos(prev => [...prev, { nombre: '', cantidad: '' }]);
   const removeRecursoTecnologico = (index) => setRecursosTecnologicos(prev => prev.filter((_, i) => i !== index));
@@ -1473,6 +1474,7 @@ const ProyectoEvento = () => {
         idclasificacion: clasificacionSeleccionada ? parseInt(clasificacionSeleccionada, 10) : null,
         idsubcategoria: subcategoriaSeleccionada ? parseInt(subcategoriaSeleccionada, 10) : null,
         comite: comiteSeleccionado.length > 0 ? comiteSeleccionado : null,
+        evento_externo: eventoExterno
       };
       const response = await axios.post(`${API_BASE_URL}/eventos`, eventoPayload, {
         headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' },
@@ -1590,6 +1592,54 @@ const ProyectoEvento = () => {
               </Text>
             </TouchableOpacity>
             {errors.lugarevento && <Text style={styles.errorText}>{errors.lugarevento}</Text>}
+           {/* VISIBILIDAD DEL EVENTO */}
+<Text style={styles.label}>Visibilidad del Evento</Text>
+<View style={styles.visibilidadContainer}>
+  <TouchableOpacity
+    style={[
+      styles.visibilidadOption,
+      !eventoExterno && styles.visibilidadOptionActive
+    ]}
+    onPress={() => setEventoExterno(false)}
+  >
+    <Ionicons 
+      name={!eventoExterno ? "lock-closed" : "lock-closed-outline"} 
+      size={20} 
+      color={!eventoExterno ? "#fff" : "#666"} 
+    />
+    <Text style={[
+      styles.visibilidadText,
+      !eventoExterno && styles.visibilidadTextActive
+    ]}>
+      Privado
+    </Text>
+  </TouchableOpacity>
+
+  <TouchableOpacity
+    style={[
+      styles.visibilidadOption,
+      eventoExterno && styles.visibilidadOptionActive
+    ]}
+    onPress={() => setEventoExterno(true)}
+  >
+    <Ionicons 
+      name={eventoExterno ? "globe" : "globe-outline"} 
+      size={20} 
+      color={eventoExterno ? "#fff" : "#666"} 
+    />
+    <Text style={[
+      styles.visibilidadText,
+      eventoExterno && styles.visibilidadTextActive
+    ]}>
+      Externo
+    </Text>
+  </TouchableOpacity>
+</View>
+<Text style={styles.visibilidadHint}>
+  {eventoExterno 
+    ? "🌐 Este evento será visible para todos los usuarios del sistema" 
+    : "🔒 Este evento solo será visible para ti"}
+</Text>
             {width <= 768 && (
               <>
                 <Text style={styles.label}>Fecha de Realización</Text>
@@ -2288,6 +2338,48 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 8,
   },
+ visibilidadContainer: {
+  flexDirection: 'row',
+  gap: 10,
+  marginBottom: 10,
+},
+visibilidadOption: {
+  flex: 1,
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  paddingVertical: 14,
+  paddingHorizontal: 12,
+  borderRadius: 10,
+  borderWidth: 2,
+  borderColor: '#e0e0e0',
+  backgroundColor: '#f8f9fa',
+  gap: 8,
+},
+visibilidadOptionActive: {
+  backgroundColor: '#e95a0c',
+  borderColor: '#e95a0c',
+  shadowColor: '#e95a0c',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.3,
+  shadowRadius: 4,
+  elevation: 3,
+},
+visibilidadText: {
+  fontSize: 14,
+  fontWeight: '600',
+  color: '#666',
+},
+visibilidadTextActive: {
+  color: '#ffffff',
+},
+visibilidadHint: {
+  fontSize: 12,
+  color: '#666',
+  fontStyle: 'italic',
+  marginBottom: 15,
+  paddingHorizontal: 4,
+},
   confirmModalContent: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
