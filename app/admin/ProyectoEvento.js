@@ -883,7 +883,9 @@ const ProyectoEvento = () => {
   const [comiteErrorMessage, setComiteErrorMessage] = useState('');
   const [comiteSeleccionado, setComiteSeleccionado] = useState([]);
   const [horaSeleccionada, setHoraSeleccionada] = useState(new Date());
-  const [eventoExterno, setEventoExterno] = useState(false);
+  const [facultades, setFacultades] = useState([]);
+  const [facultadSeleccionada, setFacultadSeleccionada] = useState(null);
+  const [showFacultadModal, setShowFacultadModal] = useState(false);
 
   const addRecursoTecnologico = () => setRecursosTecnologicos(prev => [...prev, { nombre: '', cantidad: '' }]);
   const removeRecursoTecnologico = (index) => setRecursosTecnologicos(prev => prev.filter((_, i) => i !== index));
@@ -1158,6 +1160,18 @@ const ProyectoEvento = () => {
     }
   }, []);
 
+  const fetchFacultades = useCallback(async () => {
+  try {
+    const token = await getTokenAsync();
+    if (!token) return;
+    const response = await axios.get(`${API_BASE_URL}/facultades`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    setFacultades(response.data || []);
+  } catch (error) {
+    console.error('❌ Error al obtener facultades:', error);
+  }
+}, []);
   useFocusEffect(cargarRecursos);
 
   useEffect(() => {
@@ -1165,6 +1179,7 @@ const ProyectoEvento = () => {
       fetchUserInfo();
       fetchNotifications();
       fetchUsuariosComite();
+      fetchFacultades();
       const interval = setInterval(fetchNotifications, 30000);
       return () => clearInterval(interval);
     }
@@ -1592,54 +1607,6 @@ const ProyectoEvento = () => {
               </Text>
             </TouchableOpacity>
             {errors.lugarevento && <Text style={styles.errorText}>{errors.lugarevento}</Text>}
-           {/* VISIBILIDAD DEL EVENTO */}
-<Text style={styles.label}>Visibilidad del Evento</Text>
-<View style={styles.visibilidadContainer}>
-  <TouchableOpacity
-    style={[
-      styles.visibilidadOption,
-      !eventoExterno && styles.visibilidadOptionActive
-    ]}
-    onPress={() => setEventoExterno(false)}
-  >
-    <Ionicons 
-      name={!eventoExterno ? "lock-closed" : "lock-closed-outline"} 
-      size={20} 
-      color={!eventoExterno ? "#fff" : "#666"} 
-    />
-    <Text style={[
-      styles.visibilidadText,
-      !eventoExterno && styles.visibilidadTextActive
-    ]}>
-      Privado
-    </Text>
-  </TouchableOpacity>
-
-  <TouchableOpacity
-    style={[
-      styles.visibilidadOption,
-      eventoExterno && styles.visibilidadOptionActive
-    ]}
-    onPress={() => setEventoExterno(true)}
-  >
-    <Ionicons 
-      name={eventoExterno ? "globe" : "globe-outline"} 
-      size={20} 
-      color={eventoExterno ? "#fff" : "#666"} 
-    />
-    <Text style={[
-      styles.visibilidadText,
-      eventoExterno && styles.visibilidadTextActive
-    ]}>
-      Externo
-    </Text>
-  </TouchableOpacity>
-</View>
-<Text style={styles.visibilidadHint}>
-  {eventoExterno 
-    ? "🌐 Este evento será visible para todos los usuarios del sistema" 
-    : "🔒 Este evento solo será visible para ti"}
-</Text>
             {width <= 768 && (
               <>
                 <Text style={styles.label}>Fecha de Realización</Text>
@@ -1738,7 +1705,14 @@ const ProyectoEvento = () => {
                     { key: 'estudiantes', label: 'Estudiantes' },
                     { key: 'docentes', label: 'Docentes' }
                   ].map((item) => (
-                    <TouchableOpacity key={item.key} style={styles.checkboxRow} onPress={() => handleCheckboxChange(setSegmentoObjetivo, item.key)}>
+                    <TouchableOpacity key={item.key} style={styles.checkboxRow} 
+                    onPress={() => {
+                      handleCheckboxChange(setSegmentoObjetivo, item.key);
+                      if (item.key === 'estudiantes' && segmentoObjetivo.estudiantes) {
+                        setFacultadSeleccionada(null);
+                      }
+                    }
+                    }>
                       <Ionicons name={segmentoObjetivo[item.key] ? "checkbox" : "square-outline"} size={24} color={segmentoObjetivo[item.key] ? "#e95a0c" : "#888"} />
                       <Text style={styles.checkboxLabel}>{item.label}</Text>
                     </TouchableOpacity>
@@ -1985,6 +1959,77 @@ const ProyectoEvento = () => {
                 <TouchableOpacity style={styles.modalButtonSecondary} onPress={() => setShowLugarModal(false)}>
                   <Text style={styles.modalButtonSecondaryText}>Cancelar</Text>
                 </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+          <Modal visible={showFacultadModal} transparent animationType="fade" onRequestClose={() => setShowFacultadModal(false)}>
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                  <Ionicons name="school" size={28} color="#e95a0c" />
+                  <Text style={styles.modalTitle}>Selecciona la Facultad</Text>
+                </View>
+                <Text style={{ fontSize: 13, color: '#666', marginBottom: 15 }}>
+                  ¿A qué facultad está dirigido este evento?
+                </Text>
+                <ScrollView style={{ maxHeight: 300 }}>
+                  {facultades.length === 0 ? (
+                    <Text style={{ textAlign: 'center', color: '#999', padding: 20 }}>
+                      Cargando facultades...
+                    </Text>
+                  ) : (
+                    facultades.map((fac) => (
+                      <TouchableOpacity
+                        key={fac.facultad_id}
+                        style={[
+                          styles.modalOption,
+                          facultadSeleccionada === fac.facultad_id && { 
+                            backgroundColor: '#fff5f0', 
+                            borderLeftWidth: 4, 
+                            borderLeftColor: '#e95a0c' 
+                          }
+                        ]}
+                        onPress={() => {
+                          setFacultadSeleccionada(fac.facultad_id);
+                          setShowFacultadModal(false);
+                        }}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Ionicons 
+                            name={facultadSeleccionada === fac.facultad_id ? "radio-button-on" : "radio-button-off"} 
+                            size={20} 
+                            color={facultadSeleccionada === fac.facultad_id ? "#e95a0c" : "#888"} 
+                          />
+                          <Text style={[
+                            styles.modalOptionText,
+                            facultadSeleccionada === fac.facultad_id && { color: '#e95a0c', fontWeight: '600' }
+                          ]}>
+                            {fac.nombre_facultad}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))
+                  )}
+                </ScrollView>
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 15 }}>
+                  {facultadSeleccionada && (
+                    <TouchableOpacity 
+                      style={[styles.modalButtonSecondary, { flex: 1 }]} 
+                      onPress={() => {
+                        setFacultadSeleccionada(null);
+                        setShowFacultadModal(false);
+                      }}
+                    >
+                      <Text style={styles.modalButtonSecondaryText}>Quitar selección</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity 
+                    style={[styles.modalButtonSecondary, { flex: 1 }]} 
+                    onPress={() => setShowFacultadModal(false)}
+                  >
+                    <Text style={styles.modalButtonSecondaryText}>Cerrar</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           </Modal>
@@ -2379,6 +2424,44 @@ visibilidadHint: {
   fontStyle: 'italic',
   marginBottom: 15,
   paddingHorizontal: 4,
+},
+facultadSelectorContainer: {
+  marginLeft: 32,
+  marginTop: 8,
+  marginBottom: 8,
+  padding: 12,
+  backgroundColor: '#fff5f0',
+  borderRadius: 8,
+  borderLeftWidth: 3,
+  borderLeftColor: '#e95a0c',
+},
+facultadSelectorLabel: {
+  fontSize: 13,
+  color: '#555',
+  fontWeight: '600',
+  marginBottom: 8,
+},
+facultadSelectorButton: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: '#FFFFFF',
+  borderWidth: 1,
+  borderColor: '#e95a0c',
+  borderRadius: 8,
+  paddingVertical: 10,
+  paddingHorizontal: 12,
+  gap: 8,
+},
+facultadSelectorText: {
+  flex: 1,
+  fontSize: 14,
+  color: '#333',
+},
+facultadSelectedHint: {
+  fontSize: 12,
+  color: '#27ae60',
+  marginTop: 8,
+  fontStyle: 'italic',
 },
   confirmModalContent: {
     backgroundColor: '#ffffff',
