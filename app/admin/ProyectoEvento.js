@@ -1489,7 +1489,8 @@ const ProyectoEvento = () => {
         idclasificacion: clasificacionSeleccionada ? parseInt(clasificacionSeleccionada, 10) : null,
         idsubcategoria: subcategoriaSeleccionada ? parseInt(subcategoriaSeleccionada, 10) : null,
         comite: comiteSeleccionado.length > 0 ? comiteSeleccionado : null,
-        evento_externo: eventoExterno
+        evento_externo: segmentoObjetivo.publicoExterno === true,
+        facultad_dirigida: segmentoObjetivo.estudiantes && facultadSeleccionada ? facultadSeleccionada : null,
       };
       const response = await axios.post(`${API_BASE_URL}/eventos`, eventoPayload, {
         headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' },
@@ -1718,6 +1719,41 @@ const ProyectoEvento = () => {
                     </TouchableOpacity>
                   ))}
                 </View>
+                {/* SELECTOR DE FACULTAD - Solo aparece si Estudiantes está seleccionado */}
+{segmentoObjetivo.estudiantes && (
+  <View style={styles.facultadSelectorContainer}>
+    <Text style={styles.facultadSelectorLabel}>
+      <Ionicons name="school-outline" size={14} color="#e95a0c" /> 
+      Dirigido a la facultad:
+    </Text>
+    <TouchableOpacity
+      style={styles.facultadSelectorButton}
+      onPress={() => setShowFacultadModal(true)}
+    >
+      <Ionicons name="business-outline" size={18} color="#e95a0c" />
+      <Text style={styles.facultadSelectorText}>
+        {facultadSeleccionada 
+          ? facultades.find(f => f.facultad_id === facultadSeleccionada)?.nombre_facultad || 'Selecciona una facultad'
+          : 'Selecciona una facultad'}
+      </Text>
+      <Ionicons name="chevron-down" size={16} color="#888" />
+    </TouchableOpacity>
+    {facultadSeleccionada && (
+      <Text style={styles.facultadSelectedHint}>
+        ✅ El evento será visible para estudiantes de esta facultad
+      </Text>
+    )}
+  </View>
+)}
+
+{/* HINT para Público Externo */}
+{segmentoObjetivo.publicoExterno && (
+  <View style={styles.facultadSelectorContainer}>
+    <Text style={styles.facultadSelectedHint}>
+      🌐 Al ser público externo, el evento será visible para todos los usuarios
+    </Text>
+  </View>
+)}
                 <View style={styles.checkboxColumn}>
                   {[
                     { key: 'publicoExterno', label: 'Público Externo' },
