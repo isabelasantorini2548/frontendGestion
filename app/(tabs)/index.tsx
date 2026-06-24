@@ -60,7 +60,7 @@ const App: React.FC = () => {
         <Animated.Image
           source={require('../../assets/images/logo.jpg')}
           style={[styles.splashImage, { opacity: fadeAnim }]}
-        />
+          />
         <ImageBackground
           source={require('../../assets/images/FONDO NARANJA_Mesa de trabajo 1.jpeg')}
           style={styles.background}
@@ -139,12 +139,12 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Capa oscura semitransparente
+    backgroundColor: 'rgba(0, 0, 0, 0.1)', // Capa oscura semitransparente
   },
   content: {
     alignItems: 'center',
     padding: 30,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
