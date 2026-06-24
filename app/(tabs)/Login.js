@@ -245,7 +245,7 @@ const LoginScreen = () => {
 
     return (
   <ImageBackground
-    source={require('../../assets/images/photo1.jpg')} 
+    source={require('../../assets/images/FONDO NARANJA_Mesa de trabajo 1.jpeg')} 
     style={styles.background}
     resizeMode="cover"
   >
