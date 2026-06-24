@@ -73,7 +73,7 @@ const App: React.FC = () => {
         options={{ headerShown: false }}
         component={({ navigation }: WelcomeScreenProps) => (
           <ImageBackground
-            source={require('../../assets/images/photo1.jpg')} // ⚠️ Asegúrate de tener esta imagen
+            source={require('../../assets/images/FONDO NARANJA_Mesa de trabajo 1.jpeg')} // ⚠️ Asegúrate de tener esta imagen
             style={styles.background}
             resizeMode="cover"
           >
