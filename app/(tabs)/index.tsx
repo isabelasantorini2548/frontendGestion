@@ -56,17 +56,18 @@ const App: React.FC = () => {
 
   if (!appIsReady) {
     return (
+        <ImageBackground
+          source={require('../../assets/images/FONDO NARANJA_Mesa de trabajo 1.jpeg')}
+          style={styles.background}
+          resizeMode="cover"
+        >
       <View style={styles.splashContainer}>
         <Animated.Image
           source={require('../../assets/images/logo.jpg')}
           style={[styles.splashImage, { opacity: fadeAnim }]}
           />
-        <ImageBackground
-          source={require('../../assets/images/FONDO NARANJA_Mesa de trabajo 1.jpeg')}
-          style={styles.background}
-          resizeMode="cover"
-        />
       </View>
+      </ImageBackground>
     );
   }
 
@@ -124,7 +125,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#e95a0c',
+    backgroundColor: 'transparent',
+  },
+  splashBackground: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
   },
   splashImage: {
     width: 300,
