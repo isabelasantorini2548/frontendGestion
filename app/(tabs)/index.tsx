@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.1)', // Capa oscura semitransparente
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Capa oscura semitransparente
   },
   content: {
     alignItems: 'center',
