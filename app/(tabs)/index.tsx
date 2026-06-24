@@ -61,7 +61,11 @@ const App: React.FC = () => {
           source={require('../../assets/images/logo.jpg')}
           style={[styles.splashImage, { opacity: fadeAnim }]}
         />
-        <ActivityIndicator size="large" color="#e95a0c" />
+        <ImageBackground
+          source={require('../../assets/images/FONDO NARANJA_Mesa de trabajo 1.jpeg')}
+          style={styles.background}
+          resizeMode="cover"
+        />
       </View>
     );
   }
