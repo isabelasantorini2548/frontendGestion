@@ -246,7 +246,7 @@ export default function Home() {
                   {eventos.map((ev, idx) => {
                     const imgUrl = getEventImage(ev);
                     return (
-                      <Link key={ev.idevento ?? idx} href={`/ItemDetail/${ev.idevento}`} asChild>
+                      <Link key={ev.idevento ?? idx} href={`./admin/ItemDetail/${ev.idevento}`} asChild>
                         <TouchableOpacity activeOpacity={0.85} style={styles.eventRow}>
                           {imgUrl ? (
                             <Image source={{ uri: imgUrl }} style={styles.eventRowImage} resizeMode="cover" />
