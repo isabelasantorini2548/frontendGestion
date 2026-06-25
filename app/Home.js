@@ -45,11 +45,12 @@ const mockCategories = [
   { id: 5, name: 'Ciencias Jurídicas y Sociales',       image: require('../assets/images/der.jpg'),   icon: '⚖️' },
 ];
 
-const getEventTitle       = (ev) => ev.titulo       ?? ev.title       ?? ev.nombre ?? ev.name ?? 'Sin título';
+const getEventTitle = (ev) => 
+  ev.nombreevento ?? ev.titulo ?? ev.title ?? ev.nombre ?? ev.name ?? 'Sin título';
 const getEventDescription = (ev) => ev.descripcion  ?? ev.description ?? ev.detalle ?? '';
 const getEventFacultadId  = (ev) => ev.facultadId   ?? ev.facultad_id ?? ev.faculty_id ?? ev.id_facultad ?? null;
 const getEventImage       = (ev) => {
-  const path = ev.imagen ?? ev.image ?? ev.foto ?? null;
+  const path = ev.imagen ?? ev.imagenUrl ?? ev.image ?? ev.foto ?? null;
   if (!path) return null;
   if (path.startsWith('http')) return path;
   return `${API_BASE_URL}/${path.replace(/^\//, '')}`;
@@ -245,7 +246,7 @@ export default function Home() {
                   {eventos.map((ev, idx) => {
                     const imgUrl = getEventImage(ev);
                     return (
-                      <Link key={ev.id ?? idx} href={`/ItemDetail/${ev.id}`} asChild>
+                      <Link key={ev.idevento ?? idx} href={`/ItemDetail/${ev.idevento}`} asChild>
                         <TouchableOpacity activeOpacity={0.85} style={styles.eventRow}>
                           {imgUrl ? (
                             <Image source={{ uri: imgUrl }} style={styles.eventRowImage} resizeMode="cover" />
