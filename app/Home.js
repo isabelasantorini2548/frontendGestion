@@ -278,10 +278,7 @@ export default function Home() {
       </ScrollView>
 
       {/* FABs */}
-      <TouchableOpacity style={styles.fabChat} onPress={() => router.push('/chatbot')} activeOpacity={0.85}>
-        <Text style={styles.fabIcon}>💬</Text>
-        <Text style={styles.fabLabel}>Chat</Text>
-      </TouchableOpacity>
+      
       <TouchableOpacity style={styles.fabLogin} onPress={() => router.push('./(tabs)/Login')} activeOpacity={0.85}>
         <Text style={styles.fabIcon}>👤</Text>
         <Text style={styles.fabLabel}>Login</Text>
