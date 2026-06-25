@@ -60,6 +60,7 @@ export default function Home() {
   const [allEvents, setAllEvents]             = useState([]);
   const [loading, setLoading]                 = useState(true);
   const [error, setError]                     = useState(null);
+  
   const [selectedFacultad, setSelectedFacultad] = useState(mockCategories[0]);
   const [activeCatIndex, setActiveCatIndex]   = useState(0);
   const fadeAnim  = useRef(new Animated.Value(0)).current;
@@ -70,8 +71,18 @@ export default function Home() {
     axios.get(`${API_BASE_URL}/eventos`)
       .then((res) => {
         const data = res.data;
-        console.log('=== /eventos ===', JSON.stringify(data, null, 2));
-        const list = Array.isArray(data) ? data : data.data ?? data.eventos ?? data.events ?? [];
+
+        console.log('=== DATOS CRUDOS ===', JSON.stringify(data, null, 2));
+      
+      const list = Array.isArray(data) ? data : data.data ?? data.eventos ?? data.events ?? [];
+      console.log('=== EVENTOS EXTRAÍDOS ===', list.length, 'eventos');
+      console.log('=== PRIMER EVENTO ===', list[0]);
+      
+      // Verificar estructura
+      if (list.length > 0) {
+        console.log('=== CAMPOS DEL PRIMER EVENTO ===', Object.keys(list[0]));
+        console.log('=== FACULTAD ID ===', getEventFacultadId(list[0]));
+      }
         setAllEvents(list);
         setLoading(false);
         Animated.parallel([
@@ -85,6 +96,15 @@ export default function Home() {
         setLoading(false);
       });
   }, []);
+  useEffect(() => {
+  console.log('=== FILTRANDO ===');
+  console.log('Facultad seleccionada ID:', selectedFacultad.id);
+  console.log('Total eventos:', allEvents.length);
+  console.log('Eventos filtrados:', eventos.length);
+  if (eventos.length > 0) {
+    console.log('Primer evento filtrado:', eventos[0]);
+  }
+}, [selectedFacultad, allEvents]);
 
   const animateEvents = () => {
     eventsAnim.setValue(0);
