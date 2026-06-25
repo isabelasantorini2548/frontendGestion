@@ -282,7 +282,7 @@ export default function Home() {
         <Text style={styles.fabIcon}>💬</Text>
         <Text style={styles.fabLabel}>Chat</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.fabLogin} onPress={() => router.push('/login')} activeOpacity={0.85}>
+      <TouchableOpacity style={styles.fabLogin} onPress={() => router.push('./(tabs)/Login')} activeOpacity={0.85}>
         <Text style={styles.fabIcon}>👤</Text>
         <Text style={styles.fabLabel}>Login</Text>
       </TouchableOpacity>
