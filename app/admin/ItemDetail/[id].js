@@ -14,7 +14,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import CustomAlert from '../../components/CustomAlert';
+import CustomAlert from '../../../components/CustomAlert';
 import { useFocusEffect } from '@react-navigation/native';
 
 // Configuración de API
@@ -104,7 +104,7 @@ const formatTime = (timeString) => {
 };
 
 const ItemDetailScreen = () => {
-  const { eventId } = useLocalSearchParams();
+  const { id } = useLocalSearchParams();
   const router = useRouter();
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -150,7 +150,7 @@ const ItemDetailScreen = () => {
   }, []);
 
   const fetchEventDetails = useCallback(async () => {
-    let processedEventId = Array.isArray(eventId) ? eventId[0] : eventId;
+    let processedEventId = Array.isArray(id) ? id[0] : id;
     if (typeof processedEventId === 'string' && processedEventId.startsWith('event-')) {
       processedEventId = processedEventId.replace('event-', '');
     }
@@ -253,7 +253,7 @@ const ItemDetailScreen = () => {
     } finally {
       setLoading(false);
     }
-  }, [eventId, router]);
+  }, [id, router]);
 
   const fetchUserDetails = async (token) => {
     try {
@@ -269,13 +269,13 @@ const ItemDetailScreen = () => {
   };
 
   useEffect(() => {
-    if (eventId) {
+    if (id) {
       fetchEventDetails();
     } else {
       setError('No se proporcionó un ID de evento.');
       setLoading(false);
     }
-  }, [fetchEventDetails, eventId]);
+  }, [fetchEventDetails, id]);
 
   if (loading) {
     return (
