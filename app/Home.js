@@ -38,11 +38,11 @@ const COLORS = {
 };
 
 const mockCategories = [
-  { id: 1, name: 'Ciencias Jurídicas y Sociales',       image: require('../assets/images/der.jpg'),   icon: '⚖️' },
+  { id: 1, name: 'Ingeniería',                          image: require('../assets/images/tec.jpg'),   icon: '⚙️' },
   { id: 2, name: 'Ciencias Económicas y Empresariales', image: require('../assets/images/econ.jpg'),  icon: '📊' },
-  { id: 3, name: 'Diseño y Tecnología Crossmedia',      image: require('../assets/images/arqui.jpg'), icon: '🎨' },
-  { id: 4, name: 'Ciencias de la Salud',                image: require('../assets/images/sal.jpg'),   icon: '🏥' },
-  { id: 5, name: 'Ingeniería',                          image: require('../assets/images/tec.jpg'),   icon: '⚙️' },
+  { id: 3, name: 'Ciencias de la Salud',                image: require('../assets/images/sal.jpg'),   icon: '🏥' },
+  { id: 4, name: 'Diseño y Tecnología Crossmedia',      image: require('../assets/images/arqui.jpg'), icon: '🎨' },
+  { id: 5, name: 'Ciencias Jurídicas y Sociales',       image: require('../assets/images/der.jpg'),   icon: '⚖️' },
 ];
 
 const getEventTitle       = (ev) => ev.titulo       ?? ev.title       ?? ev.nombre ?? ev.name ?? 'Sin título';
@@ -68,7 +68,7 @@ export default function Home() {
   const eventsAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    axios.get(`${API_BASE_URL}/eventos`)
+    axios.get(`${API_BASE_URL}/eventos/con-facultad`)
       .then((res) => {
         const data = res.data;
 
