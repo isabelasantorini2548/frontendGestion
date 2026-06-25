@@ -1719,41 +1719,49 @@ const ProyectoEvento = () => {
                     </TouchableOpacity>
                   ))}
                 </View>
-                {/* SELECTOR DE FACULTAD - Solo aparece si Estudiantes está seleccionado */}
-{segmentoObjetivo.estudiantes && (
-  <View style={styles.facultadSelectorContainer}>
-    <Text style={styles.facultadSelectorLabel}>
-      <Ionicons name="school-outline" size={14} color="#e95a0c" /> 
-      Dirigido a la facultad:
-    </Text>
-    <TouchableOpacity
-      style={styles.facultadSelectorButton}
-      onPress={() => setShowFacultadModal(true)}
-    >
-      <Ionicons name="business-outline" size={18} color="#e95a0c" />
-      <Text style={styles.facultadSelectorText}>
-        {facultadSeleccionada 
-          ? facultades.find(f => f.facultad_id === facultadSeleccionada)?.nombre_facultad || 'Selecciona una facultad'
-          : 'Selecciona una facultad'}
-      </Text>
-      <Ionicons name="chevron-down" size={16} color="#888" />
-    </TouchableOpacity>
-    {facultadSeleccionada && (
-      <Text style={styles.facultadSelectedHint}>
-        ✅ El evento será visible para estudiantes de esta facultad
-      </Text>
-    )}
-  </View>
-)}
+        {segmentoObjetivo.estudiantes && (
+          <View style={styles.facultadSelectorContainer}>
+            <View style={styles.facultadSelectorHeader}>
+              <Ionicons name="school-outline" size={18} color="#e95a0c" />
+              <Text style={styles.facultadSelectorLabel}>
+                Dirigido a la facultad:
+              </Text>
+            </View>
+            
+            <TouchableOpacity
+              style={styles.facultadSelectorButton}
+              onPress={() => setShowFacultadModal(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.facultadSelectorButtonContent}>
+                <Ionicons name="business-outline" size={20} color="#e95a0c" />
+                <Text style={styles.facultadSelectorText} numberOfLines={1}>
+                  {facultadSeleccionada 
+                    ? facultades.find(f => f.facultad_id === facultadSeleccionada)?.nombre_facultad || 'Selecciona una facultad'
+                    : 'Selecciona una facultad'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-down" size={20} color="#888" />
+            </TouchableOpacity>
+            
+            {facultadSeleccionada && (
+              <View style={styles.facultadSelectedHintContainer}>
+                <Ionicons name="checkmark-circle" size={16} color="#27ae60" />
+                <Text style={styles.facultadSelectedHint}>
+                  El evento será visible para estudiantes de esta facultad
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
 
-{/* HINT para Público Externo */}
-{segmentoObjetivo.publicoExterno && (
-  <View style={styles.facultadSelectorContainer}>
-    <Text style={styles.facultadSelectedHint}>
-      🌐 Al ser público externo, el evento será visible para todos los usuarios
-    </Text>
-  </View>
-)}
+        {segmentoObjetivo.publicoExterno && (
+          <View style={styles.facultadSelectorContainer}>
+            <Text style={styles.facultadSelectedHint}>
+              🌐 Al ser público externo, el evento será visible para todos 
+            </Text>
+          </View>
+        )}
                 <View style={styles.checkboxColumn}>
                   {[
                     { key: 'publicoExterno', label: 'Público Externo' },
@@ -2462,42 +2470,75 @@ visibilidadHint: {
   paddingHorizontal: 4,
 },
 facultadSelectorContainer: {
-  marginLeft: 32,
-  marginTop: 8,
-  marginBottom: 8,
-  padding: 12,
+  marginTop: 12,
+  marginBottom: 12,
+  padding: 16,
   backgroundColor: '#fff5f0',
-  borderRadius: 8,
-  borderLeftWidth: 3,
+  borderRadius: 12,
+  borderLeftWidth: 4,
   borderLeftColor: '#e95a0c',
+  shadowColor: '#e95a0c',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.1,
+  shadowRadius: 4,
+  elevation: 2,
+},
+facultadSelectorHeader: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginBottom: 10,
+  gap: 6,
 },
 facultadSelectorLabel: {
-  fontSize: 13,
-  color: '#555',
+  fontSize: 14,
   fontWeight: '600',
-  marginBottom: 8,
+  color: '#555',
+  flex: 1,
 },
 facultadSelectorButton: {
   flexDirection: 'row',
   alignItems: 'center',
+  justifyContent: 'space-between',
   backgroundColor: '#FFFFFF',
-  borderWidth: 1,
+  borderWidth: 2,
   borderColor: '#e95a0c',
-  borderRadius: 8,
-  paddingVertical: 10,
-  paddingHorizontal: 12,
-  gap: 8,
+  borderRadius: 10,
+  paddingVertical: 12,
+  paddingHorizontal: 14,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.1,
+  shadowRadius: 2,
+  elevation: 2,
+},
+facultadSelectorButtonContent: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  flex: 1,
+  marginRight: 10,
+  gap: 10,
 },
 facultadSelectorText: {
   flex: 1,
   fontSize: 14,
   color: '#333',
+  fontWeight: '500',
+},
+facultadSelectedHintContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginTop: 10,
+  paddingTop: 10,
+  borderTopWidth: 1,
+  borderTopColor: 'rgba(233, 90, 12, 0.2)',
+  gap: 6,
 },
 facultadSelectedHint: {
-  fontSize: 12,
+  fontSize: 13,
   color: '#27ae60',
-  marginTop: 8,
   fontStyle: 'italic',
+  flex: 1,
+  lineHeight: 18,
 },
   confirmModalContent: {
     backgroundColor: '#ffffff',
