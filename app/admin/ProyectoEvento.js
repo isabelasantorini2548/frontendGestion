@@ -1719,41 +1719,7 @@ const ProyectoEvento = () => {
                     </TouchableOpacity>
                   ))}
                 </View>
-        {segmentoObjetivo.estudiantes && (
-          <View style={styles.facultadSelectorContainer}>
-            <View style={styles.facultadSelectorHeader}>
-              <Ionicons name="school-outline" size={18} color="#e95a0c" />
-              <Text style={styles.facultadSelectorLabel}>
-                Dirigido a la facultad:
-              </Text>
-            </View>
-            
-            <TouchableOpacity
-              style={styles.facultadSelectorButton}
-              onPress={() => setShowFacultadModal(true)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.facultadSelectorButtonContent}>
-                <Ionicons name="business-outline" size={20} color="#e95a0c" />
-                <Text style={styles.facultadSelectorText} numberOfLines={1}>
-                  {facultadSeleccionada 
-                    ? facultades.find(f => f.facultad_id === facultadSeleccionada)?.nombre_facultad || 'Selecciona una facultad'
-                    : 'Selecciona una facultad'}
-                </Text>
-              </View>
-              <Ionicons name="chevron-down" size={20} color="#888" />
-            </TouchableOpacity>
-            
-            {facultadSeleccionada && (
-              <View style={styles.facultadSelectedHintContainer}>
-                <Ionicons name="checkmark-circle" size={16} color="#27ae60" />
-                <Text style={styles.facultadSelectedHint}>
-                  El evento será visible para estudiantes de esta facultad
-                </Text>
-              </View>
-            )}
-          </View>
-        )}
+        
 
         {segmentoObjetivo.publicoExterno && (
           <View style={styles.facultadSelectorContainer}>
