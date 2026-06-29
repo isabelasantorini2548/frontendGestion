@@ -667,7 +667,7 @@ const HomeAdministradorScreen = () => {
 
       if (Array.isArray(eventosRes.data) && eventosRes.data.length > 0) {
         const sorted = [...eventosRes.data].sort((a, b) =>
-          new Date(b.fechaevento || 0) - new Date(a.fechaevento || 0)
+          new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
         );
         setUltimoEvento(sorted[0]);
       }
