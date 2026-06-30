@@ -483,7 +483,20 @@ const checkTelegramStatus = useCallback(async () => {
       headers: { 'Authorization': `Bearer ${token}` },
     });
 
-    const hasTelegram = response.data.telegram_chat_id !== null;
+      console.log('📱 Perfil recibido:', response.data);
+    console.log('🔗 telegram_chat_id:', response.data.telegram_chat_id);
+    console.log('🔗 telegram_username:', response.data.telegram_username);
+
+    const hasTelegram = response.data.telegram_chat_id !== null && response.data.telegram_chat_id !== undefined && response.data.telegram_chat_id !== '';
+    
+     const chatId = response.data.telegram_chat_id;
+    const hasTelegram = chatId !== null && 
+                        chatId !== undefined && 
+                        chatId !== '' && 
+                        chatId !== 'null' &&
+                        chatId !== 'undefined';
+    
+    console.log('✅ Tiene Telegram vinculado:', hasTelegram);
     setIsTelegramLinked(hasTelegram);
     setTelegramUsername(response.data.telegram_username || '');
   } catch (error) {
