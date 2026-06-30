@@ -239,7 +239,7 @@ const EventosPendientes = () => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [userprofile, setUserprofile] = useState({ facultad: null, nombre: '', email: '' });
+  const [userprofile, setUserprofile] = useState({ facultad: null, nombre: '', email: '', role: null });
 
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
@@ -253,10 +253,16 @@ const EventosPendientes = () => {
 
       const responseP = await axios.get(`${API_BASE_URL}/profile`, {
         headers: { 'Authorization': `Bearer ${token}` }, timeout: 15000 });
+         const profileData = responseP.data;
+          console.log('📋 Profile data:', profileData); 
+          
+          const userRole = profileData.role || 'user'; 
+          console.log('🔑 Role del usuario:', userRole);
+
       setUserprofile({ facultad: responseP.data.facultad,
          nombre: responseP.data.nombre,
          email: responseP.data.email,
-        rol: responseP.data.rol });
+        role: userRole });
 
       const response = await axios.get(`${API_BASE_URL}/eventos/pendientes`, {
         headers: { 'Authorization': `Bearer ${token}` }, timeout: 15000 });
@@ -489,7 +495,7 @@ return (
         return (
           <PendingEventCard 
             event={item}
-            userRole={userprofile.rol}
+            userRole={userprofile.role}
             onView={handleView}
             onApprove={(e)=>handleAction(e,'aprobar')}
             onReject={openRejectModal}
