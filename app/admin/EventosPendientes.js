@@ -104,7 +104,8 @@ const deleteTokenAsync = async () => {
   } catch (e) { console.error("Error al eliminar token:", e); }
 };
 
-const PendingEventCard = ({ event, onView, onApprove, onReject, onMarkExpired, onMarkCancelled }) => {
+const PendingEventCard = ({ event,userRole, onView, onApprove, onReject, onMarkExpired, onMarkCancelled }) => {
+  
   const fechaEvento = event.fechaevento || event.date;
   const daysRemaining = getDaysRemaining(fechaEvento);
   const isAlreadyExpired = daysRemaining !== null && daysRemaining < 0;
@@ -123,10 +124,10 @@ const PendingEventCard = ({ event, onView, onApprove, onReject, onMarkExpired, o
     return { text:'Pendiente', icon:'time', bg:COLORS.pendingOrange, color:COLORS.white };
   };
   const badge = getStatusBadge();
+  const isAdmin = userRole === 'admin' || userRole === 'administrador';
 
   return (
     <View style={[styles.eventCard, isAlreadyExpired && styles.eventCardExpired]}>
-      {/* Header */}
       <View style={styles.eventHeader}>
         <View style={styles.titleContainer}>
           <Text style={[styles.eventTitle, isAlreadyExpired && styles.eventTitleExpired]} numberOfLines={2}>
@@ -142,7 +143,6 @@ const PendingEventCard = ({ event, onView, onApprove, onReject, onMarkExpired, o
         </View>
       </View>
 
-      {/* Alerta de vencimiento */}
       {(isUrgent || isAlreadyExpired) && (
         <View style={[styles.expiredAlert, { 
           backgroundColor: isAlreadyExpired ? '#FFEBEE' : '#FFF8E1',
@@ -158,14 +158,12 @@ const PendingEventCard = ({ event, onView, onApprove, onReject, onMarkExpired, o
         </View>
       )}
 
-      {/* Descripción */}
       {(event.descripcion || event.description) && (event.descripcion || event.description) !== 'Sin descripción' && (
         <Text style={styles.eventDescription} numberOfLines={2}>
           {event.descripcion || event.description}
         </Text>
       )}
 
-      {/* Info grid */}
       <View style={styles.infoGrid}>
         <View style={styles.infoRow}>
           <Ionicons name="calendar-outline" size={16} color={COLORS.grayText} />
@@ -193,8 +191,7 @@ const PendingEventCard = ({ event, onView, onApprove, onReject, onMarkExpired, o
           {formatSubmittedDate(event.submittedDate || event.createdAt)}
         </Text>
       </View>
-
-      {/* Botones de acción - SIEMPRE mostrar todos los botones excepto cuando está vencido */}
+      {isAdmin && (
       <View style={styles.actionButtonsContainer}>
         <TouchableOpacity style={[styles.actionButton, styles.viewButton]} onPress={() => onView(event)}>
           <Ionicons name="eye-outline" size={18} color={COLORS.blue} />
@@ -224,6 +221,15 @@ const PendingEventCard = ({ event, onView, onApprove, onReject, onMarkExpired, o
           </TouchableOpacity>
         )}
       </View>
+      )}
+       {!isAdmin && (
+        <View style={styles.actionButtonsContainer}>
+          <TouchableOpacity style={[styles.actionButton, styles.viewButton, { flex: 1 }]} onPress={() => onView(event)}>
+            <Ionicons name="eye-outline" size={18} color={COLORS.blue} />
+            <Text style={[styles.actionButtonText, { color: COLORS.blue }]}>Ver Detalles</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 };
@@ -247,7 +253,10 @@ const EventosPendientes = () => {
 
       const responseP = await axios.get(`${API_BASE_URL}/profile`, {
         headers: { 'Authorization': `Bearer ${token}` }, timeout: 15000 });
-      setUserprofile({ facultad: responseP.data.facultad, nombre: responseP.data.nombre, email: responseP.data.email });
+      setUserprofile({ facultad: responseP.data.facultad,
+         nombre: responseP.data.nombre,
+         email: responseP.data.email,
+        rol: responseP.data.rol });
 
       const response = await axios.get(`${API_BASE_URL}/eventos/pendientes`, {
         headers: { 'Authorization': `Bearer ${token}` }, timeout: 15000 });
@@ -480,6 +489,7 @@ return (
         return (
           <PendingEventCard 
             event={item}
+            userRole={userprofile.rol}
             onView={handleView}
             onApprove={(e)=>handleAction(e,'aprobar')}
             onReject={openRejectModal}
@@ -577,6 +587,7 @@ return (
 };
 
 const styles = StyleSheet.create({
+  archiveButton:{backgroundColor:COLORS.background,borderWidth:1,borderColor:COLORS.danger},
   container:{flex:1,backgroundColor:COLORS.background},
   loadingContainer:{flex:1,justifyContent:'center',alignItems:'center',backgroundColor:COLORS.background},
   loadingText:{marginTop:16,fontSize:16,color:COLORS.grayText,fontWeight:'500'},
