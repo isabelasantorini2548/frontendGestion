@@ -1190,7 +1190,7 @@ const handleActionPress = (action) => {
       <View style={styles.telegramModalContent}>
         <View style={styles.telegramModalHeader}>
           <View style={styles.telegramIconContainer}>
-            <Ionicons name="logo-telegram" size={48} color="#0088cc" />
+            <Ionicons name="send" size={48} color="#0088cc" />
           </View>
           <Text style={styles.telegramModalTitle}>
             {isTelegramLinked ? 'Telegram Vinculado ✓' : 'Vincular Telegram'}
