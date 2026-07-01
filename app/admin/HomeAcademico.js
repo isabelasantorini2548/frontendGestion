@@ -364,7 +364,7 @@ const NotificationsModal = ({ visible, onClose, notifications, markAsRead }) => 
       <View style={styles.notificationsModalContent}>
         <View style={styles.notificationsModalHeader}>
           <Text style={styles.notificationsModalTitle}>Notificaciones</Text>
-         <TouchableOpacity onPress={() => setIsChatOpen(false)} style={{ padding: 6 }}>
+         <TouchableOpacity onPress={onClose} style={{ padding: 6 }}>  // ✅ CORREGIDO
           <Ionicons name="close" size={24} color={COLORS.textSecondary} />
         </TouchableOpacity>
         </View>
