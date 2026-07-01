@@ -319,7 +319,7 @@ const MinimalHeader = ({ nombreUsuario, facultad, unreadCount, onNotificationPre
           {/* Botón de Telegram */}
           <TouchableOpacity onPress={onTelegramPress} style={styles.telegramBell}>
             <Ionicons 
-              name="logo-telegram" 
+              name="send" 
               size={24} 
               color={isTelegramLinked ? '#0088cc' : COLORS.textTertiary} 
             />
