@@ -1296,7 +1296,7 @@ const handleActionPress = (action) => {
           }
         }}
       >
-        <Ionicons name="logo-telegram" size={20} color={COLORS.white} />
+        <Ionicons name="send" size={20} color={COLORS.white} />
         <Text style={styles.telegramOpenButtonText}>
           Abrir Bot en Telegram
         </Text>
